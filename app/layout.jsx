@@ -2,13 +2,12 @@ import '../styles/globals.css';
 import { Footer } from '../components/footer';
 import { Header } from '../components/header';
 
-export const metadata = export const metadata = {
+export const metadata = {
     title: {
         template: '%s | Sgas Freeconomy',
         default: 'Sgas Freeconomy'
     },
     description: 'Sgas Freeconomy – piattaforma Next.js su Netlify'
-};
 };
 
 export default function RootLayout({ children }) {
