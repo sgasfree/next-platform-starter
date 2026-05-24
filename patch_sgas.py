@@ -399,6 +399,129 @@ patch('10f: remove updateNewsBadge',
 )
 
 # ══════════════════════════════════════════════════════════════════
+# PATCH 11 — RIMOZIONE GALLERIA FORNITORE
+# ══════════════════════════════════════════════════════════════════
+print('Patch 11: rimozione galleria fornitore...')
+
+# 11a: campo galleria nel modal fornForm()
+patch('11a: galleria field in fornForm',
+    '    <div class="field">\n'
+    '      <label>📸 Galleria foto (max 6)</label>\n'
+    '      <div id="m-fgalleria-preview" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">\n'
+    "        ${(f.galleria||[]).map((src,i)=>`<div style=\"position:relative;width:72px;height:72px;\">\n"
+    '          <img src="${src}" style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:2px solid var(--green-light);">\n'
+    '          <button type="button" onclick="_fornGalleria.splice(${i},1);_fornRefreshGalleria()" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:none;background:var(--danger,#e53935);color:#fff;font-size:.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;">✕</button>\n'
+    "        </div>`).join('')}\n"
+    '      </div>\n'
+    '      <label class="btn btn-secondary btn-sm" id="m-fgalleria-btn" style="cursor:pointer;display:inline-block;">📷 Aggiungi foto<input type="file" accept="image/*" multiple style="display:none;" onchange="_fornAddGalleria(event)"></label>\n'
+    '    </div>`;\n'
+    '}',
+    '    `;\n'
+    '}'
+)
+
+# 11b: _fornGalleria init in modalNewFornitore
+patch('11b: _fornGalleria in modalNewFornitore',
+    '  _fornLogo=null; _fornGalleria=[];\n',
+    '  _fornLogo=null;\n'
+)
+
+# 11c: _fornGalleria init in modalEditFornitore
+patch('11c: _fornGalleria in modalEditFornitore',
+    '  _fornLogo=f.logo||null; _fornGalleria=[...(f.galleria||[])];\n',
+    '  _fornLogo=f.logo||null;\n'
+)
+
+# 11d: galleria in saveFornitore data object
+patch('11d: galleria in saveFornitore',
+    '    galleria:_fornGalleria.length?[..._fornGalleria]:undefined,\n',
+    ''
+)
+
+# 11e: _fornGalleria variable + _fornRefreshGalleria + _fornAddGalleria functions
+patch('11e: _fornGalleria var + helper fns',
+    'let _fornLogo = null;\n'
+    'let _fornGalleria = [];\n'
+    '\n'
+    'function _fornRefreshGalleria(){\n'
+    '  const wrap=document.getElementById(\'m-fgalleria-preview\');\n'
+    '  if(!wrap) return;\n'
+    '  const btn=document.getElementById(\'m-fgalleria-btn\');\n'
+    "  wrap.innerHTML=_fornGalleria.map((src,i)=>`<div style=\"position:relative;width:72px;height:72px;\">\n"
+    '    <img src="${src}" style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:2px solid var(--green-light);">\n'
+    '    <button type="button" onclick="_fornGalleria.splice(${i},1);_fornRefreshGalleria()" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:none;background:var(--danger,#e53935);color:#fff;font-size:.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;">✕</button>\n'
+    "  </div>`).join('');\n"
+    "  if(btn) btn.style.display=_fornGalleria.length>=6?'none':'inline-block';\n"
+    '}\n'
+    '\n'
+    'function _fornAddGalleria(ev){\n'
+    '  const files=[...ev.target.files];\n'
+    '  const rimasti=6-_fornGalleria.length;\n'
+    "  if(!rimasti){toast('Massimo 6 foto galleria');return;}\n"
+    '  let loaded=0;\n'
+    '  files.slice(0,rimasti).forEach(file=>{\n'
+    "    if(file.size>3*1024*1024){toast('Foto troppo grande (max 3 MB)');return;}\n"
+    '    const reader=new FileReader();\n'
+    '    reader.onload=e=>{\n'
+    '      _fornGalleria.push(e.target.result);\n'
+    '      loaded++;\n'
+    '      if(loaded===Math.min(files.length,rimasti)) _fornRefreshGalleria();\n'
+    '    };\n'
+    '    reader.readAsDataURL(file);\n'
+    '  });\n'
+    '}',
+    'let _fornLogo = null;'
+)
+
+# 11f: openGalleriaFull function
+old_galleria_full = (
+    'function openGalleriaFull(galleria, startIdx){\n'
+    '  let idx=startIdx||0;\n'
+    '  function renderLightbox(){\n'
+    "    document.getElementById('galleria-lightbox').innerHTML=`\n"
+    '      <div style="position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;" onclick="this.remove()">\n'
+    '        <div style="position:relative;max-width:min(90vw,600px);width:100%;" onclick="event.stopPropagation()">\n'
+    '          <img src="${galleria[idx]}" style="width:100%;max-height:75vh;object-fit:contain;border-radius:14px;display:block;">\n'
+    '          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;gap:12px;">\n'
+    "            <button onclick=\"idx=(idx-1+galleria.length)%galleria.length;renderLightbox()\" style=\"background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:50%;width:40px;height:40px;font-size:1.2rem;cursor:pointer;\" ${galleria.length<=1?'disabled':''}>‹</button>\n"
+    '            <span style="color:rgba(255,255,255,.7);font-size:.82rem;">${idx+1} / ${galleria.length}</span>\n'
+    "            <button onclick=\"idx=(idx+1)%galleria.length;renderLightbox()\" style=\"background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:50%;width:40px;height:40px;font-size:1.2rem;cursor:pointer;\" ${galleria.length<=1?'disabled':''}>›</button>\n"
+    '          </div>\n'
+    '          <div style="text-align:center;margin-top:8px;">\n'
+    "            <button onclick=\"document.getElementById('galleria-lightbox').innerHTML=''\" style=\"background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:20px;padding:6px 20px;cursor:pointer;font-size:.82rem;\">✕ Chiudi</button>\n"
+    '          </div>\n'
+    '        </div>\n'
+    "        <div style=\"display:flex;gap:6px;margin-top:14px;overflow-x:auto;max-width:min(90vw,600px);padding-bottom:4px;\">\n"
+    "          ${galleria.map((src,i)=>`<img src=\"${src}\" onclick=\"idx=${i};renderLightbox()\" style=\"width:52px;height:52px;object-fit:cover;border-radius:8px;cursor:pointer;opacity:${i===idx?1:.45};border:2px solid ${i===idx?'var(--green)':'transparent'};flex-shrink:0;\">`).join('')}\n"
+    '        </div>\n'
+    '      </div>`;\n'
+    '  }\n'
+    "  let lb=document.getElementById('galleria-lightbox');\n"
+    "  if(!lb){lb=document.createElement('div');lb.id='galleria-lightbox';document.body.appendChild(lb);}\n"
+    '  renderLightbox();\n'
+    '}'
+)
+patch('11f: openGalleriaFull function', old_galleria_full, 'function openGalleriaFull(){ /* galleria rimossa */ }')
+
+# 11g: galleria display in openFornitore (socio view)
+patch('11g: galleria in openFornitore socio',
+    "\n      ${(f.galleria&&f.galleria.length)?`\n"
+    '      <div style="margin-top:14px;">\n'
+    '        <div style="font-size:.78rem;font-weight:800;color:var(--green-dark);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">📸 Galleria</div>\n'
+    '        <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;scrollbar-width:thin;">\n'
+    "          ${f.galleria.map((src,i)=>`<img src=\"${src}\" onclick=\"openGalleriaFull(${JSON.stringify(f.galleria)},${i})\" style=\"width:110px;height:110px;object-fit:cover;border-radius:12px;flex-shrink:0;cursor:pointer;border:2px solid var(--green-light);\">`).join('')}\n"
+    '        </div>\n'
+    '      </div>`:\'\'}',
+    ''
+)
+
+# 11h: galleria display in openFornitoreOspite (guest view)
+patch('11h: galleria in openFornitoreOspite',
+    "+((f.galleria&&f.galleria.length)?'<div style=\"margin-top:14px;\"><div style=\"font-size:.78rem;font-weight:800;color:var(--green-dark);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;\">📸 Galleria</div><div style=\"display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;scrollbar-width:thin;\">'+f.galleria.map(function(src,i){return '<img src=\"'+src+'\" onclick=\"openGalleriaFull('+JSON.stringify(f.galleria)+','+i+')\" style=\"width:110px;height:110px;object-fit:cover;border-radius:12px;flex-shrink:0;cursor:pointer;border:2px solid var(--green-light);\">';}).join('')+'</div></div>':'')",
+    ''
+)
+
+# ══════════════════════════════════════════════════════════════════
 # PATCH 9 — SUPABASE REAL-TIME SYNC MULTI-ADMIN
 # ══════════════════════════════════════════════════════════════════
 print('Patch 9: Supabase real-time multi-admin...')
