@@ -125,8 +125,10 @@ if idx_os == -1: idx_os = html.find("const OS_APP_ID=")
 if idx_os == -1: idx_os = html.find("const OS_APP_ID =")
 idx_end = html.find('}\n\nconst TG_ASSIST', idx_os if idx_os!=-1 else 0)
 if idx_os!=-1 and idx_end!=-1:
-    html = html[:idx_os] + html[idx_end+len('}\n\n'):]
-    ok.append('4: OneSignal block')
+    # Sostituisci il blocco OneSignal con stub sendPush no-op
+    stub = 'async function sendPush(){ /* OneSignal rimosso */ }\nfunction promptPushPermission(){ /* OneSignal rimosso */ }\n\n'
+    html = html[:idx_os] + stub + html[idx_end+len('}\n\n'):]
+    ok.append('4: OneSignal block + sendPush stub')
 else:
     print('  ⚠️  OneSignal block not found')
 
