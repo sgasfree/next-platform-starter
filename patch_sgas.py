@@ -309,6 +309,96 @@ patch('8g: setTimeout renderPremiAdmin call',
     '  setTimeout(renderPremiAdmin, 50);\n', '')
 
 # ══════════════════════════════════════════════════════════════════
+# PATCH 10 — CLEANUP RIFERIMENTI RESIDUI FEDELTÀ/NEWS
+# ══════════════════════════════════════════════════════════════════
+print('Patch 10: cleanup riferimenti residui...')
+
+# 10a: showSocioSection — rimuovi 'news' dall'array (panel rimosso)
+patch('10a: showSocioSection remove news',
+    "  ['catalogo','fornitore','cart','profilo','messaggi','news','prenotazioni','chisiamo'].forEach(s=>{",
+    "  ['catalogo','fornitore','cart','profilo','messaggi','prenotazioni','chisiamo'].forEach(s=>{"
+)
+
+# 10b: loadState — rimuovi DEFAULT_PREMI, S.news, newsLastSeen
+patch('10b: loadState remove premi/news',
+    "  if(!S.premi) S.premi=DEFAULT_PREMI.map(p=>({...p}));\n"
+    "  if(!S.news) S.news=[];\n"
+    "  if(!S.newsLastSeen) S.newsLastSeen={}; // {socioId: isoString}\n",
+    ""
+)
+
+# 10c: buildOrderTgMsg — rimuovi parametro punti e logica fedeltà
+patch('10c: buildOrderTgMsg remove punti',
+    "function buildOrderTgMsg(ord, forSocio, puntiGuadagnati=0){",
+    "function buildOrderTgMsg(ord, forSocio){"
+)
+patch('10c2: buildOrderTgMsg remove punti block',
+    "  if(forSocio){\n"
+    "    const puntiAttuali = getPuntiSocio(ord.socioId);\n"
+    "    const lv = getLivello(puntiAttuali);\n"
+    "    const puntiMsg = puntiGuadagnati>0 ? `\\n⭐ Punti guadagnati: +${puntiGuadagnati} (Totale: ${puntiAttuali}) ${lv.emoji} ${lv.nome}` : '';\n"
+    "    return `✅ <b>Ordine confermato!</b>\\n`+\n"
+    "      `📋 <b>${ord.id}</b>\\n`+\n"
+    "      `🗓 Raccolta: ${raccNome}\\n`+\n"
+    "      `👤 ${ord.socioNome} ${ord.socioCognome}\\n\\n`+\n"
+    "      `${righe}\\n`+\n"
+    "      `💶 <b>Totale: €${ord.totale.toFixed(2)}</b>`+puntiMsg+`\\n\\n`+\n"
+    "      `Grazie per il tuo ordine!`;",
+    "  if(forSocio){\n"
+    "    return `✅ <b>Ordine confermato!</b>\\n`+\n"
+    "      `📋 <b>${ord.id}</b>\\n`+\n"
+    "      `🗓 Raccolta: ${raccNome}\\n`+\n"
+    "      `👤 ${ord.socioNome} ${ord.socioCognome}\\n\\n`+\n"
+    "      `${righe}\\n`+\n"
+    "      `💶 <b>Totale: €${ord.totale.toFixed(2)}</b>\\n\\n`+\n"
+    "      `Grazie per il tuo ordine!`;"
+)
+
+# 10d: confermaOrdine — rimuovi calcolo punti fedeltà
+patch('10d: confermaOrdine remove punti',
+    "  // Aggiungi punti fedeltà al socio\n"
+    "  const puntiGuadagnati = calcolaPuntiOrdine(total);\n"
+    "  const socioFedel = S.soci.find(x=>x.id===currentUser.id);\n"
+    "  if(socioFedel){\n"
+    "    socioFedel.punti = (socioFedel.punti||0) + puntiGuadagnati;\n"
+    "    currentUser.punti = socioFedel.punti;\n"
+    "  }\n",
+    ""
+)
+patch('10d2: confermaOrdine remove puntiGuadagnati in sendTelegram',
+    "  if(socioChatId) sendTelegramMsg(socioChatId, buildOrderTgMsg(ord, true, puntiGuadagnati));",
+    "  if(socioChatId) sendTelegramMsg(socioChatId, buildOrderTgMsg(ord, true));"
+)
+
+# 10e: export — rimuovi newsLastSeen
+patch('10e: export remove newsLastSeen',
+    "    newsLastSeen: S.newsLastSeen || {},\n", "")
+
+# 10f: rimuovi updateNewsBadge (riferisce news-badge-socio rimosso)
+patch('10f: remove updateNewsBadge',
+    "function updateNewsBadge(){\n"
+    "  if(!currentUser||currentUser.type!=='socio') return;\n"
+    "  const b=document.getElementById('news-badge-socio');\n"
+    "  if(!b) return;\n"
+    "  if(!S.news||!S.news.length){b.style.display='none';return;}\n"
+    "  // Count news published after the socio last opened the news section\n"
+    "  const lastSeen=S.newsLastSeen&&S.newsLastSeen[currentUser.id]\n"
+    "    ? new Date(S.newsLastSeen[currentUser.id])\n"
+    "    : new Date(0);\n"
+    "  const unread=S.news.filter(n=>{\n"
+    "    try{ return new Date(n.data) > lastSeen; }catch(e){ return true; }\n"
+    "  }).length;\n"
+    "  if(unread>0){\n"
+    "    b.textContent=unread>99?'99+':String(unread);\n"
+    "    b.style.display='flex';\n"
+    "  } else {\n"
+    "    b.style.display='none';\n"
+    "  }\n"
+    "}",
+    "function updateNewsBadge(){ /* rimossa sezione news */ }"
+)
+
+# ══════════════════════════════════════════════════════════════════
 # PATCH 9 — SUPABASE REAL-TIME SYNC MULTI-ADMIN
 # ══════════════════════════════════════════════════════════════════
 print('Patch 9: Supabase real-time multi-admin...')
