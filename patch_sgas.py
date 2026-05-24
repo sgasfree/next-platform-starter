@@ -279,6 +279,35 @@ patch('8e: news/premi from export',
     "    news:      S.news      || [],\n"
     "    premi:     S.premi     || [],\n", '')
 
+# 8f: fedeltà card nel template JS di renderSettings() — usa \${ per template literal
+patch('8f: fedeltà card JS renderSettings',
+    '    <div class="card" style="margin-bottom:16px;">\n'
+    '      <h3 style="font-family:var(--font-serif,serif);margin-bottom:8px;">⭐ Programma Fedeltà — Configurazione</h3>\n'
+    '      <p style="font-size:.82rem;color:var(--text-light);margin-bottom:12px;">Configura i punti per euro speso e gestisci i premi riscattabili dai soci.</p>\n'
+    '      <div class="field">\n'
+    '        <label>Punti per ogni €1 speso</label>\n'
+    '        <input id="s-punti-rate" type="number" step="0.01" min="0.01" max="10" value="\\${S.config.puntiPerEuro||0.2}" style="max-width:120px;">\n'
+    '        <div style="font-size:.75rem;color:var(--text-light);margin-top:4px;">Es: 0.2 = 1 punto ogni €5 · 1 = 1 punto ogni €1 · 0.1 = 1 punto ogni €10</div>\n'
+    '      </div>\n'
+    '      <button class="btn btn-primary btn-sm" onclick="savePuntiConfig()" style="margin-bottom:18px;">💾 Salva configurazione punti</button>\n'
+    '      <div style="font-size:.8rem;font-weight:800;color:var(--green-dark);margin-bottom:10px;">🎁 Premi Riscattabili</div>\n'
+    '      <div id="admin-premi-list"></div>\n'
+    '      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">\n'
+    '        <button class="btn btn-primary btn-sm" onclick="modalNewPremio()">➕ Nuovo Premio</button>\n'
+    '      </div>\n'
+    '      <div style="font-size:.8rem;font-weight:800;color:var(--green-dark);margin:18px 0 10px;">📊 Riscatti Soci</div>\n'
+    '      <div id="admin-riscatti-list"></div>\n'
+    '    </div>\n'
+    '    <div class="card">\n'
+    '      <h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">💾 Backup & Ripristino</h3>',
+    '    <div class="card">\n'
+    '      <h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">💾 Backup & Ripristino</h3>'
+)
+
+# 8g: setTimeout(renderPremiAdmin) call in renderSettings
+patch('8g: setTimeout renderPremiAdmin call',
+    '  setTimeout(renderPremiAdmin, 50);\n', '')
+
 # ══════════════════════════════════════════════════════════════════
 # PATCH 9 — SUPABASE REAL-TIME SYNC MULTI-ADMIN
 # ══════════════════════════════════════════════════════════════════
