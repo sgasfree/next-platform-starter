@@ -817,6 +817,17 @@ patch('9g: saveSupabaseConfig + testSupabaseConnection',
     new_toggle_prefix + old_toggle)
 
 # ══════════════════════════════════════════════════════════════════
+# PATCH 12b — ICONA MANCANTE ASSISTENZA SOCIO
+# ══════════════════════════════════════════════════════════════════
+print('Patch 12b: icona assistenza socio...')
+patch('12b: icona assistenza socio',
+    "          <span class=\"assist-ico\"></span>\n"
+    "          <div><div>Assistenza Socio</div>",
+    "          <span class=\"assist-ico\">🪪</span>\n"
+    "          <div><div>Assistenza Socio</div>"
+)
+
+# ══════════════════════════════════════════════════════════════════
 # PATCH 12 — CAMPI CONTATTO FORNITORE NEL FORM ADMIN
 # ══════════════════════════════════════════════════════════════════
 print('Patch 12: campi contatto fornitore nel form admin...')
