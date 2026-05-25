@@ -106,6 +106,24 @@ patch('2: init _embVer',
     '      _cur.premi=_emb.premi;\n'
     '      _cur._embVer=_emb._embVer;\n'
     '    }\n'
+    '    // Deduplicazione fornitori: rimuovi doppi per nome, preferisci UUID\n'
+    '    if(_cur.fornitori&&_cur.fornitori.length>20){\n'
+    '      var _seen={};\n'
+    '      _cur.fornitori=_cur.fornitori.filter(function(f){\n'
+    '        var k=(f.nome||"").toLowerCase().trim();\n'
+    '        if(_seen[k])return false;\n'
+    '        _seen[k]=true;return true;\n'
+    '      });\n'
+    '    }\n'
+    '    // Deduplicazione prodotti: rimuovi doppi per nome+fornitorId\n'
+    '    if(_cur.prodotti&&_cur.prodotti.length>600){\n'
+    '      var _seenP={};\n'
+    '      _cur.prodotti=_cur.prodotti.filter(function(p){\n'
+    '        var k=(p.nome||"").toLowerCase().trim()+"_"+(p.fornitorId||"");\n'
+    '        if(_seenP[k])return false;\n'
+    '        _seenP[k]=true;return true;\n'
+    '      });\n'
+    '    }\n'
     '    localStorage.setItem("sgas_state",JSON.stringify(_cur));\n'
     '  }else{\n'
     '    localStorage.setItem("sgas_state",JSON.stringify(_emb));\n'
@@ -601,7 +619,10 @@ patch('9c: loadFromSupabase preserve logo+creds',
     "    S.config.supabaseKey    = _prevConf.supabaseKey||'';\n"
     "    if(_prevConf.logoData)   S.config.logoData   = _prevConf.logoData;\n"
     "    if(_prevConf.logoBase64) S.config.logoBase64 = _prevConf.logoBase64;\n"
-    "    if(!S.cart) S.cart = {raccoltaId:'', items:[]};"
+    "    if(!S.cart) S.cart = {raccoltaId:'', items:[]};\n"
+    "    // Deduplicazione dopo caricamento Supabase\n"
+    "    if(S.fornitori){ const _seen={}; S.fornitori=S.fornitori.filter(f=>{ const k=(f.nome||'').toLowerCase().trim(); if(_seen[k])return false; _seen[k]=true; return true; }); }\n"
+    "    if(S.prodotti){ const _seenP={}; S.prodotti=S.prodotti.filter(p=>{ const k=(p.nome||'').toLowerCase().trim()+'_'+(p.fornitorId||''); if(_seenP[k])return false; _seenP[k]=true; return true; }); }"
 )
 
 # 9d: initSupabase — add real-time subscription
