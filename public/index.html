@@ -22882,7 +22882,7 @@ function submitOrder(){
   S.cart.items=[];
   S.cart.raccoltaId='';
   saveState(); updateCartBadge();
-  exportOrderExcel(ord);
+  exportOrderWord(ord);
   sendOrderEmail(ord);
   sendPush('📦 Ordine confermato!', 'Il tuo ordine '+ord.id+' è stato ricevuto — Totale: €'+ord.totale.toFixed(2), window.location.origin);
   // Notifiche Telegram
@@ -22894,12 +22894,12 @@ function submitOrder(){
   if(adminChatId2) sendTelegramMsg(adminChatId2, buildOrderTgMsg(ord, false));
   if(adminChatId3) sendTelegramMsg(adminChatId3, buildOrderTgMsg(ord, false));
   if(socioChatId) sendTelegramMsg(socioChatId, buildOrderTgMsg(ord, true));
-  toast('✅ Ordine inviato! Excel scaricato.');
+  toast('✅ Ordine inviato! Documento Word scaricato.');
   backToCatalogo();
 }
 
 function exportOrderExcel(ord){
-  // Simple CSV download as fallback (SheetJS not always available in file mode)
+  // mantenuta per compatibilità admin download CSV
   const rows=[
     ['ORDINE',ord.id,'','','',''],
     ['Data',new Date(ord.data).toLocaleDateString('it-IT'),'','','',''],
@@ -22921,6 +22921,90 @@ function exportOrderExcel(ord){
   a.href=URL.createObjectURL(blob);
   a.download=`${ord.id}_${(ord.socioNome||'').replace(/\s/g,'_')}.csv`;
   a.click();
+}
+
+function exportOrderWord(ord){
+  const gasName = S.config.gasName||'S-GAS Freeconomy';
+  const racc = S.raccolte.find(r=>r.id===ord.raccoltaId);
+  const socio = S.soci.find(s=>s.id===ord.socioId);
+  const tessera = socio?socio.tessera:'';
+  // colonne: Codice | Prodotto | Fornitore | Qty | €/unit | Totale
+  const colW=[1200,3200,2400,700,900,1100];
+  const hdr=c=>new TableCell({shading:{fill:'1B5E20'},margins:{top:60,bottom:60,left:80,right:80},
+    children:[new Paragraph({alignment:AlignmentType.CENTER,
+      children:[new TextRun({text:c,bold:true,color:'FFFFFF',size:18,font:'Arial'})]})]});
+  const cel=(c,align=AlignmentType.LEFT)=>new TableCell({margins:{top:50,bottom:50,left:80,right:80},
+    children:[new Paragraph({alignment:align,
+      children:[new TextRun({text:String(c),size:18,font:'Arial'})]})]});
+  const headerRow=new TableRow({children:[
+    hdr('Codice'),hdr('Prodotto'),hdr('Fornitore'),hdr('Qta'),hdr('€/unit'),hdr('Totale')
+  ]});
+  const dataRows=ord.items.map((i,idx)=>{
+    const p=S.prodotti.find(x=>x.id===i.prodottoId);
+    const f=p?S.fornitori.find(x=>x.id===p.fornitorId):null;
+    const bg=idx%2===0?'FFFFFF':'F1F8E9';
+    const mkCell=(c,align=AlignmentType.LEFT)=>new TableCell({
+      shading:{fill:bg},margins:{top:50,bottom:50,left:80,right:80},
+      children:[new Paragraph({alignment:align,children:[new TextRun({text:String(c),size:18,font:'Arial'})]})]});
+    return new TableRow({children:[
+      mkCell(p?(p.codice||''):''),
+      mkCell(p?p.nome:'?'),
+      mkCell(f?f.nome:'?'),
+      mkCell(i.qty,AlignmentType.CENTER),
+      mkCell(p?'€'+p.prezzo.toFixed(2):'',AlignmentType.RIGHT),
+      mkCell(p?'€'+(p.prezzo*i.qty).toFixed(2):'',AlignmentType.RIGHT)
+    ]});
+  });
+  const totalRow=new TableRow({children:[
+    new TableCell({columnSpan:5,shading:{fill:'E8F5E9'},margins:{top:60,bottom:60,left:80,right:80},
+      children:[new Paragraph({alignment:AlignmentType.RIGHT,
+        children:[new TextRun({text:'TOTALE ORDINE',bold:true,size:20,font:'Arial'})]})]  }),
+    new TableCell({shading:{fill:'E8F5E9'},margins:{top:60,bottom:60,left:80,right:80},
+      children:[new Paragraph({alignment:AlignmentType.RIGHT,
+        children:[new TextRun({text:'€ '+ord.totale.toFixed(2),bold:true,size:20,font:'Arial',color:'1B5E20'})]})]})
+  ]});
+  const mainTable=new Table({width:{size:9620,type:WidthType.DXA},columnWidths:colW,
+    rows:[headerRow,...dataRows,totalRow]});
+  const children=[];
+  const logoData=S.config.logoBase64||S.config.logoData;
+  if(logoData&&logoData.startsWith('data:')){
+    try{
+      const b64=logoData.split(',')[1];
+      const imgType=logoData.includes('png')?'png':'jpg';
+      const bin=atob(b64);const bytes=new Uint8Array(bin.length);
+      for(let j=0;j<bin.length;j++) bytes[j]=bin.charCodeAt(j);
+      children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:120},
+        children:[new ImageRun({data:bytes,transformation:{width:70,height:70},type:imgType})]}));
+    }catch(e){}
+  }
+  children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:60},
+    children:[new TextRun({text:gasName,bold:true,size:36,font:'Arial',color:'1B5E20'})]}));
+  children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:60},
+    children:[new TextRun({text:'Conferma Ordine',size:26,font:'Arial',color:'2E7D32'})]}));
+  children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:40},
+    children:[new TextRun({text:'N° Ordine: '+ord.id,bold:true,size:22,font:'Arial'})]}));
+  children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:40},
+    children:[new TextRun({text:'Data: '+new Date(ord.data).toLocaleDateString('it-IT'),size:22,font:'Arial'})]}));
+  children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:40},
+    children:[new TextRun({text:'Raccolta: '+(racc?racc.nome:ord.raccoltaId),size:22,font:'Arial'})]}));
+  children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:40},
+    children:[new TextRun({text:'Socio: '+ord.socioNome+' '+ord.socioCognome+(tessera?' — Tessera: '+tessera:''),size:22,font:'Arial'})]}));
+  children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:280},
+    children:[new TextRun({text:'Cellulare: '+(ord.socioCellulare||'—'),size:22,font:'Arial'})]}));
+  children.push(mainTable);
+  children.push(new Paragraph({spacing:{before:200},
+    children:[new TextRun({text:'Grazie per il tuo ordine! Riceverai conferma via Telegram.',size:18,font:'Arial',color:'555555',italics:true})]}));
+  const doc=new Document({sections:[{
+    properties:{page:{size:{width:11906,height:16838},margin:{top:1134,right:1134,bottom:1134,left:1134}}},
+    children
+  }]});
+  Packer.toBlob(doc).then(blob=>{
+    const fname=ord.id+'_'+(ord.socioNome||'').replace(/\s/g,'_')+'.docx';
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=fname;a.click();
+    URL.revokeObjectURL(url);
+  }).catch(e=>{console.error(e);toast('⚠️ Word non generato, riprova');});
 }
 
 // ════════════════════ PROFILO ════════════════════
