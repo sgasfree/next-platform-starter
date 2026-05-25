@@ -22882,7 +22882,7 @@ function submitOrder(){
   S.cart.items=[];
   S.cart.raccoltaId='';
   saveState(); updateCartBadge();
-  exportOrderWord(ord);
+  try{ exportOrderWord(ord); }catch(e){ console.warn('Word gen error:',e); }
   sendOrderEmail(ord);
   sendPush('📦 Ordine confermato!', 'Il tuo ordine '+ord.id+' è stato ricevuto — Totale: €'+ord.totale.toFixed(2), window.location.origin);
   // Notifiche Telegram
@@ -22924,6 +22924,9 @@ function exportOrderExcel(ord){
 }
 
 function exportOrderWord(ord){
+  if(!window.docx||!window.docx.Document){ console.warn('docx library not ready'); return; }
+  const {Document,Packer,Paragraph,TextRun,Table,TableRow,TableCell,
+         AlignmentType,WidthType,ImageRun} = window.docx;
   const gasName = S.config.gasName||'S-GAS Freeconomy';
   const racc = S.raccolte.find(r=>r.id===ord.raccoltaId);
   const socio = S.soci.find(s=>s.id===ord.socioId);

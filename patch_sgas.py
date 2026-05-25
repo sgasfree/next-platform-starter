@@ -1029,6 +1029,25 @@ patch('13c: toast Word in submitOrder',
     "  toast('✅ Ordine inviato! Documento Word scaricato.');"
 )
 
+# 13d: wrap exportOrderWord in try-catch in submitOrder so order always confirms
+patch('13d: try-catch exportOrderWord in submitOrder',
+    "  exportOrderWord(ord);\n"
+    "  sendOrderEmail(ord);",
+    "  try{ exportOrderWord(ord); }catch(e){ console.warn('Word gen error:',e); }\n"
+    "  sendOrderEmail(ord);"
+)
+
+# 13e: fix exportOrderWord — check window.docx and destructure before use
+patch('13e: fix exportOrderWord window.docx destructuring',
+    "function exportOrderWord(ord){\n"
+    "  const gasName = S.config.gasName||'S-GAS Freeconomy';\n",
+    "function exportOrderWord(ord){\n"
+    "  if(!window.docx||!window.docx.Document){ console.warn('docx library not ready'); return; }\n"
+    "  const {Document,Packer,Paragraph,TextRun,Table,TableRow,TableCell,\n"
+    "         AlignmentType,WidthType,ImageRun} = window.docx;\n"
+    "  const gasName = S.config.gasName||'S-GAS Freeconomy';\n"
+)
+
 # ══════════════════════════════════════════════════════════════════
 # WRITE
 # ══════════════════════════════════════════════════════════════════
