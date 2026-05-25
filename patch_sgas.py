@@ -817,6 +817,50 @@ patch('9g: saveSupabaseConfig + testSupabaseConnection',
     new_toggle_prefix + old_toggle)
 
 # ══════════════════════════════════════════════════════════════════
+# PATCH 12 — CAMPI CONTATTO FORNITORE NEL FORM ADMIN
+# ══════════════════════════════════════════════════════════════════
+print('Patch 12: campi contatto fornitore nel form admin...')
+
+# 12a: aggiungi campi contatto in fornForm (dopo il campo Vision)
+patch('12a: campi contatto in fornForm',
+    "    <div class=\"field\"><label>Vision / Frase ispiratrice</label><input id=\"m-fvis\" type=\"text\" value=\"${f.vision||''}\" placeholder=\"La nostra filosofia...\"></div>\n"
+    "    `;\n"
+    "}",
+    "    <div class=\"field\"><label>Vision / Frase ispiratrice</label><input id=\"m-fvis\" type=\"text\" value=\"${f.vision||''}\" placeholder=\"La nostra filosofia...\"></div>\n"
+    "    <div class=\"field\" style=\"margin-top:16px;border-top:1px solid var(--green-light);padding-top:14px;\">\n"
+    "      <label style=\"display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:700;\">\n"
+    "        <input type=\"checkbox\" id=\"m-fcontatto\" ${f.contattodiretto?'checked':''} onchange=\"document.getElementById('m-fcontatto-fields').style.display=this.checked?'block':'none'\" style=\"width:18px;height:18px;\">\n"
+    "        <span>📞 Contatto diretto (fornitore servizi)</span>\n"
+    "      </label>\n"
+    "    </div>\n"
+    "    <div id=\"m-fcontatto-fields\" style=\"display:${f.contattodiretto?'block':'none'}\">\n"
+    "      <div class=\"field\"><label>Nome referente</label><input id=\"m-fnome-contatto\" type=\"text\" value=\"${f.nomeContatto||''}\" placeholder=\"es. Mario Rossi\"></div>\n"
+    "      <div class=\"field\"><label>Telefono</label><input id=\"m-ftel\" type=\"tel\" value=\"${f.telefono||''}\" placeholder=\"es. 3401234567\"></div>\n"
+    "      <div class=\"field\"><label>WhatsApp <span style=\"font-weight:400;font-size:.78rem;\">(lascia vuoto se uguale al tel.)</span></label><input id=\"m-fwa\" type=\"tel\" value=\"${f.whatsapp||''}\" placeholder=\"es. 3401234567\"></div>\n"
+    "      <div class=\"field\"><label>Email contatto</label><input id=\"m-femail-contatto\" type=\"email\" value=\"${f.emailContatto||''}\" placeholder=\"es. info@fornitore.it\"></div>\n"
+    "      <div class=\"field\"><label>Indirizzo</label><input id=\"m-findirizzo\" type=\"text\" value=\"${f.indirizzoContatto||''}\" placeholder=\"es. Via Roma 1, Milano\"></div>\n"
+    "    </div>\n"
+    "    `;\n"
+    "}"
+)
+
+# 12b: salva i campi contatto in saveFornitore
+patch('12b: salva campi contatto in saveFornitore',
+    "    logo:logoVal||null,\n"
+    "    attivo:true\n"
+    "  };",
+    "    logo:logoVal||null,\n"
+    "    attivo:true,\n"
+    "    contattodiretto:document.getElementById('m-fcontatto')?.checked||false,\n"
+    "    nomeContatto:document.getElementById('m-fnome-contatto')?.value.trim()||null,\n"
+    "    telefono:document.getElementById('m-ftel')?.value.trim()||null,\n"
+    "    whatsapp:document.getElementById('m-fwa')?.value.trim()||null,\n"
+    "    emailContatto:document.getElementById('m-femail-contatto')?.value.trim()||null,\n"
+    "    indirizzoContatto:document.getElementById('m-findirizzo')?.value.trim()||null\n"
+    "  };"
+)
+
+# ══════════════════════════════════════════════════════════════════
 # WRITE
 # ══════════════════════════════════════════════════════════════════
 print('\nWriting output...')
