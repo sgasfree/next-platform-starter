@@ -23752,16 +23752,86 @@ function drawTessera(s){
   // Telegram circle
   ctx.fillStyle='#29a8e0'; ctx.beginPath(); ctx.arc(56,H-38,13,0,Math.PI*2); ctx.fill();
   ctx.fillStyle='#fff'; ctx.font='bold 13px Arial'; ctx.textAlign='center'; ctx.fillText('>',56,H-34);
-  // SGAS title
-  ctx.fillStyle='#1a3a8c'; ctx.font='bold 54px Arial'; ctx.textAlign='center';
-  ctx.fillText('S·GAS',W*0.58,102);
-  // Subtitle
-  ctx.fillStyle='#1a3a8c'; ctx.font='bold 12.5px Arial'; ctx.textAlign='center';
-  ctx.fillText('SVILUPPO GRUPPO ACQUISTO SOLIDALE',W*0.58,128);
-  // Categories
-  ctx.fillStyle='#2a5fa0'; ctx.font='bold 11px Arial'; ctx.textAlign='center';
-  ctx.fillText('ALIMENTARI   |   COSMETICA   |   SERVIZI   |   ARTIGIANATO',W*0.58,152);
+  // SGAS title — measure parts to center the whole logo
+  {
+    const cx = W * 0.55;
+    ctx.font = 'bold 54px Arial';
+    const wS   = ctx.measureText('S').width;
+    const wDot = ctx.measureText('·').width;
+    const wGAS = ctx.measureText('GAS').width;
+    const totalW = wS + wDot + wGAS;
+    let tx = cx - totalW / 2;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#1a3a8c'; ctx.fillText('S', tx, 102); tx += wS;
+    ctx.fillStyle = '#e03020'; ctx.fillText('·', tx, 102); tx += wDot;
+    ctx.fillStyle = '#1a3a8c'; ctx.fillText('GAS', tx, 102);
+    ctx.textBaseline = 'alphabetic';
+    // People icon — simplified colored figures to the right of the title
+    const ix = cx + totalW / 2 + 18;
+    const iy = 72;
+    const figColors = ['#e03020','#f5a623','#5ab94b','#2980b9','#8e44ad','#16a085'];
+    const angles = [0, 60, 120, 180, 240, 300];
+    const R = 24; // orbit radius
+    angles.forEach((a, i) => {
+      const rad = a * Math.PI / 180;
+      const fx = ix + R * Math.cos(rad);
+      const fy = iy + R * Math.sin(rad);
+      ctx.fillStyle = figColors[i];
+      ctx.beginPath(); ctx.arc(fx, fy, 5.5, 0, Math.PI * 2); ctx.fill();
+      // tiny body line
+      ctx.strokeStyle = figColors[i]; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(fx, fy + 5.5); ctx.lineTo(fx, fy + 13); ctx.stroke();
+    });
+    ctx.textAlign = 'center';
+  }
+  // Subtitle — small-caps effect: first letter larger per word
+  {
+    const subtitleWords = ['Sviluppo','Gruppo','Acquisto','Solidale'];
+    const bigSize = 15, smallSize = 11;
+    ctx.textBaseline = 'alphabetic';
+    // measure total width
+    let totalW = 0;
+    const sep = '  ';
+    subtitleWords.forEach((w, i) => {
+      ctx.font = `bold ${bigSize}px Arial`;
+      totalW += ctx.measureText(w[0]).width;
+      ctx.font = `bold ${smallSize}px Arial`;
+      totalW += ctx.measureText(w.slice(1).toUpperCase()).width;
+      if (i < subtitleWords.length - 1) totalW += ctx.measureText(sep).width;
+    });
+    let tx = W * 0.55 - totalW / 2;
+    subtitleWords.forEach((w, i) => {
+      ctx.fillStyle = '#1a3a8c';
+      ctx.font = `bold ${bigSize}px Arial`; ctx.textAlign = 'left';
+      ctx.fillText(w[0], tx, 128); tx += ctx.measureText(w[0]).width;
+      ctx.font = `bold ${smallSize}px Arial`;
+      const rest = w.slice(1).toUpperCase();
+      ctx.fillText(rest, tx, 128); tx += ctx.measureText(rest).width;
+      if (i < subtitleWords.length - 1) { tx += ctx.measureText(sep).width; }
+    });
+    ctx.textAlign = 'center';
+  }
+  // Categories with colored pipes
+  {
+    const parts = ['ALIMENTARI','|','COSMETICA','|','SERVIZI','|','ARTIGIANATO'];
+    const gap = 10;
+    ctx.font = 'bold 11px Arial'; ctx.textBaseline = 'alphabetic';
+    let totalW = 0;
+    parts.forEach((p, i) => {
+      totalW += ctx.measureText(p).width;
+      if (i < parts.length - 1) totalW += gap;
+    });
+    let tx = W * 0.55 - totalW / 2;
+    parts.forEach((p, i) => {
+      ctx.fillStyle = p === '|' ? '#5aaa42' : '#2a5fa0';
+      ctx.textAlign = 'left';
+      ctx.fillText(p, tx, 152);
+      tx += ctx.measureText(p).width + (i < parts.length - 1 ? gap : 0);
+    });
+    ctx.textAlign = 'center';
+  }
   // Divider
+  ctx.textBaseline='alphabetic'; ctx.textAlign='left';
   ctx.strokeStyle='rgba(80,140,60,0.35)'; ctx.lineWidth=1.2;
   ctx.beginPath(); ctx.moveTo(128,168); ctx.lineTo(W-18,168); ctx.stroke();
   // Fields
