@@ -23,8 +23,14 @@ try{
       _cur.premi=_emb.premi;
       _cur._embVer=_emb._embVer;
     }
-    // Deduplicazione fornitori: rimuovi doppi per nome, preferisci UUID
-    if(_cur.fornitori&&_cur.fornitori.length>20){
+    // Deduplicazione fornitori: rimuovi doppi per id poi per nome
+    if(_cur.fornitori&&_cur.fornitori.length>0){
+      var _seenId={};
+      _cur.fornitori=_cur.fornitori.filter(function(f){
+        if(!f.id)return false;
+        if(_seenId[f.id])return false;
+        _seenId[f.id]=true;return true;
+      });
       var _seen={};
       _cur.fornitori=_cur.fornitori.filter(function(f){
         var k=(f.nome||"").toLowerCase().trim();
@@ -32,8 +38,14 @@ try{
         _seen[k]=true;return true;
       });
     }
-    // Deduplicazione prodotti: rimuovi doppi per nome+fornitorId
-    if(_cur.prodotti&&_cur.prodotti.length>600){
+    // Deduplicazione prodotti: rimuovi doppi per id poi per nome+fornitorId
+    if(_cur.prodotti&&_cur.prodotti.length>0){
+      var _seenPId={};
+      _cur.prodotti=_cur.prodotti.filter(function(p){
+        if(!p.id)return false;
+        if(_seenPId[p.id])return false;
+        _seenPId[p.id]=true;return true;
+      });
       var _seenP={};
       _cur.prodotti=_cur.prodotti.filter(function(p){
         var k=(p.nome||"").toLowerCase().trim()+"_"+(p.fornitorId||"");
@@ -23823,80 +23835,101 @@ function drawTessera(s){
   // Telegram circle
   ctx.fillStyle='#29a8e0'; ctx.beginPath(); ctx.arc(56,H-38,13,0,Math.PI*2); ctx.fill();
   ctx.fillStyle='#fff'; ctx.font='bold 13px Arial'; ctx.textAlign='center'; ctx.fillText('>',56,H-34);
-  // SGAS title — measure parts to center the whole logo
+  // ── SGAS Logo ──
   {
-    const cx = W * 0.55;
-    ctx.font = 'bold 54px Arial';
-    const wS   = ctx.measureText('S').width;
-    const wDot = ctx.measureText('·').width;
-    const wGAS = ctx.measureText('GAS').width;
-    const totalW = wS + wDot + wGAS;
-    let tx = cx - totalW / 2;
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    ctx.fillStyle = '#1a3a8c'; ctx.fillText('S', tx, 102); tx += wS;
-    ctx.fillStyle = '#e03020'; ctx.fillText('·', tx, 102); tx += wDot;
-    ctx.fillStyle = '#1a3a8c'; ctx.fillText('GAS', tx, 102);
+    const cx = W * 0.56;
+    const logoY = 96;
+    ctx.font = 'bold 58px Arial';
     ctx.textBaseline = 'alphabetic';
-    // People icon — simplified colored figures to the right of the title
-    const ix = cx + totalW / 2 + 18;
-    const iy = 72;
-    const figColors = ['#e03020','#f5a623','#5ab94b','#2980b9','#8e44ad','#16a085'];
-    const angles = [0, 60, 120, 180, 240, 300];
-    const R = 24; // orbit radius
-    angles.forEach((a, i) => {
-      const rad = a * Math.PI / 180;
-      const fx = ix + R * Math.cos(rad);
-      const fy = iy + R * Math.sin(rad);
-      ctx.fillStyle = figColors[i];
-      ctx.beginPath(); ctx.arc(fx, fy, 5.5, 0, Math.PI * 2); ctx.fill();
-      // tiny body line
-      ctx.strokeStyle = figColors[i]; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(fx, fy + 5.5); ctx.lineTo(fx, fy + 13); ctx.stroke();
-    });
-    ctx.textAlign = 'center';
+    const wS   = ctx.measureText('S').width;
+    const wGAS = ctx.measureText('GAS').width;
+    const dotR  = 7; // raggio cerchio rosso
+    const dotGap = 6; // spazio ai lati del cerchio
+    const totalLogoW = wS + dotGap + dotR*2 + dotGap + wGAS;
+    let tx = cx - totalLogoW / 2;
+    // "S"
+    ctx.fillStyle = '#1a3a8c'; ctx.textAlign = 'left';
+    ctx.fillText('S', tx, logoY); tx += wS + dotGap;
+    // Cerchio rosso pieno (dot del logo)
+    ctx.fillStyle = '#d42b20';
+    ctx.beginPath(); ctx.arc(tx + dotR, logoY - 22, dotR, 0, Math.PI*2); ctx.fill();
+    tx += dotR*2 + dotGap;
+    // "GAS"
+    ctx.fillStyle = '#1a3a8c';
+    ctx.fillText('GAS', tx, logoY);
+    // ── Icona persone (a destra del testo) ──
+    const ix = cx + totalLogoW / 2 + 22;
+    const iy = logoY - 28;
+    const iR = 28; // raggio orbita
+    const figColors = ['#d42b20','#f5a623','#f5a623','#5ab94b','#2980b9','#8e44ad','#16a085','#d42b20'];
+    for(let i=0; i<8; i++){
+      const ang = (i * 45 - 90) * Math.PI / 180;
+      const fx = ix + iR * Math.cos(ang);
+      const fy = iy + iR * Math.sin(ang);
+      const col = figColors[i % figColors.length];
+      // testa
+      ctx.fillStyle = col;
+      ctx.beginPath(); ctx.arc(fx, fy, 4.5, 0, Math.PI*2); ctx.fill();
+      // busto
+      ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(fx, fy + 4.5);
+      ctx.lineTo(fx, fy + 11);
+      ctx.stroke();
+      // braccia
+      ctx.beginPath();
+      ctx.moveTo(fx - 4, fy + 7);
+      ctx.lineTo(fx + 4, fy + 7);
+      ctx.stroke();
+    }
+    // cornice circolare attorno all'icona (linea sottile multicolore semplificata)
+    ctx.strokeStyle = 'rgba(80,100,180,0.25)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(ix, iy, iR + 10, 0, Math.PI*2); ctx.stroke();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   }
-  // Subtitle — small-caps effect: first letter larger per word
+  // ── Sottotitolo small-caps ──
   {
     const subtitleWords = ['Sviluppo','Gruppo','Acquisto','Solidale'];
-    const bigSize = 15, smallSize = 11;
+    const bigSize = 18, smallSize = 13;
     ctx.textBaseline = 'alphabetic';
-    // measure total width
     let totalW = 0;
-    const sep = '  ';
+    const sep = 14; // spazio tra parole in px
     subtitleWords.forEach((w, i) => {
       ctx.font = `bold ${bigSize}px Arial`;
       totalW += ctx.measureText(w[0]).width;
       ctx.font = `bold ${smallSize}px Arial`;
       totalW += ctx.measureText(w.slice(1).toUpperCase()).width;
-      if (i < subtitleWords.length - 1) totalW += ctx.measureText(sep).width;
+      if (i < subtitleWords.length - 1) totalW += sep;
     });
-    let tx = W * 0.55 - totalW / 2;
+    let tx = W * 0.56 - totalW / 2;
+    const subY = 130;
     subtitleWords.forEach((w, i) => {
-      ctx.fillStyle = '#1a3a8c';
-      ctx.font = `bold ${bigSize}px Arial`; ctx.textAlign = 'left';
-      ctx.fillText(w[0], tx, 128); tx += ctx.measureText(w[0]).width;
+      ctx.fillStyle = '#1a3a8c'; ctx.textAlign = 'left';
+      ctx.font = `bold ${bigSize}px Arial`;
+      ctx.fillText(w[0], tx, subY); tx += ctx.measureText(w[0]).width;
       ctx.font = `bold ${smallSize}px Arial`;
       const rest = w.slice(1).toUpperCase();
-      ctx.fillText(rest, tx, 128); tx += ctx.measureText(rest).width;
-      if (i < subtitleWords.length - 1) { tx += ctx.measureText(sep).width; }
+      ctx.fillText(rest, tx, subY); tx += ctx.measureText(rest).width;
+      if (i < subtitleWords.length - 1) tx += sep;
     });
     ctx.textAlign = 'center';
   }
-  // Categories with colored pipes
+  // ── Categorie con pipe verdi ──
   {
     const parts = ['ALIMENTARI','|','COSMETICA','|','SERVIZI','|','ARTIGIANATO'];
-    const gap = 10;
-    ctx.font = 'bold 11px Arial'; ctx.textBaseline = 'alphabetic';
+    const gap = 11;
+    ctx.font = 'bold 11.5px Arial'; ctx.textBaseline = 'alphabetic';
     let totalW = 0;
     parts.forEach((p, i) => {
       totalW += ctx.measureText(p).width;
       if (i < parts.length - 1) totalW += gap;
     });
-    let tx = W * 0.55 - totalW / 2;
+    let tx = W * 0.56 - totalW / 2;
+    const catY = 156;
     parts.forEach((p, i) => {
       ctx.fillStyle = p === '|' ? '#5aaa42' : '#2a5fa0';
       ctx.textAlign = 'left';
-      ctx.fillText(p, tx, 152);
+      ctx.fillText(p, tx, catY);
       tx += ctx.measureText(p).width + (i < parts.length - 1 ? gap : 0);
     });
     ctx.textAlign = 'center';
@@ -23904,7 +23937,7 @@ function drawTessera(s){
   // Divider
   ctx.textBaseline='alphabetic'; ctx.textAlign='left';
   ctx.strokeStyle='rgba(80,140,60,0.35)'; ctx.lineWidth=1.2;
-  ctx.beginPath(); ctx.moveTo(128,168); ctx.lineTo(W-18,168); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(128,172); ctx.lineTo(W-18,172); ctx.stroke();
   // Fields
   const lx=145;
   drawField(ctx,'NOME',(s.nome||'').toUpperCase(),lx,210,W-25);
