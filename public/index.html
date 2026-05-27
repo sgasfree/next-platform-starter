@@ -21891,8 +21891,12 @@ let currentUser=null;
 function saveSession(){
   try{
     if(currentUser){
-      localStorage.setItem('sgas_usr_tok',JSON.stringify({type:currentUser.type, adminEmail:currentUser.adminEmail||'', socioId:currentUser.id||''}));
+      const tok = currentUser._tok || (crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now());
+      currentUser._tok = tok;
+      sessionStorage.setItem('sgas_live_tok', tok);
+      localStorage.setItem('sgas_usr_tok',JSON.stringify({type:currentUser.type, adminEmail:currentUser.adminEmail||'', socioId:currentUser.id||'', _tok:tok}));
     } else {
+      sessionStorage.removeItem('sgas_live_tok');
       localStorage.removeItem('sgas_usr_tok');
     }
   }catch(e){}
@@ -21910,8 +21914,11 @@ function restoreSession(){
       const ok1=ses.adminEmail===S.config.adminEmail.toLowerCase();
       const ok2=S.config.adminEmail2 && ses.adminEmail===S.config.adminEmail2.toLowerCase();
       const ok3=S.config.adminEmail3 && ses.adminEmail===S.config.adminEmail3.toLowerCase();
-      if(ok1||ok2||ok3){
-        currentUser={type:'admin', adminEmail:ses.adminEmail};
+      // Verifica token di sessione — deve corrispondere a quello generato al login
+      const liveTok = sessionStorage.getItem('sgas_live_tok');
+      const tokOk = ses._tok && liveTok && ses._tok === liveTok;
+      if((ok1||ok2||ok3) && tokOk){
+        currentUser={type:'admin', adminEmail:ses.adminEmail, _tok:ses._tok};
         resetInactivityTimer();
         updateSidebarName();
         applyLogo();
@@ -22375,17 +22382,25 @@ function adminRecSendCode(){
     msg.innerHTML='<div class="alert alert-info">❌ Email non riconosciuta.</div>';
     return;
   }
-  // Generate 6-digit code, valid 15 min
+  // Generate 6-digit code, valid 15 min — NON mostrare il codice nel DOM
   _adminRecCode={
     code:Math.floor(100000+Math.random()*900000).toString(),
-    expires:Date.now()+15*60*1000
+    expires:Date.now()+15*60*1000,
+    attempts:0
   };
-  // Mostra SEMPRE il codice a schermo — è il metodo principale e più affidabile
+  // Invia il codice via Telegram agli admin (non mostrato a schermo)
+  const tgBot = (S.config.tgBotToken||'').trim();
+  const tgChat1 = (S.config.tgAdminChatId||'').trim();
+  const tgChat2 = (S.config.tgAdminChatId2||'').trim();
+  const tgMsg = '🔐 SGAS — Codice reset password admin:\n\n*'+_adminRecCode.code+'*\n\n⏱ Scade tra 15 minuti.\nSe non hai richiesto questo codice, ignora questo messaggio.';
+  if(tgBot && tgChat1) sendTelegramMsg(tgChat1, tgMsg);
+  if(tgBot && tgChat2) sendTelegramMsg(tgChat2, tgMsg);
+  const hasTg = tgBot && (tgChat1||tgChat2);
   msg.innerHTML='<div class="alert alert-success" style="padding:16px;text-align:center;">'
-    +'<div style="font-size:.85rem;color:var(--text-mid);margin-bottom:6px;">Il tuo codice di verifica è:</div>'
-    +'<strong style="display:block;letter-spacing:8px;font-size:2.4rem;margin:8px 0;color:var(--terra);">'+_adminRecCode.code+'</strong>'
-    +'<div style="font-size:.75rem;color:var(--text-light);">⏱ Scade tra 15 minuti — annotalo prima di continuare</div>'
-    +'<button class="btn btn-terra" style="margin-top:14px;width:100%;" onclick="adminRecStep2()">Ho il codice — Continua →</button>'
+    +(hasTg
+      ?'<div style="font-size:.85rem;">📬 Codice inviato via <strong>Telegram</strong> agli admin.<br><span style="font-size:.78rem;color:var(--text-light);">⏱ Scade tra 15 minuti</span></div>'
+      :'<div style="font-size:.85rem;color:#e53935;">⚠️ Telegram non configurato. Configura il bot nelle Impostazioni per ricevere il codice.</div>')
+    +'<button class="btn btn-terra" style="margin-top:14px;width:100%;" onclick="adminRecStep2()">Inserisci il codice →</button>'
     +'</div>';
 }
 
@@ -22407,7 +22422,14 @@ function adminRecVerifyCode(){
     return;
   }
   if(code!==_adminRecCode.code){
-    msg.innerHTML='<div class="alert alert-info">❌ Codice errato. Riprova.</div>';
+    _adminRecCode.attempts = (_adminRecCode.attempts||0) + 1;
+    if(_adminRecCode.attempts >= 3){
+      _adminRecCode=null;
+      msg.innerHTML='<div class="alert alert-info">🔒 Troppi tentativi. Richiedi un nuovo codice.</div>';
+      setTimeout(()=>adminRecStep1(), 2000);
+      return;
+    }
+    msg.innerHTML='<div class="alert alert-info">❌ Codice errato. '+(3-_adminRecCode.attempts)+' tentativi rimasti.</div>';
     return;
   }
   _adminRecCode=null;
@@ -22420,13 +22442,13 @@ function adminRecStep3(){
     '<div style="text-align:center;margin-bottom:18px;">'    +'<div style="font-size:2rem;margin-bottom:8px;">🔒</div>'    +'<h3 style="font-family:\'DM Serif Display\',serif;font-size:1.2rem;">Imposta nuova password</h3>'    +'</div>'    +'<div class="field"><label>Nuova Password</label><input id="rec-adm-np" type="password" placeholder="Minimo 4 caratteri"></div>'    +'<div class="field"><label>Conferma Password</label><input id="rec-adm-cp" type="password" placeholder="Ripeti la password"></div>'    +'<div id="rec-adm-msg3" style="margin:10px 0;"></div>'    +'<button class="btn btn-primary btn-block" onclick="adminRecSavePass()">💾 Salva nuova password</button>';
 }
 
-function adminRecSavePass(){
+async function adminRecSavePass(){
   const np=document.getElementById('rec-adm-np').value;
   const cp=document.getElementById('rec-adm-cp').value;
   const msg=document.getElementById('rec-adm-msg3');
-  if(!np||np.length<4){msg.innerHTML='<div class="alert alert-info">❌ Minimo 4 caratteri.</div>';return;}
+  if(!np||np.length<8){msg.innerHTML='<div class="alert alert-info">❌ Minimo 8 caratteri.</div>';return;}
   if(np!==cp){msg.innerHTML='<div class="alert alert-info">❌ Le password non coincidono.</div>';return;}
-  S.config.adminPassword=np;
+  S.config.adminPassword=await hashPassword(np);
   saveState();
   msg.innerHTML='<div class="alert alert-success">✅ Password aggiornata! Ora accedi con la nuova password.</div>';
   setTimeout(()=>{
@@ -22511,16 +22533,57 @@ function loginSocio(){
   updateNewsBadge();
 }
 
-function loginAdmin(){
+// ── Password hashing via Web Crypto PBKDF2 ──
+// Formato hash: "pbkdf2:<salt_hex>:<hash_hex>"
+async function hashPassword(password){
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const key  = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({name:'PBKDF2',salt,iterations:100000,hash:'SHA-256'}, key, 256);
+  const toHex = b => Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');
+  return 'pbkdf2:'+toHex(salt.buffer)+':'+toHex(bits);
+}
+async function verifyPassword(password, stored){
+  if(!stored) return false;
+  if(!stored.startsWith('pbkdf2:')){
+    // Legacy plaintext comparison (backward compat durante migrazione)
+    return password === stored;
+  }
+  const parts = stored.split(':');
+  if(parts.length!==3) return false;
+  const saltHex = parts[1];
+  const salt = new Uint8Array(saltHex.match(/.{2}/g).map(h=>parseInt(h,16)));
+  const key  = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({name:'PBKDF2',salt,iterations:100000,hash:'SHA-256'}, key, 256);
+  const toHex = b => Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');
+  return toHex(bits) === parts[2];
+}
+
+const _LOGIN_MAX_ATTEMPTS = 5;
+const _LOGIN_LOCKOUT_MS   = 15 * 60 * 1000; // 15 minuti
+
+function _getLoginState(){
+  try{ return JSON.parse(sessionStorage.getItem('sgas_login_st')||'{}'); }catch{ return {}; }
+}
+function _setLoginState(obj){ sessionStorage.setItem('sgas_login_st', JSON.stringify(obj)); }
+
+async function loginAdmin(){
+  const st = _getLoginState();
+  if(st.lockedUntil && Date.now() < st.lockedUntil){
+    const mins = Math.ceil((st.lockedUntil - Date.now()) / 60000);
+    toast('🔒 Troppi tentativi. Riprova tra '+mins+' minuto/i.');
+    return;
+  }
   const email=document.getElementById('adm-mail').value.trim().toLowerCase();
   const pass=document.getElementById('adm-pw').value;
-  const ok1 = email===S.config.adminEmail.toLowerCase() && pass===S.config.adminPassword;
-  const ok2 = S.config.adminEmail2 && S.config.adminPassword2 &&
-               email===S.config.adminEmail2.toLowerCase() && pass===S.config.adminPassword2;
-  const ok3 = S.config.adminEmail3 && S.config.adminPassword3 &&
-               email===S.config.adminEmail3.toLowerCase() && pass===S.config.adminPassword3;
-  if(ok1||ok2||ok3){
-    currentUser={type:'admin', adminEmail: email};
+  const match1 = email===S.config.adminEmail.toLowerCase() && await verifyPassword(pass, S.config.adminPassword);
+  const match2 = S.config.adminEmail2 && S.config.adminPassword2 &&
+               email===S.config.adminEmail2.toLowerCase() && await verifyPassword(pass, S.config.adminPassword2);
+  const match3 = S.config.adminEmail3 && S.config.adminPassword3 &&
+               email===S.config.adminEmail3.toLowerCase() && await verifyPassword(pass, S.config.adminPassword3);
+  if(match1||match2||match3){
+    _setLoginState({});
+    const tok = (crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now());
+    currentUser={type:'admin', adminEmail: email, _tok: tok};
     saveSession();
     resetInactivityTimer();
     updateSidebarName();
@@ -22528,7 +22591,14 @@ function loginAdmin(){
     showView('admin');
     adminNav('dashboard');
   } else {
-    toast('❌ Credenziali errate');
+    const attempts = (st.attempts||0) + 1;
+    if(attempts >= _LOGIN_MAX_ATTEMPTS){
+      _setLoginState({attempts, lockedUntil: Date.now() + _LOGIN_LOCKOUT_MS});
+      toast('🔒 Account bloccato per 15 minuti dopo '+_LOGIN_MAX_ATTEMPTS+' tentativi errati.');
+    } else {
+      _setLoginState({attempts});
+      toast('❌ Credenziali errate ('+(attempts)+'/'+_LOGIN_MAX_ATTEMPTS+' tentativi)');
+    }
   }
 }
 
@@ -22627,12 +22697,12 @@ function renderFornitori(){
         ?'<img src="'+f.logo+'" style="width:52px;height:52px;object-fit:cover;border-radius:10px;flex-shrink:0;" alt="">'
         :'<div class="forn-emoji">'+(f.emoji||'🏪')+'</div>')
       +'<div class="forn-info">'
-      +'<div class="forn-name">'+f.nome+badge+'</div>'
-      +'<div class="forn-meta"><span class="forn-km">📍 '+(f.zona||'')+'</span><span style="margin-left:10px;background:var(--green-pale);color:var(--green-dark);border-radius:20px;padding:2px 10px;font-size:.75rem;font-weight:800;border:1px solid var(--green-light);">🛒 '+S.prodotti.filter(p=>p.fornitorId===f.id).length+' articoli</span></div>'
+      +'<div class="forn-name">'+escHtml(f.nome)+badge+'</div>'
+      +'<div class="forn-meta"><span class="forn-km">📍 '+escHtml(f.zona||'')+'</span><span style="margin-left:10px;background:var(--green-pale);color:var(--green-dark);border-radius:20px;padding:2px 10px;font-size:.75rem;font-weight:800;border:1px solid var(--green-light);">🛒 '+S.prodotti.filter(p=>p.fornitorId===f.id).length+' articoli</span></div>'
       +'</div></div>'
-      +(f.descrizione?'<div class="forn-desc">'+f.descrizione+'</div>':'')
-      +(chars.length?'<div class="forn-caratteristiche">'+chars.filter(c=>!/^km/i.test(c)).slice(0,3).map(c=>'<span class="char-tag">✓ '+c+'</span>').join('')+'</div>':'')
-      +(f.vision?'<div class="forn-vision">"'+f.vision+'"</div>':'')
+      +(f.descrizione?'<div class="forn-desc">'+escHtml(f.descrizione)+'</div>':'')
+      +(chars.length?'<div class="forn-caratteristiche">'+chars.filter(c=>!/^km/i.test(c)).slice(0,3).map(c=>'<span class="char-tag">✓ '+escHtml(c)+'</span>').join('')+'</div>':'')
+      +(f.vision?'<div class="forn-vision">"'+escHtml(f.vision)+'"</div>':'')
       +'</div>';
   }).join('');
 }
@@ -22655,13 +22725,13 @@ function openFornitore(id){
       <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:14px;">
         ${avatarHtml}
         <div>
-          <h2 style="font-family:var(--font-serif,serif);font-size:1.3rem;">${f.nome}</h2>
-          <div style="color:var(--text-light);font-size:.82rem;margin-top:4px;">📍 ${f.zona||''}</div>
+          <h2 style="font-family:var(--font-serif,serif);font-size:1.3rem;">${escHtml(f.nome)}</h2>
+          <div style="color:var(--text-light);font-size:.82rem;margin-top:4px;">📍 ${escHtml(f.zona||'')}</div>
         </div>
       </div>
-      ${chars.length?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">${chars.filter(c=>!/^km/i.test(c)).map(c=>`<span class="char-tag">✓ ${c}</span>`).join('')}</div>`:''}
-      ${f.descrizione?`<p style="color:var(--text-mid);font-size:.9rem;margin-bottom:12px;">${f.descrizione}</p>`:''}
-      ${f.vision?`<div class="forn-vision">"${f.vision}"</div>`:''}
+      ${chars.length?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">${chars.filter(c=>!/^km/i.test(c)).map(c=>`<span class="char-tag">✓ ${escHtml(c)}</span>`).join('')}</div>`:''}
+      ${f.descrizione?`<p style="color:var(--text-mid);font-size:.9rem;margin-bottom:12px;">${escHtml(f.descrizione)}</p>`:''}
+      ${f.vision?`<div class="forn-vision">"${escHtml(f.vision)}"</div>`:''}
     </div>
   </div>`;
 
@@ -23619,10 +23689,10 @@ function isTesseraUsata(tess, excludeId){
 
 function renderSoci(){
   const rows=S.soci.map(s=>`<tr>
-    <td><strong>${s.tessera}</strong></td>
-    <td>${s.nome||'—'} ${s.cognome||''}</td>
-    <td>${s.cellulare||s.telefono||'—'}</td>
-    <td>${s.telegram?'@'+s.telegram:'—'}</td>
+    <td><strong>${escHtml(s.tessera)}</strong></td>
+    <td>${escHtml(s.nome||'—')} ${escHtml(s.cognome||'')}</td>
+    <td>${escHtml(s.cellulare||s.telefono||'—')}</td>
+    <td>${s.telegram?'@'+escHtml(s.telegram):'—'}</td>
     <td>${s.scadenza?new Date(s.scadenza).toLocaleDateString('it-IT'):'—'}</td>
     <td><div class="td-actions">
       <button class="btn btn-xs" style="background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;" title="Tessera digitale" onclick="showTesseraDigitale('${s.id}')">🪪</button>
@@ -23697,6 +23767,7 @@ function saveSocio(editId){
 }
 
 function deleteSocio(id){
+  if(!currentUser||currentUser.type!=='admin'){toast('❌ Accesso negato');return;}
   if(!confirm('Eliminare questo socio?')) return;
   S.soci=S.soci.filter(s=>s.id!==id);
   saveState(); renderSoci(); toast('Socio eliminato');
@@ -24022,6 +24093,7 @@ function toggleFornitore(id){
 }
 
 function deleteFornitore(id){
+  if(!currentUser||currentUser.type!=='admin'){toast('❌ Accesso negato');return;}
   if(!confirm('Eliminare questo fornitore e tutti i suoi prodotti?')) return;
   S.fornitori=S.fornitori.filter(f=>f.id!==id);
   S.prodotti=S.prodotti.filter(p=>p.fornitorId!==id);
@@ -24046,12 +24118,12 @@ function renderProdotti_admin(){
     const fornNome = f?f.nome:'?';
     let sep='';
     if(fornNome!==lastForn){
-      sep=`<tr><td colspan="6" style="background:var(--green-pale);padding:7px 14px;font-weight:800;font-size:.82rem;color:var(--green-dark);border-top:2px solid var(--green-light);">${f?f.emoji||'🏪':''} ${fornNome}</td></tr>`;
+      sep=`<tr><td colspan="6" style="background:var(--green-pale);padding:7px 14px;font-weight:800;font-size:.82rem;color:var(--green-dark);border-top:2px solid var(--green-light);">${f?f.emoji||'🏪':''} ${escHtml(fornNome)}</td></tr>`;
       lastForn=fornNome;
     }
     return sep+`<tr style="${disp?'':'opacity:.6;'}">
-      <td><strong>${p.nome}</strong>${!disp?'<br><span style="font-size:.7rem;color:#e53935;font-weight:700;">⛔ Non disponibile</span>':''}</td>
-      <td style="color:var(--text-light);font-size:.78rem;">${fornNome}</td>
+      <td><strong>${escHtml(p.nome)}</strong>${!disp?'<br><span style="font-size:.7rem;color:#e53935;font-weight:700;">⛔ Non disponibile</span>':''}</td>
+      <td style="color:var(--text-light);font-size:.78rem;">${escHtml(fornNome)}</td>
       <td>${codCell}</td>
       <td>€${p.prezzo.toFixed(2)}</td>
       <td>${p.unita}</td>
@@ -24107,6 +24179,7 @@ function saveProdotto(editId){
 }
 
 function deleteProdotto(id){
+  if(!currentUser||currentUser.type!=='admin'){toast('❌ Accesso negato');return;}
   if(!confirm('Eliminare questo prodotto?')) return;
   S.prodotti=S.prodotti.filter(p=>p.id!==id);
   saveState(); renderProdotti_admin(); toast('Prodotto eliminato');
@@ -24127,7 +24200,7 @@ function renderRaccolte(){
       ?r.fornitori.map(id=>{const f=S.fornitori.find(x=>x.id===id);return f?f.nome:null;}).filter(Boolean).slice(0,3).join(', ')+(r.fornitori.length>3?' +altri':'')
       :'Tutti i fornitori attivi';
     return '<tr>'
-      +'<td><strong>'+r.nome+'</strong><div style="font-size:.72rem;color:var(--text-light);margin-top:3px;">'+fornNames+'</div></td>'
+      +'<td><strong>'+escHtml(r.nome)+'</strong><div style="font-size:.72rem;color:var(--text-light);margin-top:3px;">'+escHtml(fornNames)+'</div></td>'
       +'<td>'+new Date(r.dataCreazione).toLocaleDateString('it-IT')+'</td>'
       +'<td><span class="pill '+(r.aperta?'pill-green':'pill-gray')+'">'+(r.aperta?'● Aperta':'○ Chiusa')+'</span></td>'
       +'<td><span style="font-weight:700;">'+nForn+'</span> <span style="font-size:.72rem;color:var(--text-light);">fornitori</span></td>'
@@ -24264,9 +24337,9 @@ function renderOrdini(){
   const rows=S.ordini.slice().reverse().map(o=>{
     const racc=S.raccolte.find(r=>r.id===o.raccoltaId);
     return `<tr>
-      <td><strong>${o.id}</strong></td>
-      <td>${o.socioNome||o.socioId}</td>
-      <td>${racc?racc.nome:'—'}</td>
+      <td><strong>${escHtml(o.id)}</strong></td>
+      <td>${escHtml(o.socioNome||o.socioId)}</td>
+      <td>${racc?escHtml(racc.nome):'—'}</td>
       <td>${new Date(o.data).toLocaleDateString('it-IT')}</td>
       <td>${o.items.length} prodotti</td>
       <td style="font-weight:800;color:var(--green);">€${o.totale.toFixed(2)}</td>
@@ -24294,6 +24367,7 @@ function exportSingleOrder(oid){
 }
 
 function eliminaOrdine(oid){
+  if(!currentUser||currentUser.type!=='admin'){toast('❌ Accesso negato');return;}
   if(!confirm('Eliminare definitivamente l\'ordine '+oid+'?\nQuesta operazione non è reversibile.')) return;
   S.ordini = S.ordini.filter(o=>o.id!==oid);
   saveState();
@@ -25082,11 +25156,12 @@ function removeAdmin3(){
   saveState(); renderSettings(); toast('Admin 3 rimosso');
 }
 
-function saveConfigGAS(){
+async function saveConfigGAS(){
+  if(!currentUser||currentUser.type!=='admin'){toast('❌ Accesso negato');return;}
   S.config.gasName=document.getElementById('s-gasname').value.trim()||S.config.gasName;
   S.config.adminEmail=document.getElementById('s-email').value.trim()||S.config.adminEmail;
   const np=document.getElementById('s-pass').value;
-  if(np) S.config.adminPassword=np;
+  if(np) S.config.adminPassword=await hashPassword(np);
   S.config.appLink=(document.getElementById('s-applink').value||'').trim();
   saveState();
   updateSidebarName();
@@ -25160,6 +25235,7 @@ async function testTelegramMsg(){
 }
 
 function esportaAppNetlify(){
+  if(!currentUser||currentUser.type!=='admin'){toast('❌ Accesso negato');return;}
   // Prepara i dati da incorporare (tutto lo stato attuale)
   const stateToEmbed = {
     config:    {...S.config, setupDone: true},
@@ -25221,6 +25297,7 @@ function esportaAppNetlify(){
 }
 
 function backupData(){
+  if(!currentUser||currentUser.type!=='admin'){toast('❌ Accesso negato');return;}
   const json=JSON.stringify(S,null,2);
   const blob=new Blob([json],{type:'application/json'});
   const a=document.createElement('a');
