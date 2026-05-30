@@ -23174,11 +23174,11 @@ function renderProfilo(){
 
   document.getElementById('profilo-content').innerHTML=`
     <div class="card">
-      <div style="font-size:.72rem;font-weight:800;color:var(--green-dark);letter-spacing:.09em;text-transform:uppercase;margin-bottom:4px;">${s.tessera}</div>
-      <h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;font-size:1.15rem;">👤 ${s.nome||s.tessera}</h3>
+      <h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;font-size:1.15rem;">👤 ${s.tessera}</h3>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
-        <div><div style="font-size:.75rem;color:var(--text-light);font-weight:700;">CELLULARE</div><div style="font-weight:800;">${s.cellulare||s.telefono||'—'}</div></div>
+        <div><div style="font-size:.75rem;color:var(--text-light);font-weight:700;">NOME</div><div style="font-weight:800;">${s.nome||'—'}</div></div>
         <div><div style="font-size:.75rem;color:var(--text-light);font-weight:700;">COGNOME</div><div style="font-weight:800;">${s.cognome||'—'}</div></div>
+        <div><div style="font-size:.75rem;color:var(--text-light);font-weight:700;">CELLULARE</div><div style="font-weight:800;">${s.cellulare||s.telefono||'—'}</div></div>
         <div><div style="font-size:.75rem;color:var(--text-light);font-weight:700;">TELEGRAM</div><div style="font-weight:800;">${s.telegram?'@'+s.telegram:'—'}</div></div>
         <div><div style="font-size:.75rem;color:var(--text-light);font-weight:700;">CHAT ID TG</div><div style="font-weight:800;">${s.telegramChatId||'—'}</div></div>
       </div>
