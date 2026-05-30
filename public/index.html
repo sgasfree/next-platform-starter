@@ -25,7 +25,6 @@ try{
       if(_savedSupa&&_savedSupa.url){_cur.config.supabaseUrl=_savedSupa.url;_cur.config.supabaseKey=_savedSupa.key;_cur.config.supabasePaused=_savedSupa.paused;}
       // Aggiorna solo struttura app — NON sovrascrivere dati utente
       _cur.categorie=_emb.categorie;
-      _cur.premi=_emb.premi;
       // Merge fornitori embedded (aggiungi nuovi senza rimuovere quelli esistenti)
       if(_emb.fornitori&&_emb.fornitori.length){
         var _existingFIds=new Set((_cur.fornitori||[]).map(function(f){return f.id;}));
@@ -23187,8 +23186,6 @@ function renderProfilo(){
       </div>
     </div>
 
-    <!-- ══ CARD PUNTI FEDELTÀ — temporaneamente nascosta ══ -->
-
     ${ordiniSocio.length>0?`
     <h3 class="section-title" style="margin-top:22px;">📊 Le mie statistiche di acquisto</h3>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:18px;">
@@ -25329,8 +25326,6 @@ function esportaAppNetlify(){
     '    _cur.fornitori=_emb.fornitori;\n' +
     '    _cur.prodotti=_emb.prodotti;\n' +
     '    _cur.categorie=_emb.categorie;\n' +
-    '    _cur.raccolte=_emb.raccolte;\n' +
-    '    _cur.premi=_emb.premi;\n' +
     '    localStorage.setItem("sgas_state",JSON.stringify(_cur));\n' +
     '  }else{\n' +
     '    localStorage.setItem("sgas_state",JSON.stringify(_emb));\n' +
