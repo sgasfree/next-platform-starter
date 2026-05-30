@@ -22153,7 +22153,7 @@ function openFornitoreOspite(id){
         +'<div style="flex:1;"><div class="prodotto-name">'+p.nome+'</div>'
         +(p.descrizione?'<div style="font-size:.75rem;color:var(--text-mid);margin-top:2px;line-height:1.4;">'+p.descrizione+'</div>':'')
         +'<div style="font-size:.75rem;color:var(--text-light);">'+p.unita+'</div></div>'
-        +'<div class="prodotto-price">'+(p.prezzo>0?'&euro;'+p.prezzo.toFixed(2):'Gratuito')+'</div>'
+        +'<div class="prodotto-price">'+(p.prezzo>0?'&euro;'+p.prezzo.toFixed(2):(p.unita&&p.unita.toLowerCase().includes('appuntamento')?'':'Gratuito'))+'</div>'
         +'</div>'
       ).join('')
       +'</div>';
@@ -22829,7 +22829,7 @@ function openFornitore(id){
             +'<div><div class="prodotto-name">'+p.nome+codBadge+'</div>'
             +(p.descrizione?'<div style="font-size:.75rem;color:var(--text-mid);margin-top:2px;line-height:1.4;">'+escHtml(p.descrizione)+'</div>':'')
             +'<div style="font-size:.75rem;color:var(--text-light);">'+p.unita+'</div></div>'
-            +'<div class="prodotto-price">'+(p.prezzo>0?'&#8364;'+p.prezzo.toFixed(2):'Gratuito')+'</div>'
+            +'<div class="prodotto-price">'+(p.prezzo>0?'&#8364;'+p.prezzo.toFixed(2):(p.unita&&p.unita.toLowerCase().includes('appuntamento')?'':'Gratuito'))+'</div>'
             +'<div class="qty-ctrl">'
             +'<button class="qty-btn" onclick="cartChange(&#39;'+p.id+'&#39;,-1)">&#8722;</button>'
             +'<span class="qty-num" id="qty-'+p.id+'">'+qty+'</span>'
