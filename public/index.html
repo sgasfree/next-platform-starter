@@ -23818,10 +23818,149 @@ function showTesseraDigitale(id){
   setTimeout(()=>drawTessera(s), 80);
 }
 
+// ── Tessera Digitale v2.2 ──────────────────────────────────────────────────
+// Sfondo: immagine fisica della tessera SGAS (base64 JPG).
+// Incollare qui il risultato di: base64 -w0 tessera-bg.jpg
+const TESSERA_BG_SGAS = ''; // ← PLACEHOLDER: inserire base64 dell'immagine tessera
+
 function drawTessera(s){
+  const canvas = document.getElementById('tessera-canvas');
+  if(!canvas) return;
+  const W = 1280, H = 827;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  function renderText(){
+    ctx.fillStyle   = '#25408F';
+    ctx.textBaseline = 'alphabetic';
+    ctx.textAlign    = 'left';
+
+    // NOME
+    ctx.font = 'bold 38px "Open Sans", Arial, sans-serif';
+    ctx.fillText((s.nome||'').toUpperCase(), 510, 552);
+
+    // COGNOME
+    ctx.font = 'bold 38px "Open Sans", Arial, sans-serif';
+    ctx.fillText((s.cognome||'').toUpperCase(), 550, 644);
+
+    // N° TESSERA — mostra solo numero (es. "0016"), strip prefisso SGAS-
+    const numTessera = (s.tessera||'').replace(/^SGAS[\-_ ]?/i,'');
+    ctx.font = 'bold 30px "Open Sans", Arial, sans-serif';
+    ctx.fillText(numTessera, 560, 742);
+
+    // DATA EMISSIONE
+    const emi = s.emissione ? new Date(s.emissione).toLocaleDateString('it-IT') : '';
+    ctx.font = 'bold 30px "Open Sans", Arial, sans-serif';
+    ctx.fillText(emi, 945, 742);
+  }
+
+  if(TESSERA_BG_SGAS){
+    const img = new Image();
+    img.onload = function(){
+      ctx.drawImage(img, 0, 0, W, H);
+      renderText();
+    };
+    img.onerror = function(){
+      drawTesseraFallback(ctx, W, H);
+      renderText();
+    };
+    img.src = 'data:image/jpeg;base64,' + TESSERA_BG_SGAS;
+  } else {
+    drawTesseraFallback(ctx, W, H);
+    renderText();
+  }
+}
+
+function drawTesseraFallback(ctx, W, H){
+  // Sfondo gradiente verde (usato finché TESSERA_BG_SGAS è vuoto)
+  const bg = ctx.createLinearGradient(0,0,W,H);
+  bg.addColorStop(0,'#edf7e4'); bg.addColorStop(0.5,'#d8efc8'); bg.addColorStop(1,'#e8f4dc');
+  ctx.fillStyle = bg;
+  ctx.beginPath();
+  const r=18;
+  ctx.moveTo(r,0);ctx.lineTo(W-r,0);ctx.arcTo(W,0,W,r,r);
+  ctx.lineTo(W,H-r);ctx.arcTo(W,H,W-r,H,r);ctx.lineTo(r,H);
+  ctx.arcTo(0,H,0,H-r,r);ctx.lineTo(0,r);ctx.arcTo(0,0,r,0,r);ctx.closePath();
+  ctx.fill();
+  // Onda bianca
+  ctx.save();
+  const wg=ctx.createRadialGradient(220,H/2,10,220,H/2,150);
+  wg.addColorStop(0,'rgba(255,255,255,0.6)');wg.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle=wg;ctx.beginPath();ctx.ellipse(210,H/2,130,H*0.52,0,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+  // Fascia sinistra verde
+  const band=ctx.createLinearGradient(0,0,0,H);
+  band.addColorStop(0,'#8fcc74');band.addColorStop(0.45,'#5aaa42');band.addColorStop(1,'#7cc468');
+  ctx.fillStyle=band;
+  ctx.beginPath();
+  ctx.moveTo(r,0);ctx.lineTo(145,0);ctx.lineTo(145,H);ctx.lineTo(r,H);
+  ctx.arcTo(0,H,0,H-r,r);ctx.lineTo(0,r);ctx.arcTo(0,0,r,0,r);ctx.closePath();
+  ctx.fill();
+  // Testi fascia
+  ctx.save();ctx.translate(85,H*0.37);ctx.rotate(-Math.PI/2);
+  ctx.fillStyle='#fff';ctx.font='bold 27px Arial';ctx.textAlign='center';ctx.letterSpacing='5px';
+  ctx.fillText('TESSERA',0,0);ctx.restore();
+  ctx.save();ctx.translate(56,H*0.59);ctx.rotate(-Math.PI/2);
+  ctx.fillStyle='rgba(255,255,255,0.8)';ctx.font='bold 15px Arial';ctx.textAlign='center';
+  ctx.fillText('ASSOCIATO',0,0);ctx.restore();
+  ctx.save();ctx.translate(36,H*0.85);ctx.rotate(-Math.PI/2);
+  ctx.fillStyle='rgba(255,255,255,0.75)';ctx.font='bold 11px Arial';ctx.textAlign='center';
+  ctx.fillText('INVIO ORDINI A:',0,0);ctx.restore();
+  ctx.save();ctx.translate(62,H*0.79);ctx.rotate(-Math.PI/2);
+  ctx.fillStyle='#fff';ctx.font='bold 13px Arial';ctx.textAlign='center';
+  ctx.fillText('@Mo_Vlad',0,0);ctx.restore();
+  ctx.fillStyle='#29a8e0';ctx.beginPath();ctx.arc(72,H-50,17,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#fff';ctx.font='bold 17px Arial';ctx.textAlign='center';ctx.fillText('>',72,H-44);
+  // Logo SGAS
+  const cx=W*0.56, logoY=120;
+  ctx.font='bold 75px Arial';ctx.textBaseline='alphabetic';
+  const wS=ctx.measureText('S').width,wGAS=ctx.measureText('GAS').width;
+  const dotR=9,dotGap=8,totalLogoW=wS+dotGap+dotR*2+dotGap+wGAS;
+  let tx=cx-totalLogoW/2;
+  ctx.fillStyle='#1a3a8c';ctx.textAlign='left';ctx.fillText('S',tx,logoY);tx+=wS+dotGap;
+  ctx.fillStyle='#d42b20';ctx.beginPath();ctx.arc(tx+dotR,logoY-28,dotR,0,Math.PI*2);ctx.fill();
+  tx+=dotR*2+dotGap;ctx.fillStyle='#1a3a8c';ctx.fillText('GAS',tx,logoY);
+  // Icona persone
+  const ix=cx+totalLogoW/2+28,iy=logoY-36,iR=36;
+  const fc=['#d42b20','#f5a623','#f5a623','#5ab94b','#2980b9','#8e44ad','#16a085','#d42b20'];
+  for(let i=0;i<8;i++){
+    const ang=(i*45-90)*Math.PI/180;
+    const fx=ix+iR*Math.cos(ang),fy=iy+iR*Math.sin(ang),col=fc[i%fc.length];
+    ctx.fillStyle=col;ctx.beginPath();ctx.arc(fx,fy,5.5,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle=col;ctx.lineWidth=3;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(fx,fy+5.5);ctx.lineTo(fx,fy+14);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(fx-5,fy+9);ctx.lineTo(fx+5,fy+9);ctx.stroke();
+  }
+  ctx.strokeStyle='rgba(80,100,180,0.2)';ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(ix,iy,iR+13,0,Math.PI*2);ctx.stroke();
+  // Sottotitolo small-caps
+  const sw=['Sviluppo','Gruppo','Acquisto','Solidale'],bz=22,sz=16;
+  ctx.textBaseline='alphabetic';let tw=0;
+  sw.forEach((w,i)=>{ctx.font=`bold ${bz}px Arial`;tw+=ctx.measureText(w[0]).width;ctx.font=`bold ${sz}px Arial`;tw+=ctx.measureText(w.slice(1).toUpperCase()).width;if(i<sw.length-1)tw+=18;});
+  let stx=cx-tw/2;
+  sw.forEach((w,i)=>{ctx.fillStyle='#1a3a8c';ctx.textAlign='left';ctx.font=`bold ${bz}px Arial`;ctx.fillText(w[0],stx,167);stx+=ctx.measureText(w[0]).width;ctx.font=`bold ${sz}px Arial`;const rest=w.slice(1).toUpperCase();ctx.fillText(rest,stx,167);stx+=ctx.measureText(rest).width;if(i<sw.length-1)stx+=18;});
+  // Categorie
+  const parts=['ALIMENTARI','|','COSMETICA','|','SERVIZI','|','ARTIGIANATO'];
+  ctx.font='bold 15px Arial';ctx.textBaseline='alphabetic';
+  let ctw=0;const gap=14;
+  parts.forEach((p,i)=>{ctw+=ctx.measureText(p).width;if(i<parts.length-1)ctw+=gap;});
+  let ctx2=cx-ctw/2;
+  parts.forEach((p,i)=>{ctx.fillStyle=p==='|'?'#5aaa42':'#2a5fa0';ctx.textAlign='left';ctx.fillText(p,ctx2,200);ctx2+=ctx.measureText(p).width+(i<parts.length-1?gap:0);});
+  ctx.textAlign='center';
+}
+
+function downloadTessera(id){
+  const s=S.soci.find(x=>x.id===id); if(!s) return;
   const canvas=document.getElementById('tessera-canvas'); if(!canvas) return;
-  const W=900,H=580; canvas.width=W; canvas.height=H;
-  const ctx=canvas.getContext('2d');
+  setTimeout(()=>{
+    const a=document.createElement('a');
+    a.href=canvas.toDataURL('image/jpeg',0.95);
+    a.download='Tessera_'+(s.tessera||s.id).replace(/\s/g,'_')+'.jpg';
+    a.click(); toast('📥 Tessera scaricata!');
+  }, 500);
+}
+
+
   // Background
   const bg=ctx.createLinearGradient(0,0,W,H);
   bg.addColorStop(0,'#edf7e4'); bg.addColorStop(0.5,'#d8efc8'); bg.addColorStop(1,'#e8f4dc');
@@ -23953,59 +24092,8 @@ function drawTessera(s){
     });
     ctx.textAlign = 'center';
   }
-  // Divider
-  ctx.textBaseline='alphabetic'; ctx.textAlign='left';
-  ctx.strokeStyle='rgba(80,140,60,0.35)'; ctx.lineWidth=1.2;
-  ctx.beginPath(); ctx.moveTo(128,172); ctx.lineTo(W-18,172); ctx.stroke();
-  // Fields
-  const lx=145;
-  drawField(ctx,'NOME',(s.nome||'').toUpperCase(),lx,210,W-25);
-  drawField(ctx,'COGNOME',(s.cognome||'').toUpperCase(),lx,280,W-25);
-  // Last row
-  const emi=s.emissione?new Date(s.emissione).toLocaleDateString('it-IT'):'';
-  ctx.fillStyle='#1a3a8c'; ctx.font='bold 13px Arial'; ctx.textAlign='left';
-  ctx.fillText('N° TESSERA',lx,345);
-  ctx.setLineDash([3,4]); ctx.strokeStyle='#1a3a8c'; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(lx+108,347); ctx.lineTo(lx+255,347); ctx.stroke();
-  ctx.setLineDash([]); ctx.fillStyle='#1a3a8c'; ctx.font='bold 15px Arial';
-  ctx.fillText(s.tessera||'',lx+112,345);
-  ctx.fillStyle='#1a3a8c'; ctx.font='bold 13px Arial';
-  ctx.fillText('DATA EMISSIONE',lx+275,345);
-  ctx.setLineDash([3,4]); ctx.beginPath(); ctx.moveTo(lx+430,347); ctx.lineTo(W-18,347); ctx.stroke();
-  ctx.setLineDash([]); ctx.font='bold 15px Arial';
-  ctx.fillText(emi,lx+434,345);
 }
 
-function drawField(ctx,label,value,x,y,maxX){
-  ctx.setLineDash([]);
-  ctx.fillStyle='#1a3a8c'; ctx.font='bold 13px Arial'; ctx.textAlign='left';
-  ctx.fillText(label,x,y);
-  const lx=x+(label.length*9)+8;
-  ctx.setLineDash([3,4]); ctx.strokeStyle='#1a3a8c'; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(lx,y+2); ctx.lineTo(maxX,y+2); ctx.stroke();
-  ctx.setLineDash([]); ctx.fillStyle='#1a3a8c'; ctx.font='bold 16px Arial';
-  ctx.fillText(value,lx+4,y);
-}
-
-function rr(ctx,x,y,w,h,r){
-  ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);
-  ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);ctx.lineTo(x+r,y+h);
-  ctx.arcTo(x,y+h,x,y+h-r,r);ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);ctx.closePath();
-}
-function rrLeft(ctx,x,y,w,h,r){
-  ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w,y);ctx.lineTo(x+w,y+h);
-  ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);ctx.lineTo(x,y+r);
-  ctx.arcTo(x,y,x+r,y,r);ctx.closePath();
-}
-
-function downloadTessera(id){
-  const s=S.soci.find(x=>x.id===id); if(!s) return;
-  const canvas=document.getElementById('tessera-canvas'); if(!canvas) return;
-  const a=document.createElement('a');
-  a.href=canvas.toDataURL('image/jpeg',0.95);
-  a.download='Tessera_'+(s.tessera||s.id).replace(/\s/g,'_')+'.jpg';
-  a.click(); toast('📥 Tessera scaricata!');
-}
 
 
 // ════════════════════ ADMIN — FORNITORI ════════════════════
