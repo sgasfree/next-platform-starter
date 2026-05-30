@@ -21960,6 +21960,9 @@ function restoreSession(){
         return true;
       }
     } else if(ses.type==='socio'){
+      const liveTok2 = sessionStorage.getItem('sgas_live_tok');
+      const tokOk2 = ses._tok && liveTok2 && ses._tok === liveTok2;
+      if(!tokOk2){ localStorage.removeItem('sgas_usr_tok'); return false; }
       const socio=S.soci.find(s=>s.id===ses.socioId);
       if(socio){
         currentUser={type:'socio',...socio};
@@ -25789,7 +25792,7 @@ const _isAdminPath = window.location.hash==='#admin' || window.location.pathname
 if(_isAdminPath){
   // Su /admin: mostra SEMPRE il form admin, ignora wizard e sessioni socio
   const _sess = restoreSession();
-  if(!_sess || (currentUser && currentUser.ruolo !== 'admin')){
+  if(!_sess || (currentUser && currentUser.type !== 'admin')){
     currentUser = null;
     saveSession();
     showLoginView();
