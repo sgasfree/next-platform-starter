@@ -13,14 +13,36 @@ try{
     if(_cur._embVer!==_emb._embVer){
       var _savedToken=_cur.config&&_cur.config.tgBotToken;
       var _savedSupa=_cur.config&&{url:_cur.config.supabaseUrl,key:_cur.config.supabaseKey,paused:_cur.config.supabasePaused};
+      var _savedPass=_cur.config&&_cur.config.adminPassword;
+      var _savedPass2=_cur.config&&_cur.config.adminPassword2;
+      var _savedPass3=_cur.config&&_cur.config.adminPassword3;
       _cur.config=Object.assign({},_emb.config);
+      // Ripristina credenziali salvate (non perdere le password cambiate dall'admin)
       if(_savedToken) _cur.config.tgBotToken=_savedToken;
+      if(_savedPass) _cur.config.adminPassword=_savedPass;
+      if(_savedPass2) _cur.config.adminPassword2=_savedPass2;
+      if(_savedPass3) _cur.config.adminPassword3=_savedPass3;
       if(_savedSupa&&_savedSupa.url){_cur.config.supabaseUrl=_savedSupa.url;_cur.config.supabaseKey=_savedSupa.key;_cur.config.supabasePaused=_savedSupa.paused;}
-      _cur.fornitori=_emb.fornitori;
-      _cur.prodotti=_emb.prodotti;
-      _cur.soci=_emb.soci;
+      // Aggiorna solo struttura app — NON sovrascrivere dati utente
       _cur.categorie=_emb.categorie;
       _cur.premi=_emb.premi;
+      // Merge fornitori embedded (aggiungi nuovi senza rimuovere quelli esistenti)
+      if(_emb.fornitori&&_emb.fornitori.length){
+        var _existingFIds=new Set((_cur.fornitori||[]).map(function(f){return f.id;}));
+        (_cur.fornitori=_cur.fornitori||[]);
+        _emb.fornitori.forEach(function(ef){if(!_existingFIds.has(ef.id))_cur.fornitori.push(ef);});
+      }
+      // Merge prodotti embedded (aggiungi nuovi senza rimuovere quelli esistenti)
+      if(_emb.prodotti&&_emb.prodotti.length){
+        var _existingPIds=new Set((_cur.prodotti||[]).map(function(p){return p.id;}));
+        (_cur.prodotti=_cur.prodotti||[]);
+        _emb.prodotti.forEach(function(ep){if(!_existingPIds.has(ep.id))_cur.prodotti.push(ep);});
+      }
+      // Soci, raccolte, ordini, messaggi: MAI sovrascritti da aggiornamento app
+      if(!_cur.soci) _cur.soci=_emb.soci||[];
+      if(!_cur.raccolte) _cur.raccolte=[];
+      if(!_cur.ordini) _cur.ordini=[];
+      if(!_cur.messaggi) _cur.messaggi=[];
       _cur._embVer=_emb._embVer;
     }
     // Deduplicazione fornitori: rimuovi doppi per id poi per nome
