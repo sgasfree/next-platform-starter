@@ -23819,9 +23819,9 @@ function showTesseraDigitale(id){
 }
 
 // ── Tessera Digitale v2.2 ──────────────────────────────────────────────────
-// Sfondo: immagine fisica della tessera SGAS (base64 JPG).
-// Incollare qui il risultato di: base64 -w0 tessera-bg.jpg
-const TESSERA_BG_SGAS = ''; // ← PLACEHOLDER: inserire base64 dell'immagine tessera
+// Sfondo: file tessera-bg.jpg nella cartella public del progetto.
+// Quando TESSERA_BG_URL è impostato, viene usato come sfondo; altrimenti fallback canvas.
+const TESSERA_BG_URL = '/tessera-bg.jpg'; // ← il file deve esistere in /public/tessera-bg.jpg
 
 function drawTessera(s){
   const canvas = document.getElementById('tessera-canvas');
@@ -23854,17 +23854,18 @@ function drawTessera(s){
     ctx.fillText(emi, 945, 742);
   }
 
-  if(TESSERA_BG_SGAS){
+  if(TESSERA_BG_URL){
     const img = new Image();
     img.onload = function(){
       ctx.drawImage(img, 0, 0, W, H);
       renderText();
     };
     img.onerror = function(){
+      // File non trovato — usa fallback canvas
       drawTesseraFallback(ctx, W, H);
       renderText();
     };
-    img.src = 'data:image/jpeg;base64,' + TESSERA_BG_SGAS;
+    img.src = TESSERA_BG_URL;
   } else {
     drawTesseraFallback(ctx, W, H);
     renderText();
