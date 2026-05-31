@@ -22531,7 +22531,7 @@ function adminRecVerifyCode(){
 function adminRecStep3(){
   const rc=document.getElementById('recovery-content');
   rc.innerHTML=
-    '<div style="text-align:center;margin-bottom:18px;">'    +'<div style="font-size:2rem;margin-bottom:8px;">🔒</div>'    +'<h3 style="font-family:\'DM Serif Display\',serif;font-size:1.2rem;">Imposta nuova password</h3>'    +'</div>'    +'<div class="field"><label>Nuova Password</label><input id="rec-adm-np" type="password" placeholder="Minimo 4 caratteri"></div>'    +'<div class="field"><label>Conferma Password</label><input id="rec-adm-cp" type="password" placeholder="Ripeti la password"></div>'    +'<div id="rec-adm-msg3" style="margin:10px 0;"></div>'    +'<button class="btn btn-primary btn-block" onclick="adminRecSavePass()">💾 Salva nuova password</button>';
+    '<div style="text-align:center;margin-bottom:18px;">'    +'<div style="font-size:2rem;margin-bottom:8px;">🔒</div>'    +'<h3 style="font-family:\'DM Serif Display\',serif;font-size:1.2rem;">Imposta nuova password</h3>'    +'</div>'    +'<div class="field"><label>Nuova Password</label><input id="rec-adm-np" type="password" placeholder="Minimo 8 caratteri"></div>'    +'<div class="field"><label>Conferma Password</label><input id="rec-adm-cp" type="password" placeholder="Ripeti la password"></div>'    +'<div id="rec-adm-msg3" style="margin:10px 0;"></div>'    +'<button class="btn btn-primary btn-block" onclick="adminRecSavePass()">💾 Salva nuova password</button>';
 }
 
 async function adminRecSavePass(){
@@ -22566,7 +22566,7 @@ function saveSetupAdmin(){
   const pass2=document.getElementById('setup-pass2').value;
   const err=document.getElementById('setup-err');
   if(!email||!email.includes('@')){err.innerHTML='<div class="alert alert-info">❌ Inserisci una email valida.</div>';return;}
-  if(!pass||pass.length<4){err.innerHTML='<div class="alert alert-info">❌ Password minimo 4 caratteri.</div>';return;}
+  if(!pass||pass.length<8){err.innerHTML='<div class="alert alert-info">❌ Password minimo 8 caratteri.</div>';return;}
   if(pass!==pass2){err.innerHTML='<div class="alert alert-info">❌ Le password non coincidono.</div>';return;}
   // Salva le nuove credenziali nel config
   // Se c'è già un admin1 diverso, salva come admin2, altrimenti come admin1
