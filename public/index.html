@@ -21003,6 +21003,12 @@ window.docx = docx;
         <label class="btn btn-secondary" style="cursor:pointer;">📤 Ripristina <input type="file" accept=".json" style="display:none;" onchange="restoreData(event)"></label>
       </div>
       <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
+        <h4 style="font-family:var(--font-serif,serif);margin-bottom:6px;font-size:1rem;">🖼 Ottimizza immagini esistenti</h4>
+        <p style="font-size:.82rem;color:var(--text-mid);margin-bottom:12px;">Ricomprime tutte le immagini dei fornitori già salvate alle dimensioni ottimali senza doverle ricaricare manualmente.</p>
+        <button class="btn btn-secondary" onclick="ottimizzaTutteImmagini()">⚡ Ottimizza tutte le immagini</button>
+        <div id="ottimizza-status" style="font-size:.78rem;color:var(--text-mid);margin-top:8px;"></div>
+      </div>
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
         <h4 style="font-family:var(--font-serif,serif);margin-bottom:6px;font-size:1rem;">🚀 Esporta App per Netlify</h4>
         <p style="font-size:.82rem;color:var(--text-mid);margin-bottom:12px;">Genera un nuovo file HTML con <strong>tutti i soci, la configurazione e i dati</strong> già incorporati. Carica questo file su Netlify: i soci potranno accedere da qualsiasi dispositivo senza problemi.</p>
         <button class="btn btn-primary" onclick="esportaAppNetlify()">📦 Genera App Aggiornata per Netlify</button>
@@ -25322,6 +25328,49 @@ async function testTelegramMsg(){
     if(data.ok) toast('✅ Messaggio di test inviato!');
     else toast('❌ Errore: '+data.description);
   }catch(e){toast('❌ Errore connessione: '+e.message);}
+}
+
+function ottimizzaTutteImmagini(){
+  if(!currentUser||currentUser.type!=='admin'){toast('❌ Accesso negato');return;}
+  const fornWithLogo = S.fornitori.filter(f=>f.logo&&f.logo.startsWith('data:'));
+  if(!fornWithLogo.length){toast('Nessuna immagine da ottimizzare');return;}
+  const status = document.getElementById('ottimizza-status');
+  if(status) status.textContent = '⏳ Ottimizzazione in corso...';
+  let done=0, totalSaved=0;
+  function processNext(idx){
+    if(idx>=fornWithLogo.length){
+      saveState();
+      const msg = '✅ '+done+' immagini ottimizzate — risparmio: ~'+Math.round(totalSaved/1024)+'KB';
+      toast(msg);
+      if(status) status.textContent = msg;
+      return;
+    }
+    const f = fornWithLogo[idx];
+    const img = new Image();
+    img.onload = function(){
+      const isBanner = img.width > img.height * 1.8;
+      const maxW = isBanner ? 1200 : 400;
+      const maxH = isBanner ? 400  : 400;
+      let w=img.width, h=img.height;
+      if(w<=maxW && h<=maxH){ processNext(idx+1); return; } // già ok
+      if(w>maxW){h=Math.round(h*maxW/w);w=maxW;}
+      if(h>maxH){w=Math.round(w*maxH/h);h=maxH;}
+      const cvs=document.createElement('canvas');
+      cvs.width=w; cvs.height=h;
+      cvs.getContext('2d').drawImage(img,0,0,w,h);
+      const optimized=cvs.toDataURL('image/jpeg',0.82);
+      totalSaved += (f.logo.length - optimized.length);
+      // Update in S.fornitori by id
+      const sf=S.fornitori.find(x=>x.id===f.id);
+      if(sf) sf.logo=optimized;
+      done++;
+      if(status) status.textContent = '⏳ '+done+'/'+fornWithLogo.length+' ...';
+      processNext(idx+1);
+    };
+    img.onerror = function(){ processNext(idx+1); };
+    img.src = f.logo;
+  }
+  processNext(0);
 }
 
 function esportaAppNetlify(){
