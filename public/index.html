@@ -25281,9 +25281,15 @@ async function testTelegramMsg(){
 
 function esportaAppNetlify(){
   if(!currentUser||currentUser.type!=='admin'){toast('❌ Accesso negato');return;}
-  // Prepara i dati da incorporare (tutto lo stato attuale)
+
+  const PRELOAD_START = '<!--SGAS_PRELOAD_START-->';
+  const PRELOAD_END   = '<!--SGAS_PRELOAD_END-->';
+
+  // Stato corrente completo da incorporare nel file esportato
+  const curVer = (S._embVer||'3');
+  const newVer = String(parseInt(curVer||'3',10)+1);
   const stateToEmbed = {
-    config:    {...S.config, setupDone: true},
+    config:    {...S.config, setupDone:true},
     soci:      S.soci      || [],
     fornitori: S.fornitori || [],
     prodotti:  S.prodotti  || [],
@@ -25291,46 +25297,54 @@ function esportaAppNetlify(){
     raccolte:  S.raccolte  || [],
     ordini:    S.ordini    || [],
     messaggi:  S.messaggi  || [],
-    cart: {raccoltaId:'', items:[]}
+    cart:      {raccoltaId:'',items:[]},
+    _embVer:   newVer
   };
   const stateJson = JSON.stringify(stateToEmbed);
 
-  // Legge il sorgente HTML corrente della pagina
-  let htmlSource = document.documentElement.outerHTML;
+  // Legge il sorgente HTML corrente
+  let html = document.documentElement.outerHTML;
 
-  // Rimuove eventuali preload precedenti per evitare duplicati
-  const preStart = '';
-  const idxS = htmlSource.indexOf(preStart);
-  const idxE = htmlSource.indexOf(preEnd);
+  // Rimuove il blocco preload esistente (tra i marcatori)
+  const idxS = html.indexOf(PRELOAD_START);
+  const idxE = html.indexOf(PRELOAD_END);
   if(idxS !== -1 && idxE !== -1){
-    htmlSource = htmlSource.substring(0, idxS) + htmlSource.substring(idxE + preEnd.length);
+    html = html.substring(0, idxS) + html.substring(idxE + PRELOAD_END.length);
   }
 
-  // Costruisce lo script di preload con marcatori HTML comment (sicuri)
-  const injectBlock = preStart +
-    '\n<script>\n' +
-    'try{\n' +
-    '  var _emb=' + stateJson + ';\n' +
-    '  var _raw=localStorage.getItem("sgas_state");\n' +
-    '  if(_raw){\n' +
-    '    var _cur=JSON.parse(_raw);\n' +
-    '    _cur.config=_emb.config;\n' +
-    '    _cur.soci=_emb.soci;\n' +
-    '    _cur.fornitori=_emb.fornitori;\n' +
-    '    _cur.prodotti=_emb.prodotti;\n' +
-    '    _cur.categorie=_emb.categorie;\n' +
-    '    localStorage.setItem("sgas_state",JSON.stringify(_cur));\n' +
-    '  }else{\n' +
-    '    localStorage.setItem("sgas_state",JSON.stringify(_emb));\n' +
-    '  }\n' +
-    '}catch(e){try{localStorage.setItem("sgas_state",JSON.stringify(_emb));}catch(e2){}}\n' +
-    '<\/script>\n' + preEnd + '\n';
+  // Costruisce il nuovo blocco preload con merge smart identico a quello del file master
+  const preloadBlock = PRELOAD_START + `
+<script>
+try{
+  var _emb=${stateJson};
+  var _raw=localStorage.getItem("sgas_state");
+  if(_raw){
+    var _cur=JSON.parse(_raw);
+    if(_cur._embVer!==_emb._embVer){
+      // Versione aggiornata: sovrascrivi config, fornitori, prodotti, categorie
+      // Preserva soci, raccolte, ordini, messaggi dell'utente
+      _cur.config=Object.assign({},_emb.config);
+      _cur.fornitori=_emb.fornitori;
+      _cur.prodotti=_emb.prodotti;
+      _cur.categorie=_emb.categorie;
+      if(!_cur.soci||!_cur.soci.length) _cur.soci=_emb.soci||[];
+      if(!_cur.raccolte) _cur.raccolte=_emb.raccolte||[];
+      if(!_cur.ordini)   _cur.ordini=_emb.ordini||[];
+      if(!_cur.messaggi) _cur.messaggi=_emb.messaggi||[];
+      _cur._embVer=_emb._embVer;
+    }
+    localStorage.setItem("sgas_state",JSON.stringify(_cur));
+  }else{
+    localStorage.setItem("sgas_state",JSON.stringify(_emb));
+  }
+}catch(e){try{localStorage.setItem("sgas_state",JSON.stringify(_emb));}catch(e2){}}
+<\/script>
+` + PRELOAD_END;
 
-  // Inietta DENTRO <head>, subito dopo <head...>, prima di qualsiasi altro script
-  // Usa </title> come punto di inserimento sicuro (non appare mai in stringhe JS)
-  const outputHtml = htmlSource.replace('</title>', '</title>\n' + injectBlock);
+  // Inietta il blocco preload subito dopo </title>
+  html = html.replace('</title>', '</title>\n' + preloadBlock);
 
-  const blob = new Blob(['<!DOCTYPE html>\n'+outputHtml], {type:'text/html;charset=utf-8'});
+  const blob = new Blob(['<!DOCTYPE html>\n' + html], {type:'text/html;charset=utf-8'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'index.html';
