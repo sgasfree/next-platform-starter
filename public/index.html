@@ -24686,17 +24686,23 @@ function exportFornWord(raccoltaId, fornId){
     const racc = S.raccolte.find(r=>r.id===raccoltaId);
     const forn = S.fornitori.find(f=>f.id===fornId);
     const ordini = S.ordini.filter(o=>o.raccoltaId===raccoltaId);
-    const rows2 = [];
+    const prodMap = {};
     let totale = 0;
     ordini.forEach(o=>{
       o.items.forEach(i=>{
         const p = S.prodotti.find(x=>x.id===i.prodottoId);
         if(!p || p.fornitorId!==fornId) return;
-        const tot = p.prezzo*i.qty;
-        totale += tot;
-        rows2.push({codice:p.codice||'',nome:p.nome,unita:p.unita||'',qty:i.qty,prezzo:p.prezzo,tot});
+        const rigaTot = p.prezzo * i.qty;
+        totale += rigaTot;
+        if(prodMap[i.prodottoId]){
+          prodMap[i.prodottoId].qty += i.qty;
+          prodMap[i.prodottoId].tot += rigaTot;
+        } else {
+          prodMap[i.prodottoId] = {codice:p.codice||'',nome:p.nome,unita:p.unita||'',qty:i.qty,prezzo:p.prezzo,tot:rigaTot};
+        }
       });
     });
+    const rows2 = Object.values(prodMap);
     rows2.sort((a,b)=>a.nome.localeCompare(b.nome,'it'));
     const gasName = S.config.gasName||'S-GAS';
     const raccNome = racc?racc.nome:raccoltaId;
@@ -24830,13 +24836,19 @@ function exportReportWord(raccoltaId){
     // Una tabella per fornitore
     fornIds.forEach(fid=>{
       const forn=S.fornitori.find(f=>f.id===fid);
-      const rows2=[]; let totale=0;
+      const prodMap2={}; let totale=0;
       ordini.forEach(o=>{ o.items.forEach(i=>{
         const p=S.prodotti.find(x=>x.id===i.prodottoId);
         if(!p||p.fornitorId!==fid) return;
-        const tot=p.prezzo*i.qty; totale+=tot;
-        rows2.push({codice:p.codice||'',nome:p.nome,unita:p.unita||'',qty:i.qty,prezzo:p.prezzo,tot});
+        const rigaTot=p.prezzo*i.qty; totale+=rigaTot;
+        if(prodMap2[i.prodottoId]){
+          prodMap2[i.prodottoId].qty+=i.qty;
+          prodMap2[i.prodottoId].tot+=rigaTot;
+        } else {
+          prodMap2[i.prodottoId]={codice:p.codice||'',nome:p.nome,unita:p.unita||'',qty:i.qty,prezzo:p.prezzo,tot:rigaTot};
+        }
       });});
+      const rows2=Object.values(prodMap2);
       rows2.sort((a,b)=>a.nome.localeCompare(b.nome,'it'));
       // Titolo fornitore
       children.push(new Paragraph({spacing:{before:400,after:120},
