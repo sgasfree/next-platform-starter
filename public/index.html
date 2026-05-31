@@ -108,6 +108,17 @@ try{
         _seenP[k]=true;return true;
       });
     }
+    // Deduplicazione ordini: rimuovi duplicati per id
+    if(_cur.ordini&&_cur.ordini.length>1){
+      var _seenOrd={};
+      _cur.ordini=_cur.ordini.filter(function(o){
+        if(!o.id)return false;
+        if(_seenOrd[o.id])return false;
+        _seenOrd[o.id]=true;return true;
+      });
+    }
+    // Sanity: filtra ordini senza data (non conteggiabili)
+    if(_cur.ordini) _cur.ordini=_cur.ordini.filter(function(o){return o.id&&o.data&&!isNaN(new Date(o.data).getTime());});
     localStorage.setItem("sgas_state",JSON.stringify(_cur));
   }else{
     localStorage.setItem("sgas_state",JSON.stringify(_emb));
