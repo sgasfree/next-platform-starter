@@ -28,20 +28,27 @@ try{
       // Merge fornitori embedded: aggiunge nuovi e rimuove duplicati per nome
       if(_emb.fornitori&&_emb.fornitori.length){
         _cur.fornitori=_cur.fornitori||[];
+        var _idRemap={};
+        var normName=function(n){return (n||'').toLowerCase().replace(/[“”‘’"']/g,'"').trim();};
         _emb.fornitori.forEach(function(ef){
-          var normName=function(n){return (n||'').toLowerCase().replace(/[""'']/g,'"').trim();};
           var byId=_cur.fornitori.findIndex(function(f){return f.id===ef.id;});
           var byName=_cur.fornitori.findIndex(function(f){return normName(f.nome)===normName(ef.nome);});
           if(byId>=0){
-            // Aggiorna dati ma preserva eventuali personalizzazioni admin (logo, ecc.)
             _cur.fornitori[byId]=Object.assign({},ef,{logo:_cur.fornitori[byId].logo||ef.logo});
           } else if(byName>=0){
-            // Stesso nome, ID diverso: sostituisci con versione embedded (rimuove il doppione)
+            var oldId=_cur.fornitori[byName].id;
+            if(oldId!==ef.id) _idRemap[oldId]=ef.id;
             _cur.fornitori[byName]=Object.assign({},ef,{logo:_cur.fornitori[byName].logo||ef.logo});
           } else {
             _cur.fornitori.push(ef);
           }
         });
+        // Aggiorna fornitorId nei prodotti che puntavano a un ID rimappato
+        if(Object.keys(_idRemap).length&&_cur.prodotti){
+          _cur.prodotti.forEach(function(p){
+            if(p.fornitorId&&_idRemap[p.fornitorId]) p.fornitorId=_idRemap[p.fornitorId];
+          });
+        }
       }
       // Merge prodotti embedded (aggiungi nuovi senza rimuovere quelli esistenti)
       if(_emb.prodotti&&_emb.prodotti.length){
@@ -69,6 +76,21 @@ try{
         var k=(f.nome||"").toLowerCase().trim();
         if(_seen[k])return false;
         _seen[k]=true;return true;
+      });
+    }
+    // Riassegna prodotti orfani: fornitorId punta a un fornitore rimosso
+    if(_cur.prodotti&&_cur.fornitori){
+      var _fornIds2=new Set(_cur.fornitori.map(function(f){return f.id;}));
+      var _embFornMap={};
+      if(_emb.fornitori) _emb.fornitori.forEach(function(ef){_embFornMap[ef.id]=ef;});
+      _cur.prodotti.forEach(function(p){
+        if(p.fornitorId&&!_fornIds2.has(p.fornitorId)){
+          // cerca il fornitore embedded corrispondente all'ID vecchio tramite nome prodotto embedded
+          var eprod=_emb.prodotti&&_emb.prodotti.find(function(ep){return ep.id===p.id;});
+          if(eprod&&eprod.fornitorId&&_fornIds2.has(eprod.fornitorId)){
+            p.fornitorId=eprod.fornitorId;
+          }
+        }
       });
     }
     // Deduplicazione prodotti: rimuovi doppi per id poi per nome+fornitorId
