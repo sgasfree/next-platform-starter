@@ -24084,12 +24084,29 @@ let _fornLogo = null;
 function previewFornLogo(ev){
   const file=ev.target.files[0];
   if(!file) return;
-  if(file.size>3*1024*1024){toast('Immagine troppo grande (max 3 MB)');return;}
+  if(file.size>5*1024*1024){toast('Immagine troppo grande (max 5 MB)');return;}
   const reader=new FileReader();
   reader.onload=e=>{
-    _fornLogo=e.target.result;
-    const prev=document.getElementById('m-flogo-preview');
-    if(prev){prev.src=e.target.result;prev.style.display='block';}
+    const img=new Image();
+    img.onload=function(){
+      // Determina se è un banner panoramico o un logo quadrato
+      const isBanner = img.width > img.height * 1.8;
+      const maxW = isBanner ? 1200 : 400;
+      const maxH = isBanner ? 400  : 400;
+      let w=img.width, h=img.height;
+      if(w>maxW){h=Math.round(h*maxW/w);w=maxW;}
+      if(h>maxH){w=Math.round(w*maxH/h);h=maxH;}
+      const cvs=document.createElement('canvas');
+      cvs.width=w; cvs.height=h;
+      cvs.getContext('2d').drawImage(img,0,0,w,h);
+      const optimized=cvs.toDataURL('image/jpeg',0.82);
+      _fornLogo=optimized;
+      const prev=document.getElementById('m-flogo-preview');
+      if(prev){prev.src=optimized;prev.style.display='block';}
+      const kb=Math.round(optimized.length*0.75/1024);
+      toast('✅ Immagine ottimizzata: '+w+'×'+h+'px — '+kb+'KB');
+    };
+    img.src=e.target.result;
   };
   reader.readAsDataURL(file);
 }
@@ -25673,9 +25690,22 @@ function uploadLogo(ev){
   const f=ev.target.files[0]; if(!f)return;
   const r=new FileReader();
   r.onload=e=>{
-    S.config.logoBase64=e.target.result;
-    saveState(); applyLogo(); renderSettings();
-    toast('✅ Logo caricato e applicato!');
+    const img=new Image();
+    img.onload=function(){
+      const maxS=300;
+      let w=img.width, h=img.height;
+      if(w>maxS||h>maxS){
+        if(w>h){h=Math.round(h*maxS/w);w=maxS;}
+        else{w=Math.round(w*maxS/h);h=maxS;}
+      }
+      const cvs=document.createElement('canvas');
+      cvs.width=w; cvs.height=h;
+      cvs.getContext('2d').drawImage(img,0,0,w,h);
+      S.config.logoBase64=cvs.toDataURL('image/png',0.9);
+      saveState(); applyLogo(); renderSettings();
+      toast('✅ Logo ottimizzato: '+w+'×'+h+'px');
+    };
+    img.src=e.target.result;
   };
   r.readAsDataURL(f);
 }
