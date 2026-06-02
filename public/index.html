@@ -83,13 +83,24 @@ try{
       var _fornIds2=new Set(_cur.fornitori.map(function(f){return f.id;}));
       var _embFornMap={};
       if(_emb.fornitori) _emb.fornitori.forEach(function(ef){_embFornMap[ef.id]=ef;});
+      // mappa nome-normalizzato → id per i fornitori correnti (fallback per match per nome)
+      var _fornByNome={};
+      _cur.fornitori.forEach(function(f){ if(f.nome) _fornByNome[(f.nome||'').toLowerCase().trim()]=f.id; });
       _cur.prodotti.forEach(function(p){
         if(p.fornitorId&&!_fornIds2.has(p.fornitorId)){
-          // cerca il fornitore embedded corrispondente all'ID vecchio tramite nome prodotto embedded
+          // 1° tentativo: cerca il fornitore tramite ID nel dato embedded
           var eprod=_emb.prodotti&&_emb.prodotti.find(function(ep){return ep.id===p.id;});
           if(eprod&&eprod.fornitorId&&_fornIds2.has(eprod.fornitorId)){
-            p.fornitorId=eprod.fornitorId;
+            p.fornitorId=eprod.fornitorId; return;
           }
+          // 2° tentativo: cerca fornitore embedded per quell'ID e prova a matchare per nome
+          var eforn=_embFornMap[p.fornitorId];
+          if(eforn&&eforn.nome){
+            var matchId=_fornByNome[(eforn.nome||'').toLowerCase().trim()];
+            if(matchId){ p.fornitorId=matchId; return; }
+          }
+          // 3° tentativo: se esiste solo un fornitore, assegna a quello
+          if(_cur.fornitori.length===1){ p.fornitorId=_cur.fornitori[0].id; }
         }
       });
     }
@@ -24246,7 +24257,15 @@ function renderProdotti_admin(){
       </div></td>
     </tr>`;
   }).join('');
-  document.getElementById('admin-panel-content').innerHTML=`<div class="tbl-wrap"><table>
+  const orfani=S.prodotti.filter(p=>!S.fornitori.find(x=>x.id===p.fornitorId));
+  const orfaniBanner=orfani.length
+    ?`<div style="background:#fff3cd;border:1.5px solid #ffc107;border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span style="font-size:1.1rem;">⚠️</span>
+        <span style="font-size:.88rem;"><strong>${orfani.length} prodott${orfani.length===1?'o':'i'} con fornitore mancante</strong>: ${orfani.map(p=>'<em>'+escHtml(p.nome)+'</em>').join(', ')}</span>
+        <button class="btn btn-xs btn-amber" onclick="modalRiassegnaOrfani()" style="margin-left:auto;">🔧 Riassegna</button>
+      </div>`
+    :'';
+  document.getElementById('admin-panel-content').innerHTML=orfaniBanner+`<div class="tbl-wrap"><table>
     <thead><tr><th>Prodotto</th><th>Fornitore</th><th>Codice</th><th>Prezzo</th><th>Unità</th><th>Disp. / Azioni</th></tr></thead>
     <tbody>${rows||'<tr><td colspan="6" style="text-align:center;color:var(--text-light);">Nessun prodotto</td></tr>'}</tbody>
   </table></div>`;
@@ -24302,6 +24321,46 @@ function toggleDisponibile(id){
   p.disponibile = p.disponibile === false ? true : false;
   saveState(); renderProdotti_admin();
   toast(p.disponibile===false ? '⛔ Prodotto segnato come non disponibile' : '✅ Prodotto nuovamente disponibile');
+}
+
+function modalRiassegnaOrfani(){
+  const orfani=S.prodotti.filter(p=>!S.fornitori.find(x=>x.id===p.fornitorId));
+  if(!orfani.length){toast('✅ Nessun prodotto orfano');return;}
+  const fornOpts=S.fornitori.filter(f=>f.attivo!==false).map(f=>`<option value="${f.id}">${f.emoji||''} ${escHtml(f.nome)}</option>`).join('');
+  const righe=orfani.map(p=>`
+    <tr>
+      <td style="padding:6px 8px;font-size:.85rem;"><strong>${escHtml(p.nome)}</strong></td>
+      <td style="padding:6px 8px;">
+        <select id="orf-forn-${p.id}" style="font-size:.8rem;padding:3px 6px;border-radius:6px;border:1px solid var(--green-light);background:var(--bg);">
+          <option value="">— Elimina prodotto —</option>
+          ${fornOpts}
+        </select>
+      </td>
+    </tr>`).join('');
+  openModal(`<h3>🔧 Prodotti orfani</h3>
+    <p style="font-size:.83rem;color:var(--text-mid);margin-bottom:10px;">Questi prodotti hanno un fornitore non più presente. Seleziona il fornitore a cui riassegnarli, oppure lascia "— Elimina —" per rimuoverli.</p>
+    <table style="width:100%;border-collapse:collapse;">
+      <thead><tr><th style="text-align:left;padding:4px 8px;font-size:.78rem;color:var(--text-light);">Prodotto</th><th style="text-align:left;padding:4px 8px;font-size:.78rem;color:var(--text-light);">Nuovo fornitore</th></tr></thead>
+      <tbody>${righe}</tbody>
+    </table>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
+      <button class="btn btn-primary" onclick="applicaRiassegnaOrfani()">✅ Applica</button>
+    </div>`);
+}
+
+function applicaRiassegnaOrfani(){
+  const orfani=S.prodotti.filter(p=>!S.fornitori.find(x=>x.id===p.fornitorId));
+  const daEliminare=[];
+  orfani.forEach(p=>{
+    const sel=document.getElementById('orf-forn-'+p.id);
+    if(!sel) return;
+    if(sel.value){ p.fornitorId=sel.value; }
+    else { daEliminare.push(p.id); }
+  });
+  if(daEliminare.length) S.prodotti=S.prodotti.filter(p=>!daEliminare.includes(p.id));
+  saveState(); closeModal(); renderProdotti_admin();
+  toast(`✅ Aggiornati ${orfani.length-daEliminare.length}, eliminati ${daEliminare.length}`);
 }
 
 // ════════════════════ ADMIN — RACCOLTE ════════════════════
