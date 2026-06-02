@@ -1048,6 +1048,118 @@ patch('13e: fix exportOrderWord window.docx destructuring',
     "  const gasName = S.config.gasName||'S-GAS Freeconomy';\n"
 )
 
+# 14: Ribilancia Banner↔Quadrato nel form fornitore
+# 14a: aggiungi pulsante ribilancia nel template fornForm
+patch('14a: pulsante ribilancia logo fornForm',
+    '<label class="btn btn-secondary btn-sm" style="cursor:pointer;display:inline-block;">📷 Carica logo'
+    '<input type="file" accept="image/*" style="display:none;" onchange="previewFornLogo(event)"></label>\n'
+    '    </div>',
+    '<label class="btn btn-secondary btn-sm" style="cursor:pointer;display:inline-block;">📷 Carica logo'
+    '<input type="file" accept="image/*" style="display:none;" onchange="previewFornLogo(event)"></label>\n'
+    '      <div id="m-flogo-rebalance-wrap" style="display:none;margin-top:8px;">\n'
+    '        <button type="button" class="btn btn-xs btn-secondary" onclick="ribilanciaFornLogo()">⚖️ Ribilancia Banner↔Quadrato</button>\n'
+    '        <span id="m-flogo-mode-label" style="font-size:.75rem;color:var(--text-mid);margin-left:8px;"></span>\n'
+    '      </div>\n'
+    '    </div>'
+)
+
+# 14b: variabili _fornLogoOrig e _fornIsBanner
+patch('14b: _fornLogoOrig + _fornIsBanner vars',
+    'let _fornLogo = null;\n'
+    '\n'
+    'function previewFornLogo(ev){',
+    'let _fornLogo = null;\n'
+    'let _fornLogoOrig = null;\n'
+    'let _fornIsBanner = null;\n'
+    '\n'
+    'function previewFornLogo(ev){'
+)
+
+# 14c: refactoring previewFornLogo + nuove funzioni
+old_preview_fn = (
+    "function previewFornLogo(ev){\n"
+    "  const file=ev.target.files[0];\n"
+    "  if(!file) return;\n"
+    "  if(file.size>5*1024*1024){toast('Immagine troppo grande (max 5 MB)');return;}\n"
+    "  const reader=new FileReader();\n"
+    "  reader.onload=e=>{\n"
+    "    const img=new Image();\n"
+    "    img.onload=function(){\n"
+    "      // Determina se è un banner panoramico o un logo quadrato\n"
+    "      const isBanner = img.width > img.height * 1.8;\n"
+    "      const maxW = isBanner ? 1200 : 400;\n"
+    "      const maxH = isBanner ? 400  : 400;\n"
+    "      let w=img.width, h=img.height;\n"
+    "      if(w>maxW){h=Math.round(h*maxW/w);w=maxW;}\n"
+    "      if(h>maxH){w=Math.round(w*maxH/h);h=maxH;}\n"
+    "      const cvs=document.createElement('canvas');\n"
+    "      cvs.width=w; cvs.height=h;\n"
+    "      cvs.getContext('2d').drawImage(img,0,0,w,h);\n"
+    "      const optimized=cvs.toDataURL('image/jpeg',0.82);\n"
+    "      _fornLogo=optimized;\n"
+    "      const prev=document.getElementById('m-flogo-preview');\n"
+    "      if(prev){prev.src=optimized;prev.style.display='block';}\n"
+    "      const kb=Math.round(optimized.length*0.75/1024);\n"
+    "      toast('✅ Immagine ottimizzata: '+w+'×'+h+'px — '+kb+'KB');\n"
+    "    };\n"
+    "    img.src=e.target.result;\n"
+    "  };\n"
+    "  reader.readAsDataURL(file);\n"
+    "}"
+)
+new_preview_fn = (
+    "function previewFornLogo(ev){\n"
+    "  const file=ev.target.files[0];\n"
+    "  if(!file) return;\n"
+    "  if(file.size>5*1024*1024){toast('Immagine troppo grande (max 5 MB)');return;}\n"
+    "  const reader=new FileReader();\n"
+    "  reader.onload=e=>{\n"
+    "    _fornLogoOrig = e.target.result;\n"
+    "    const img=new Image();\n"
+    "    img.onload=function(){\n"
+    "      _fornIsBanner = img.width > img.height * 1.8;\n"
+    "      _applyFornLogoResize(img, _fornIsBanner);\n"
+    "    };\n"
+    "    img.src=e.target.result;\n"
+    "  };\n"
+    "  reader.readAsDataURL(file);\n"
+    "}\n"
+    "\n"
+    "function _applyFornLogoResize(img, isBanner){\n"
+    "  const maxW = isBanner ? 1200 : 400;\n"
+    "  const maxH = isBanner ? 400  : 400;\n"
+    "  let w=img.width, h=img.height;\n"
+    "  if(w>maxW){h=Math.round(h*maxW/w);w=maxW;}\n"
+    "  if(h>maxH){w=Math.round(w*maxH/h);h=maxH;}\n"
+    "  const cvs=document.createElement('canvas');\n"
+    "  cvs.width=w; cvs.height=h;\n"
+    "  cvs.getContext('2d').drawImage(img,0,0,w,h);\n"
+    "  const optimized=cvs.toDataURL('image/jpeg',0.82);\n"
+    "  _fornLogo=optimized;\n"
+    "  const prev=document.getElementById('m-flogo-preview');\n"
+    "  const previewW = isBanner ? '160px' : '80px';\n"
+    "  const previewH = isBanner ? '60px'  : '80px';\n"
+    "  if(prev){prev.src=optimized;prev.style.display='block';prev.style.width=previewW;prev.style.height=previewH;}\n"
+    "  const wrap=document.getElementById('m-flogo-rebalance-wrap');\n"
+    "  if(wrap) wrap.style.display='block';\n"
+    "  const lbl=document.getElementById('m-flogo-mode-label');\n"
+    "  if(lbl) lbl.textContent = isBanner ? '📐 Modalità: Banner panoramico (1200×400)' : '📐 Modalità: Logo quadrato (400×400)';\n"
+    "  const kb=Math.round(optimized.length*0.75/1024);\n"
+    "  toast('✅ '+(isBanner?'Banner':'Logo')+': '+w+'×'+h+'px — '+kb+'KB');\n"
+    "}\n"
+    "\n"
+    "function ribilanciaFornLogo(){\n"
+    "  if(!_fornLogoOrig){ toast('⚠️ Ricarica prima una nuova immagine'); return; }\n"
+    "  const img=new Image();\n"
+    "  img.onload=function(){\n"
+    "    _fornIsBanner = !_fornIsBanner;\n"
+    "    _applyFornLogoResize(img, _fornIsBanner);\n"
+    "  };\n"
+    "  img.src=_fornLogoOrig;\n"
+    "}"
+)
+patch('14c: previewFornLogo refactor + ribilanciaFornLogo', old_preview_fn, new_preview_fn)
+
 # ══════════════════════════════════════════════════════════════════
 # WRITE
 # ══════════════════════════════════════════════════════════════════

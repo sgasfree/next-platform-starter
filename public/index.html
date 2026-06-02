@@ -24055,6 +24055,10 @@ function fornForm(f){
       <label>Logo / Foto fornitore</label>
       ${logoPreview}
       <label class="btn btn-secondary btn-sm" style="cursor:pointer;display:inline-block;">📷 Carica logo<input type="file" accept="image/*" style="display:none;" onchange="previewFornLogo(event)"></label>
+      <div id="m-flogo-rebalance-wrap" style="display:none;margin-top:8px;">
+        <button type="button" class="btn btn-xs btn-secondary" onclick="ribilanciaFornLogo()">⚖️ Ribilancia Banner↔Quadrato</button>
+        <span id="m-flogo-mode-label" style="font-size:.75rem;color:var(--text-mid);margin-left:8px;"></span>
+      </div>
     </div>
     <div class="field"><label>Nome</label><input id="m-fnome" type="text" value="${f.nome||''}" placeholder="Nome azienda"></div>
     <div class="field"><label>Categoria</label><select id="m-fcat">
@@ -24086,6 +24090,8 @@ function fornForm(f){
 }
 
 let _fornLogo = null;
+let _fornLogoOrig = null;
+let _fornIsBanner = null;
 
 function previewFornLogo(ev){
   const file=ev.target.files[0];
@@ -24093,28 +24099,50 @@ function previewFornLogo(ev){
   if(file.size>5*1024*1024){toast('Immagine troppo grande (max 5 MB)');return;}
   const reader=new FileReader();
   reader.onload=e=>{
+    _fornLogoOrig = e.target.result;
     const img=new Image();
     img.onload=function(){
       // Determina se è un banner panoramico o un logo quadrato
-      const isBanner = img.width > img.height * 1.8;
-      const maxW = isBanner ? 1200 : 400;
-      const maxH = isBanner ? 400  : 400;
-      let w=img.width, h=img.height;
-      if(w>maxW){h=Math.round(h*maxW/w);w=maxW;}
-      if(h>maxH){w=Math.round(w*maxH/h);h=maxH;}
-      const cvs=document.createElement('canvas');
-      cvs.width=w; cvs.height=h;
-      cvs.getContext('2d').drawImage(img,0,0,w,h);
-      const optimized=cvs.toDataURL('image/jpeg',0.82);
-      _fornLogo=optimized;
-      const prev=document.getElementById('m-flogo-preview');
-      if(prev){prev.src=optimized;prev.style.display='block';}
-      const kb=Math.round(optimized.length*0.75/1024);
-      toast('✅ Immagine ottimizzata: '+w+'×'+h+'px — '+kb+'KB');
+      _fornIsBanner = img.width > img.height * 1.8;
+      _applyFornLogoResize(img, _fornIsBanner);
     };
     img.src=e.target.result;
   };
   reader.readAsDataURL(file);
+}
+
+function _applyFornLogoResize(img, isBanner){
+  const maxW = isBanner ? 1200 : 400;
+  const maxH = isBanner ? 400  : 400;
+  let w=img.width, h=img.height;
+  if(w>maxW){h=Math.round(h*maxW/w);w=maxW;}
+  if(h>maxH){w=Math.round(w*maxH/h);h=maxH;}
+  const cvs=document.createElement('canvas');
+  cvs.width=w; cvs.height=h;
+  cvs.getContext('2d').drawImage(img,0,0,w,h);
+  const optimized=cvs.toDataURL('image/jpeg',0.82);
+  _fornLogo=optimized;
+  const prev=document.getElementById('m-flogo-preview');
+  const previewH = isBanner ? '60px' : '80px';
+  const previewW = isBanner ? '160px' : '80px';
+  const fit = isBanner ? 'cover' : 'cover';
+  if(prev){prev.src=optimized;prev.style.display='block';prev.style.width=previewW;prev.style.height=previewH;}
+  const wrap=document.getElementById('m-flogo-rebalance-wrap');
+  if(wrap) wrap.style.display='block';
+  const lbl=document.getElementById('m-flogo-mode-label');
+  if(lbl) lbl.textContent = isBanner ? '📐 Modalità: Banner panoramico (1200×400)' : '📐 Modalità: Logo quadrato (400×400)';
+  const kb=Math.round(optimized.length*0.75/1024);
+  toast('✅ '+( isBanner?'Banner':'Logo')+': '+w+'×'+h+'px — '+kb+'KB');
+}
+
+function ribilanciaFornLogo(){
+  if(!_fornLogoOrig){ toast('⚠️ Ricarica prima una nuova immagine'); return; }
+  const img=new Image();
+  img.onload=function(){
+    _fornIsBanner = !_fornIsBanner;
+    _applyFornLogoResize(img, _fornIsBanner);
+  };
+  img.src=_fornLogoOrig;
 }
 
 function openGalleriaFull(){ /* galleria rimossa */ }
