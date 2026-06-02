@@ -60,6 +60,7 @@ if not merged.get('logoData'):
 merged['supabasePaused'] = False        # abilita sync
 merged['supabaseUrl']    = ''           # da configurare
 merged['supabaseKey']    = ''           # da configurare
+merged['tgBotToken']     = '8794194195:AAFK5hXm3OjC1L0puOirym1Fq8NqGUL5n5k'
 emb['config']    = merged
 emb['fornitori'] = backup['fornitori']
 emb['prodotti']  = backup['prodotti']
