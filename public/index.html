@@ -25215,12 +25215,12 @@ INSERT INTO config (chiave,valore) VALUES ('sgas_app_state','{}');</pre>
     <div class="card" style="margin-bottom:16px;">
       <h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">👥 Secondo Amministratore</h3>
       <p style="font-size:.82rem;color:var(--text-mid);margin-bottom:14px;">Configura un secondo account admin con gli stessi poteri del principale. Lascia vuoto per disabilitarlo.</p>
-      <div class="field"><label>Email Admin 2</label><input id="s-email2" type="email" value="\${S.config.adminEmail2||''}" placeholder="secondo@admin.it"></div>
+      <div class="field"><label>Email Admin 2</label><input id="s-email2" type="email" value="${S.config.adminEmail2||''}" placeholder="secondo@admin.it"></div>
       <div class="field"><label>Password Admin 2</label><input id="s-pass2" type="password" placeholder="Lascia vuoto per non cambiare"></div>
-      \${S.config.adminEmail2?'<div class="alert alert-info" style="font-size:.78rem;margin-bottom:10px;">✅ Admin 2 attivo: <strong>'+S.config.adminEmail2+'</strong></div>':''}
+      ${S.config.adminEmail2?'<div class="alert alert-info" style="font-size:.78rem;margin-bottom:10px;">✅ Admin 2 attivo: <strong>'+S.config.adminEmail2+'</strong></div>':''}
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn btn-primary" onclick="saveAdmin2()">💾 Salva Admin 2</button>
-        \${S.config.adminEmail2?'<button class="btn btn-danger btn-sm" onclick="removeAdmin2()">🗑 Rimuovi Admin 2</button>':''}
+        ${S.config.adminEmail2?'<button class="btn btn-danger btn-sm" onclick="removeAdmin2()">🗑 Rimuovi Admin 2</button>':''}
       </div>
     </div>
     <div class="card" style="margin-bottom:16px;">
