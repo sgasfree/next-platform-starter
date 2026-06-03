@@ -22859,9 +22859,11 @@ function openFornitore(id){
       <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:${ind?'12px':'0'};">${btns}</div>
       ${ind?`<div style="text-align:center;font-size:.8rem;color:var(--text-light);margin-top:4px;">📍 ${escHtml(ind)}</div>`:''}
     </div>`;
-    document.getElementById('forn-detail-content').innerHTML=html;
-    showSocioSection('fornitore');
-    return;
+    if(!prods.length){
+      document.getElementById('forn-detail-content').innerHTML=html;
+      showSocioSection('fornitore');
+      return;
+    }
   }
 
   const openRacc=getFornOpenRaccolte(id);
