@@ -20749,6 +20749,9 @@ window.docx = docx;
 
   <!-- Catalogo -->
   <div id="socio-catalogo" class="content" style="display:flex;flex-direction:column;">
+    <div style="margin-bottom:10px;">
+      <input id="search-fornitori" type="search" placeholder="🔍 Cerca fornitore..." style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:24px;font-family:'Nunito',sans-serif;font-size:.95rem;outline:none;background:#fff;" oninput="renderFornitori()">
+    </div>
     <div class="catalogo-layout">
       <!-- Sidebar categorie sinistra -->
       <nav class="cat-sidebar" id="cat-sidebar"></nav>
@@ -20817,6 +20820,9 @@ window.docx = docx;
         <div style="font-weight:800;color:var(--green-dark);font-size:.88rem;">Modalità Vetrina</div>
         <div style="font-size:.78rem;color:var(--text-mid);margin-top:2px;">Stai esplorando come ospite. Per ordinare, <a href="https://t.me/frenkenergy" target="_blank" style="color:var(--green);font-weight:700;">contatta l'assistenza</a> per diventare socio.</div>
       </div>
+    </div>
+    <div style="margin-bottom:10px;">
+      <input id="search-fornitori-ospite" type="search" placeholder="🔍 Cerca fornitore..." style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:24px;font-family:'Nunito',sans-serif;font-size:.95rem;outline:none;background:#fff;" oninput="renderFornitoriOspite()">
     </div>
     <div class="catalogo-layout">
       <nav class="cat-sidebar" id="ospite-cat-sidebar"></nav>
@@ -22156,10 +22162,16 @@ function renderFornitoriOspite(){
   const list=document.getElementById('ospite-fornitori-list');
   if(!list) return;
   const _seenO=new Set();
+  const qO=(document.getElementById('search-fornitori-ospite')?.value||'').toLowerCase().trim();
   const filt=S.fornitori.filter(f=>{
     if(f.categoria!==ospiteTab||f.attivo===false) return false;
     if(_seenO.has(f.id)) return false;
-    _seenO.add(f.id); return true;
+    _seenO.add(f.id);
+    if(qO){
+      const haystack=(f.nome+' '+(f.zona||'')+' '+(f.descrizione||'')+' '+((f.caratteristiche||[]).join(' '))).toLowerCase();
+      if(!haystack.includes(qO)) return false;
+    }
+    return true;
   });
   if(!filt.length){
     list.innerHTML='<div class="empty"><div class="empty-icon">🌱</div><p>Nessun fornitore in questa categoria</p></div>';
@@ -22190,8 +22202,8 @@ function openFornitoreOspite(id){
   if(!f) return;
   const prods=S.prodotti.filter(p=>p.fornitorId===id&&p.disponibile!==false);
   const chars=f.caratteristiche||[];
-  const logoHtml=f.logo
-    ?'<div style="margin-bottom:0;overflow:hidden;border-radius:14px 14px 0 0;"><img src="'+f.logo+'" style="width:100%;max-height:180px;object-fit:cover;display:block;" alt="'+f.nome+'"></div>'
+  const logoHtml=(f.banner||f.logo)
+    ?'<div style="margin-bottom:0;overflow:hidden;border-radius:14px 14px 0 0;"><img src="'+(f.banner||f.logo)+'" style="width:100%;max-height:180px;object-fit:cover;display:block;" alt="'+f.nome+'"></div>'
     :'';
   const avatarHtml=f.logo
     ?'<img src="'+f.logo+'" style="width:56px;height:56px;object-fit:cover;border-radius:12px;flex-shrink:0;" alt="">'
@@ -22757,10 +22769,16 @@ function renderFornitori(){
   const list=document.getElementById('fornitori-list');
   // Deduplication: keep only first occurrence of each id
   const seen=new Set();
+  const q=(document.getElementById('search-fornitori')?.value||'').toLowerCase().trim();
   const filt=S.fornitori.filter(f=>{
     if(f.categoria!==currentTab||f.attivo===false) return false;
     if(seen.has(f.id)) return false;
-    seen.add(f.id); return true;
+    seen.add(f.id);
+    if(q){
+      const haystack=(f.nome+' '+(f.zona||'')+' '+(f.descrizione||'')+' '+((f.caratteristiche||[]).join(' '))).toLowerCase();
+      if(!haystack.includes(q)) return false;
+    }
+    return true;
   });
   if(!filt.length){list.innerHTML='<div class="empty"><div class="empty-icon">🌱</div><p>Nessun fornitore in questa categoria</p></div>';return;}
 
@@ -22816,8 +22834,8 @@ function openFornitore(id){
   if(!f) return;
   const prods=S.prodotti.filter(p=>p.fornitorId===id);
   const chars=f.caratteristiche||[];
-  const logoHtml=f.logo
-    ?`<div style="margin-bottom:0;overflow:hidden;border-radius:14px 14px 0 0;"><img src="${f.logo}" style="width:100%;max-height:180px;object-fit:cover;display:block;" alt="${f.nome}"></div>`
+  const logoHtml=(f.banner||f.logo)
+    ?`<div style="margin-bottom:0;overflow:hidden;border-radius:14px 14px 0 0;"><img src="${f.banner||f.logo}" style="width:100%;max-height:180px;object-fit:cover;display:block;" alt="${f.nome}"></div>`
     :'';
   const avatarHtml=f.logo
     ?`<img src="${f.logo}" style="width:56px;height:56px;object-fit:cover;border-radius:12px;flex-shrink:0;" alt="">`
@@ -22890,13 +22908,14 @@ function openFornitore(id){
         +'<div style="font-size:.75rem;color:var(--text-mid);">Puoi vedere i prodotti ma non ordinare. Torna quando l&#39;admin apre una raccolta.</div>'
         +'</div></div>';
     }
-    html+='<h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">Prodotti</h3>'
+    html+='<div style="margin-bottom:12px;"><input id="search-prodotti" type="search" placeholder="🔍 Cerca prodotto..." style="width:100%;padding:9px 14px;border:1.5px solid var(--border);border-radius:20px;font-family:\'Nunito\',sans-serif;font-size:.9rem;outline:none;"></div>'
+      +'<h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">Prodotti</h3>'
       +prods.map(p=>{
         const qty=getCartQty(p.id);
         const disp = p.disponibile !== false;
         const codBadge = p.codice ? '<span style="font-family:monospace;background:#e8f5e9;color:var(--green-dark);font-size:.7rem;padding:1px 6px;border-radius:4px;font-weight:700;margin-left:6px;">cod. '+escHtml(p.codice)+'</span>' : '';
         if(canOrder && disp){
-          return '<div class="prodotto-row">'
+          return '<div class="prodotto-row" data-name="'+p.nome.toLowerCase()+'">'
             +'<div><div class="prodotto-name">'+p.nome+codBadge+'</div>'
             +(p.descrizione?'<div style="font-size:.75rem;color:var(--text-mid);margin-top:2px;line-height:1.4;">'+escHtml(p.descrizione)+'</div>':'')
             +'<div style="font-size:.75rem;color:var(--text-light);">'+p.unita+'</div></div>'
@@ -22911,7 +22930,7 @@ function openFornitore(id){
           const label = !disp
             ? '<span style="font-size:.72rem;background:#f5f5f5;color:#999;border-radius:20px;padding:2px 10px;font-weight:700;border:1px solid #e0e0e0;">⛔ Non disponibile</span>'
             : '<div style="font-size:.8rem;color:var(--text-light);padding:4px 8px;">—</div>';
-          return '<div class="prodotto-row" style="opacity:'+(!disp?'.5':'.55')+'; pointer-events:none;">'
+          return '<div class="prodotto-row" data-name="'+p.nome.toLowerCase()+'" style="opacity:'+(!disp?'.5':'.55')+'; pointer-events:none;">'
             +'<div><div class="prodotto-name" style="color:var(--text-light);">'+p.nome+codBadge+'</div>'
             +(p.descrizione?'<div style="font-size:.75rem;color:var(--text-light);margin-top:2px;line-height:1.4;">'+escHtml(p.descrizione)+'</div>':'')
             +'<div style="font-size:.75rem;color:var(--text-light);">'+p.unita+'</div></div>'
@@ -22926,6 +22945,15 @@ function openFornitore(id){
   }
 
   document.getElementById('forn-detail-content').innerHTML=html;
+  // attach product search
+  const sp=document.getElementById('search-prodotti');
+  if(sp) sp.addEventListener('input', function(){
+    const q=this.value.toLowerCase().trim();
+    document.querySelectorAll('#forn-detail-content .prodotto-row').forEach(row=>{
+      const name=row.getAttribute('data-name')||'';
+      row.style.display=(!q||name.includes(q))?'':'none';
+    });
+  });
   showSocioSection('fornitore');
 }
 
@@ -24063,15 +24091,19 @@ function fornForm(f){
   const logoPreview=f.logo
     ?`<div style="margin-bottom:8px;"><img id="m-flogo-preview" src="${f.logo}" style="width:80px;height:80px;object-fit:cover;border-radius:12px;border:2px solid var(--green-light);"><br><button type="button" class="btn btn-xs btn-danger" style="margin-top:6px;" onclick="_fornLogo=null;document.getElementById('m-flogo-preview').src='';this.parentElement.style.display='none'">🗑 Rimuovi</button></div>`
     :`<img id="m-flogo-preview" src="" style="display:none;width:80px;height:80px;object-fit:cover;border-radius:12px;border:2px solid var(--green-light);margin-bottom:8px;">`;
+  const bannerPreview=f.banner
+    ?`<div style="margin-bottom:8px;"><img id="m-fbanner-preview" src="${f.banner}" style="width:100%;max-height:80px;object-fit:cover;border-radius:10px;border:2px solid var(--green-light);"><br><button type="button" class="btn btn-xs btn-danger" style="margin-top:6px;" onclick="_fornBanner=null;document.getElementById('m-fbanner-preview').src='';this.parentElement.style.display='none'">🗑 Rimuovi</button></div>`
+    :`<img id="m-fbanner-preview" src="" style="display:none;width:100%;max-height:80px;object-fit:cover;border-radius:10px;border:2px solid var(--green-light);margin-bottom:8px;">`;
   return `
     <div class="field">
-      <label>Logo / Foto fornitore</label>
+      <label>Logo fornitore <span style="font-weight:400;font-size:.78rem;color:var(--text-mid);">(quadrato, ottimale 400×400px)</span></label>
       ${logoPreview}
       <label class="btn btn-secondary btn-sm" style="cursor:pointer;display:inline-block;">📷 Carica logo<input type="file" accept="image/*" style="display:none;" onchange="previewFornLogo(event)"></label>
-      <div id="m-flogo-rebalance-wrap" style="display:none;margin-top:8px;">
-        <button type="button" class="btn btn-xs btn-secondary" onclick="ribilanciaFornLogo()">⚖️ Ribilancia Banner↔Quadrato</button>
-        <span id="m-flogo-mode-label" style="font-size:.75rem;color:var(--text-mid);margin-left:8px;"></span>
-      </div>
+    </div>
+    <div class="field">
+      <label>Banner fornitore <span style="font-weight:400;font-size:.78rem;color:var(--text-mid);">(panoramico, ottimale 1200×400px)</span></label>
+      ${bannerPreview}
+      <label class="btn btn-secondary btn-sm" style="cursor:pointer;display:inline-block;">🖼 Carica banner<input type="file" accept="image/*" style="display:none;" onchange="previewFornBanner(event)"></label>
     </div>
     <div class="field"><label>Nome</label><input id="m-fnome" type="text" value="${f.nome||''}" placeholder="Nome azienda"></div>
     <div class="field"><label>Categoria</label><select id="m-fcat">
@@ -24079,7 +24111,7 @@ function fornForm(f){
     </select></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div class="field"><label>Emoji</label><input id="m-femi" type="text" value="${f.emoji||''}" placeholder="🏪"></div>
-      
+
     </div>
     <div class="field"><label>Zona / Città</label><input id="m-fzona" type="text" value="${f.zona||''}" placeholder="es. Varese, Lombardia"></div>
     <div class="field"><label>Descrizione</label><textarea id="m-fdesc" placeholder="Descrizione del produttore...">${f.descrizione||''}</textarea></div>
@@ -24105,6 +24137,8 @@ function fornForm(f){
 let _fornLogo = null;
 let _fornLogoOrig = null;
 let _fornIsBanner = null;
+let _fornBanner = null;
+let _fornBannerOrig = null;
 
 function previewFornLogo(ev){
   const file=ev.target.files[0];
@@ -24116,8 +24150,8 @@ function previewFornLogo(ev){
     const img=new Image();
     img.onload=function(){
       // Determina se è un banner panoramico o un logo quadrato
-      _fornIsBanner = img.width > img.height * 1.8;
-      _applyFornLogoResize(img, _fornIsBanner);
+      _fornIsBanner = false;
+      _applyFornLogoResize(img, false);
     };
     img.src=e.target.result;
   };
@@ -24141,7 +24175,7 @@ function _applyFornLogoResize(img, isBanner){
   const fit = isBanner ? 'cover' : 'cover';
   if(prev){prev.src=optimized;prev.style.display='block';prev.style.width=previewW;prev.style.height=previewH;}
   const wrap=document.getElementById('m-flogo-rebalance-wrap');
-  if(wrap) wrap.style.display='block';
+  if(wrap) wrap.style.display='none';
   const lbl=document.getElementById('m-flogo-mode-label');
   if(lbl) lbl.textContent = isBanner ? '📐 Modalità: Banner panoramico (1200×400)' : '📐 Modalità: Logo quadrato (400×400)';
   const kb=Math.round(optimized.length*0.75/1024);
@@ -24158,10 +24192,38 @@ function ribilanciaFornLogo(){
   img.src=_fornLogoOrig;
 }
 
+function previewFornBanner(ev){
+  const file=ev.target.files[0];
+  if(!file) return;
+  if(file.size>5*1024*1024){toast('Immagine troppo grande (max 5 MB)');return;}
+  const reader=new FileReader();
+  reader.onload=e=>{
+    _fornBannerOrig=e.target.result;
+    const img=new Image();
+    img.onload=function(){
+      const maxW=1200,maxH=400;
+      let w=img.width,h=img.height;
+      if(w>maxW){h=Math.round(h*maxW/w);w=maxW;}
+      if(h>maxH){w=Math.round(w*maxH/h);h=maxH;}
+      const cvs=document.createElement('canvas');
+      cvs.width=w;cvs.height=h;
+      cvs.getContext('2d').drawImage(img,0,0,w,h);
+      const optimized=cvs.toDataURL('image/jpeg',0.82);
+      _fornBanner=optimized;
+      const prev=document.getElementById('m-fbanner-preview');
+      if(prev){prev.src=optimized;prev.style.display='block';}
+      const kb=Math.round(optimized.length*0.75/1024);
+      toast('✅ Banner: '+w+'×'+h+'px — '+kb+'KB');
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
 function openGalleriaFull(){ /* galleria rimossa */ }
 
 function modalNewFornitore(){
-  _fornLogo=null;
+  _fornLogo=null;_fornBanner=null;
   openModal(`<h3>➕ Nuovo Fornitore</h3>
     ${fornForm({})}
     <div class="modal-footer">
@@ -24172,7 +24234,7 @@ function modalNewFornitore(){
 
 function modalEditFornitore(id){
   const f=S.fornitori.find(x=>x.id===id);if(!f)return;
-  _fornLogo=f.logo||null;
+  _fornLogo=f.logo||null;_fornBanner=f.banner||null;
   openModal(`<h3>✏️ Modifica Fornitore</h3>
     ${fornForm(f)}
     <div class="modal-footer">
@@ -24188,6 +24250,9 @@ function saveFornitore(editId){
   // Preserva sempre il logo esistente se non è stato cambiato
   const existingLogo=editId?(S.fornitori.find(x=>x.id===editId)||{}).logo:null;
   const logoVal=_fornLogo||existingLogo||(prev&&prev.src&&prev.src.startsWith('data:')?prev.src:null);
+  const existingBanner=editId?(S.fornitori.find(x=>x.id===editId)||{}).banner:null;
+  const bannerPrev=document.getElementById('m-fbanner-preview');
+  const bannerVal=_fornBanner||existingBanner||(bannerPrev&&bannerPrev.src&&bannerPrev.src.startsWith('data:')?bannerPrev.src:null);
   const data={
     nome,categoria:document.getElementById('m-fcat').value,
     emoji:document.getElementById('m-femi').value.trim(),
@@ -24196,6 +24261,7 @@ function saveFornitore(editId){
     caratteristiche:document.getElementById('m-fchar').value.split(',').map(s=>s.trim()).filter(Boolean),
     vision:document.getElementById('m-fvis').value.trim(),
     logo:logoVal||null,
+    banner:bannerVal||null,
     attivo:true,
     contattodiretto:document.getElementById('m-fcontatto')?.checked||false,
     nomeContatto:document.getElementById('m-fnome-contatto')?.value.trim()||null,
@@ -24207,7 +24273,7 @@ function saveFornitore(editId){
   };
   if(editId){Object.assign(S.fornitori.find(x=>x.id===editId),data);}
   else {S.fornitori.push({id:'f'+uid(),...data});}
-  _fornLogo=null;
+  _fornLogo=null;_fornBanner=null;
   saveState(); closeModal(); renderFornitori_admin(); toast('✅ Fornitore salvato');
 }
 
