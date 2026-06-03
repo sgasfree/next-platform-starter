@@ -20749,6 +20749,9 @@ window.docx = docx;
 
   <!-- Catalogo -->
   <div id="socio-catalogo" class="content" style="display:flex;flex-direction:column;">
+    <div style="margin-bottom:10px;">
+      <input id="search-fornitori" type="search" placeholder="🔍 Cerca fornitore..." style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:24px;font-family:'Nunito',sans-serif;font-size:.95rem;outline:none;background:#fff;" oninput="renderFornitori()">
+    </div>
     <div class="catalogo-layout">
       <!-- Sidebar categorie sinistra -->
       <nav class="cat-sidebar" id="cat-sidebar"></nav>
@@ -20817,6 +20820,9 @@ window.docx = docx;
         <div style="font-weight:800;color:var(--green-dark);font-size:.88rem;">Modalità Vetrina</div>
         <div style="font-size:.78rem;color:var(--text-mid);margin-top:2px;">Stai esplorando come ospite. Per ordinare, <a href="https://t.me/frenkenergy" target="_blank" style="color:var(--green);font-weight:700;">contatta l'assistenza</a> per diventare socio.</div>
       </div>
+    </div>
+    <div style="margin-bottom:10px;">
+      <input id="search-fornitori-ospite" type="search" placeholder="🔍 Cerca fornitore..." style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:24px;font-family:'Nunito',sans-serif;font-size:.95rem;outline:none;background:#fff;" oninput="renderFornitoriOspite()">
     </div>
     <div class="catalogo-layout">
       <nav class="cat-sidebar" id="ospite-cat-sidebar"></nav>
@@ -22156,10 +22162,16 @@ function renderFornitoriOspite(){
   const list=document.getElementById('ospite-fornitori-list');
   if(!list) return;
   const _seenO=new Set();
+  const qO=(document.getElementById('search-fornitori-ospite')?.value||'').toLowerCase().trim();
   const filt=S.fornitori.filter(f=>{
     if(f.categoria!==ospiteTab||f.attivo===false) return false;
     if(_seenO.has(f.id)) return false;
-    _seenO.add(f.id); return true;
+    _seenO.add(f.id);
+    if(qO){
+      const haystack=(f.nome+' '+(f.zona||'')+' '+(f.descrizione||'')+' '+((f.caratteristiche||[]).join(' '))).toLowerCase();
+      if(!haystack.includes(qO)) return false;
+    }
+    return true;
   });
   if(!filt.length){
     list.innerHTML='<div class="empty"><div class="empty-icon">🌱</div><p>Nessun fornitore in questa categoria</p></div>';
@@ -22757,10 +22769,16 @@ function renderFornitori(){
   const list=document.getElementById('fornitori-list');
   // Deduplication: keep only first occurrence of each id
   const seen=new Set();
+  const q=(document.getElementById('search-fornitori')?.value||'').toLowerCase().trim();
   const filt=S.fornitori.filter(f=>{
     if(f.categoria!==currentTab||f.attivo===false) return false;
     if(seen.has(f.id)) return false;
-    seen.add(f.id); return true;
+    seen.add(f.id);
+    if(q){
+      const haystack=(f.nome+' '+(f.zona||'')+' '+(f.descrizione||'')+' '+((f.caratteristiche||[]).join(' '))).toLowerCase();
+      if(!haystack.includes(q)) return false;
+    }
+    return true;
   });
   if(!filt.length){list.innerHTML='<div class="empty"><div class="empty-icon">🌱</div><p>Nessun fornitore in questa categoria</p></div>';return;}
 
@@ -22890,13 +22908,14 @@ function openFornitore(id){
         +'<div style="font-size:.75rem;color:var(--text-mid);">Puoi vedere i prodotti ma non ordinare. Torna quando l&#39;admin apre una raccolta.</div>'
         +'</div></div>';
     }
-    html+='<h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">Prodotti</h3>'
+    html+='<div style="margin-bottom:12px;"><input id="search-prodotti" type="search" placeholder="🔍 Cerca prodotto..." style="width:100%;padding:9px 14px;border:1.5px solid var(--border);border-radius:20px;font-family:\'Nunito\',sans-serif;font-size:.9rem;outline:none;"></div>'
+      +'<h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">Prodotti</h3>'
       +prods.map(p=>{
         const qty=getCartQty(p.id);
         const disp = p.disponibile !== false;
         const codBadge = p.codice ? '<span style="font-family:monospace;background:#e8f5e9;color:var(--green-dark);font-size:.7rem;padding:1px 6px;border-radius:4px;font-weight:700;margin-left:6px;">cod. '+escHtml(p.codice)+'</span>' : '';
         if(canOrder && disp){
-          return '<div class="prodotto-row">'
+          return '<div class="prodotto-row" data-name="'+p.nome.toLowerCase()+'">'
             +'<div><div class="prodotto-name">'+p.nome+codBadge+'</div>'
             +(p.descrizione?'<div style="font-size:.75rem;color:var(--text-mid);margin-top:2px;line-height:1.4;">'+escHtml(p.descrizione)+'</div>':'')
             +'<div style="font-size:.75rem;color:var(--text-light);">'+p.unita+'</div></div>'
@@ -22911,7 +22930,7 @@ function openFornitore(id){
           const label = !disp
             ? '<span style="font-size:.72rem;background:#f5f5f5;color:#999;border-radius:20px;padding:2px 10px;font-weight:700;border:1px solid #e0e0e0;">⛔ Non disponibile</span>'
             : '<div style="font-size:.8rem;color:var(--text-light);padding:4px 8px;">—</div>';
-          return '<div class="prodotto-row" style="opacity:'+(!disp?'.5':'.55')+'; pointer-events:none;">'
+          return '<div class="prodotto-row" data-name="'+p.nome.toLowerCase()+'" style="opacity:'+(!disp?'.5':'.55')+'; pointer-events:none;">'
             +'<div><div class="prodotto-name" style="color:var(--text-light);">'+p.nome+codBadge+'</div>'
             +(p.descrizione?'<div style="font-size:.75rem;color:var(--text-light);margin-top:2px;line-height:1.4;">'+escHtml(p.descrizione)+'</div>':'')
             +'<div style="font-size:.75rem;color:var(--text-light);">'+p.unita+'</div></div>'
@@ -22926,6 +22945,15 @@ function openFornitore(id){
   }
 
   document.getElementById('forn-detail-content').innerHTML=html;
+  // attach product search
+  const sp=document.getElementById('search-prodotti');
+  if(sp) sp.addEventListener('input', function(){
+    const q=this.value.toLowerCase().trim();
+    document.querySelectorAll('#forn-detail-content .prodotto-row').forEach(row=>{
+      const name=row.getAttribute('data-name')||'';
+      row.style.display=(!q||name.includes(q))?'':'none';
+    });
+  });
   showSocioSection('fornitore');
 }
 
