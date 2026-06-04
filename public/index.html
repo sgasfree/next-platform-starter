@@ -21827,8 +21827,19 @@ function syncToSupabase(){
       const payloadObj = JSON.parse(JSON.stringify(S));
       if(payloadObj.config){
         payloadObj.config.supabasePaused = false;
-        delete payloadObj.config.logoData;    // non sincronizzare il logo (troppo grande)
+        delete payloadObj.config.logoData;
         delete payloadObj.config.logoBase64;
+      }
+      // Rimuovi immagini base64 da fornitori e prodotti per ridurre il payload
+      if(Array.isArray(payloadObj.fornitori)){
+        payloadObj.fornitori = payloadObj.fornitori.map(f=>{
+          const {logo,banner,...rest}=f; return rest;
+        });
+      }
+      if(Array.isArray(payloadObj.prodotti)){
+        payloadObj.prodotti = payloadObj.prodotti.map(p=>{
+          const {foto,...rest}=p; return rest;
+        });
       }
       const payload = JSON.stringify(payloadObj);
       await sb.from('config').upsert(
@@ -21865,6 +21876,18 @@ async function loadFromSupabase(){
     S.config.supabaseKey    = _prevConf.supabaseKey||'';
     if(_prevConf.logoData)   S.config.logoData   = _prevConf.logoData;
     if(_prevConf.logoBase64) S.config.logoBase64 = _prevConf.logoBase64;
+    // Ripristina immagini fornitori/prodotti da localStorage (non sincronizzate su Supabase)
+    const _prevState=(()=>{try{return JSON.parse(localStorage.getItem('sgas_state')||'{}')}catch(e){return {};}})();
+    if(Array.isArray(_prevState.fornitori) && Array.isArray(S.fornitori)){
+      const _imgMap={};
+      _prevState.fornitori.forEach(f=>{if(f.id&&(f.logo||f.banner)) _imgMap[f.id]={logo:f.logo||null,banner:f.banner||null};});
+      S.fornitori.forEach(f=>{if(_imgMap[f.id]){if(_imgMap[f.id].logo) f.logo=_imgMap[f.id].logo; if(_imgMap[f.id].banner) f.banner=_imgMap[f.id].banner;}});
+    }
+    if(Array.isArray(_prevState.prodotti) && Array.isArray(S.prodotti)){
+      const _fotoMap={};
+      _prevState.prodotti.forEach(p=>{if(p.id&&p.foto) _fotoMap[p.id]=p.foto;});
+      S.prodotti.forEach(p=>{if(_fotoMap[p.id]) p.foto=_fotoMap[p.id];});
+    }
     if(!S.cart) S.cart = {raccoltaId:'', items:[]};
     // Deduplicazione dopo caricamento Supabase
     if(S.fornitori){ const _seenId={}; const _seenNm={}; S.fornitori=S.fornitori.filter(f=>{ if(!f.id)return false; if(_seenId[f.id])return false; _seenId[f.id]=true; const k=(f.nome||'').toLowerCase().trim(); if(_seenNm[k])return false; _seenNm[k]=true; return true; }); }
