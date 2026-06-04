@@ -428,6 +428,7 @@ tr:hover td{background:var(--green-pale);}
 /* ── BACK BUTTON ── */
 .back-btn{display:flex;align-items:center;gap:6px;color:var(--text-mid);font-size:.85rem;font-weight:700;cursor:pointer;margin-bottom:8px;border:none;background:none;padding:0;}
 .back-btn:hover{color:var(--green);}
+#fab-catalogo:hover{background:var(--green);transform:translateY(-2px);}
 
 /* ── ADMIN MOBILE HEADER ── */
 .admin-topbar{display:none;background:var(--green-dark);color:#fff;padding:14px 18px;align-items:center;justify-content:space-between;}
@@ -20569,6 +20570,9 @@ window.docx = docx;
 <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.es6.js?v=160603" defer=""></script></head>
 <body>
 
+<!-- Pulsante flottante Torna al catalogo (socio) -->
+<button id="fab-catalogo" onclick="backToCatalogo()" style="display:none;position:fixed;bottom:24px;right:20px;z-index:999;background:var(--green-dark);color:#fff;border:none;border-radius:24px;padding:11px 18px;font-family:'Nunito',sans-serif;font-size:.88rem;font-weight:800;cursor:pointer;box-shadow:0 4px 16px rgba(30,70,32,.35);align-items:center;gap:7px;transition:.2s;">🏠 Catalogo</button>
+
 <!-- ════════════════════════════════ WIZARD FIRST SETUP ════════════════════════════════ -->
 <div id="view-wizard" class="view">
   <div class="login-wrap">
@@ -22140,6 +22144,20 @@ function backToCatalogo(){
   showSocioSection('catalogo');
   renderFornitori();
 }
+
+// Pulsante flottante: mostra solo se fuori dal catalogo e la pagina è scrollata
+(function(){
+  const _socioSections=['fornitore','cart','profilo','messaggi','prenotazioni','chisiamo'];
+  function _updateFab(){
+    const fab=document.getElementById('fab-catalogo');
+    if(!fab) return;
+    const inSub=_socioSections.some(s=>{const el=document.getElementById('socio-'+s);return el&&el.style.display!=='none';});
+    fab.style.display=(inSub&&window.scrollY>120)?'inline-flex':'none';
+  }
+  window.addEventListener('scroll',_updateFab,{passive:true});
+  document.addEventListener('sgas-section-change',_updateFab);
+  setInterval(_updateFab,400);
+})();
 
 // ════════════════════ OSPITE (VETRINA) ════════════════════
 let ospiteTab='';
