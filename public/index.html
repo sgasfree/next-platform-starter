@@ -21863,6 +21863,12 @@ async function loadFromSupabase(){
     // Deduplicazione dopo caricamento Supabase
     if(S.fornitori){ const _seenId={}; const _seenNm={}; S.fornitori=S.fornitori.filter(f=>{ if(!f.id)return false; if(_seenId[f.id])return false; _seenId[f.id]=true; const k=(f.nome||'').toLowerCase().trim(); if(_seenNm[k])return false; _seenNm[k]=true; return true; }); }
     if(S.prodotti){ const _seenP={}; S.prodotti=S.prodotti.filter(p=>{ const k=(p.nome||'').toLowerCase().trim()+'_'+(p.fornitorId||''); if(_seenP[k])return false; _seenP[k]=true; return true; }); }
+    // Re-aggiungi fornitori di default mancanti per evitare prodotti orfani
+    if(S.fornitori && typeof DEFAULT_FORNITORI !== 'undefined'){
+      const _sfIds=new Set(S.fornitori.map(f=>f.id));
+      const _sfNms=new Set(S.fornitori.map(f=>(f.nome||'').toLowerCase().trim()));
+      DEFAULT_FORNITORI.forEach(df=>{ if(!_sfIds.has(df.id)&&!_sfNms.has((df.nome||'').toLowerCase().trim())) S.fornitori.push(df); });
+    }
     localStorage.setItem('sgas_state', JSON.stringify(S));
     return true;
   }catch(e){ console.warn('Supabase load error:', e); return false; }
