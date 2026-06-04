@@ -26021,6 +26021,12 @@ function applyLogo(){
   // Sidebar
   const sli=document.getElementById('sidebar-logo-img');
   if(sli) sli.innerHTML=imgTag;
+  // Favicon dinamico
+  if(src){
+    let favicon=document.getElementById('dynamic-favicon');
+    if(!favicon){favicon=document.createElement('link');favicon.id='dynamic-favicon';favicon.rel='icon';document.head.appendChild(favicon);}
+    favicon.href=src;
+  }
 }
 
 function applyAppLink(){
