@@ -22448,9 +22448,11 @@ function recVerifyStep3(){
   const tel3=(data.telefono||data.cellulare||'').replace(/[\s\-]/g,'');
   const found=S.soci.find(s=>{
     const stored3=(s.cellulare||s.telefono||'').replace(/[\s\-]/g,'');
+    const nomeCompleto=((s.nome||'')+' '+(s.cognome||'')).trim().toLowerCase();
+    const soloNome=(s.nome||'').toLowerCase();
     return s.tessera.toUpperCase()===data.tessera &&
       stored3===tel3 &&
-      (s.nome||'').toLowerCase()===nome;
+      (soloNome===nome || nomeCompleto===nome);
   });
   if(!found){
     document.getElementById('rec-err').innerHTML='<div class="alert alert-info">❌ Nome e cognome non corrispondenti.</div>';
