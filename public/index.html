@@ -21956,12 +21956,19 @@ function _subscribeSupabaseRealtime(){
           // Ignora se dati locali sono più recenti
           if(S._savedAt && remote._savedAt && S._savedAt >= remote._savedAt) return;
           const _prev = S.config||{};
+          // Salva immagini locali prima di sovrascrivere S
+          const _rtImgForn={}, _rtImgProd={};
+          (S.fornitori||[]).forEach(f=>{if(f.id&&(f.logo||f.banner)) _rtImgForn[f.id]={logo:f.logo||null,banner:f.banner||null};});
+          (S.prodotti||[]).forEach(p=>{if(p.id&&p.foto) _rtImgProd[p.id]=p.foto;});
           S = remote;
           S.config.supabasePaused = _prev.supabasePaused===true;
           S.config.supabaseUrl    = _prev.supabaseUrl||'';
           S.config.supabaseKey    = _prev.supabaseKey||'';
           if(_prev.logoData)   S.config.logoData   = _prev.logoData;
           if(_prev.logoBase64) S.config.logoBase64 = _prev.logoBase64;
+          // Ripristina immagini locali (non viaggiano su Supabase)
+          (S.fornitori||[]).forEach(f=>{if(_rtImgForn[f.id]){if(_rtImgForn[f.id].logo) f.logo=_rtImgForn[f.id].logo; if(_rtImgForn[f.id].banner) f.banner=_rtImgForn[f.id].banner;}});
+          (S.prodotti||[]).forEach(p=>{if(_rtImgProd[p.id]) p.foto=_rtImgProd[p.id];});
           if(!S.cart) S.cart = {raccoltaId:'', items:[]};
           localStorage.setItem('sgas_state', JSON.stringify(S));
           // Aggiorna UI admin in tempo reale
@@ -24150,7 +24157,7 @@ function filterAdminFornitori(q){
 }
 function renderFornitori_admin(){
   const catLabel={ali:'🥗 Alimentari',igi:'🧴 Igiene',ser:'💼 Servizi'};
-  const rows=S.fornitori.map(f=>`<tr class="${f.attivo===false?'sospeso':''}" data-forn="${[(f.nome||''),(f.zona||''),(f.categoria||'')].join(' ').toLowerCase()}">
+  const rows=S.fornitori.map(f=>`<tr class="${f.attivo===false?'sospeso':''}" data-forn="${escHtml([(f.nome||''),(f.zona||''),(f.categoria||'')].join(' ').toLowerCase())}">
     <td>
       <div style="display:flex;align-items:center;gap:10px;">
         ${f.logo?`<img src="${f.logo}" style="width:38px;height:38px;object-fit:cover;border-radius:8px;flex-shrink:0;" alt="">`:`<span style="font-size:1.4rem;flex-shrink:0;">${f.emoji||'🏪'}</span>`}
@@ -24444,10 +24451,17 @@ function filterAdminProdotti(q){
     r.style.display=show?'':'none';
     if(show && lastGroupVisible){ lastGroupVisible.style.display=''; lastGroupVisible=null; }
   });
-  if(lq) Array.from(tbody.rows).forEach(r=>{ if(r.cells.length===1&&r.cells[0].colSpan===6&&r.style.display!=='none'){
-    const next=r.nextElementSibling;
-    if(!next||next.style.display==='none') r.style.display='none';
-  }});
+  // Nascondi intestazioni gruppo solo se nessun prodotto del gruppo è visibile
+  if(lq) Array.from(tbody.rows).forEach(r=>{
+    if(r.cells.length===1&&r.cells[0].colSpan===6&&r.style.display!=='none'){
+      let sib=r.nextElementSibling, hasVisible=false;
+      while(sib && !(sib.cells.length===1&&sib.cells[0].colSpan===6)){
+        if(sib.style.display!=='none') hasVisible=true;
+        sib=sib.nextElementSibling;
+      }
+      if(!hasVisible) r.style.display='none';
+    }
+  });
 }
 
 function prodForm(p){
