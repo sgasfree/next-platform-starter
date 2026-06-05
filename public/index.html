@@ -22879,10 +22879,13 @@ function renderFornitori(){
   // Deduplication: keep only first occurrence of each id
   const seen=new Set();
   const q=(document.getElementById('search-fornitori')?.value||'').toLowerCase().trim();
+  const hasOpenRaccolte=S.raccolte.some(r=>r.aperta);
   const filt=S.fornitori.filter(f=>{
     if(f.categoria!==currentTab||f.attivo===false) return false;
     if(seen.has(f.id)) return false;
     seen.add(f.id);
+    // Se c'è almeno una raccolta aperta, mostra solo i fornitori di quelle raccolte
+    if(hasOpenRaccolte && !isFornAttivo(f.id)) return false;
     if(q){
       const haystack=(f.nome+' '+(f.zona||'')+' '+(f.descrizione||'')+' '+((f.caratteristiche||[]).join(' '))).toLowerCase();
       if(!haystack.includes(q)) return false;
