@@ -23939,7 +23939,7 @@ function nextTesseraNumber(){
     if(m){ const n=parseInt(m[1],10); if(n>max) max=n; }
   });
   const next = max + 1;
-  return 'SGAS-' + String(next).padStart(4,'0');
+  return 'SGAS-' + String(next).padStart(5,'0');
 }
 
 function isTesseraUsata(tess, excludeId){
