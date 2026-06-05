@@ -21799,6 +21799,8 @@ function migrateState() {
   // if (ver < 2) { /* ... */ }
 
   S._schemaVersion = SCHEMA_VER;
+  // Persist migrated state immediately so next load skips migration
+  try { localStorage.setItem('sgas_state', JSON.stringify(S)); } catch(e) {}
 }
 
 function loadState(){
