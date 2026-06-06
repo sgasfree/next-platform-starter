@@ -22876,7 +22876,13 @@ function logout(){
 function renderCatSidebar(){
   const nav=document.getElementById('cat-sidebar');
   if(!nav) return;
-  nav.innerHTML=S.categorie.map(cat=>`
+  const nAperte=S.raccolte.filter(r=>r.aperta).length;
+  const raccBadge=nAperte>0?`<span style="position:absolute;top:4px;right:4px;background:var(--green);color:#fff;border-radius:50%;width:16px;height:16px;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;">${nAperte}</span>`:'';
+  nav.innerHTML=
+    `<button class="cat-btn${currentTab==='_raccolte'?' active':''}" id="tab-_raccolte" onclick="setTab('_raccolte')" style="position:relative;">
+      <span class="cat-ico">🛒</span>Rac&#xAD;col&#xAD;te${raccBadge}
+    </button>`
+  +S.categorie.map(cat=>`
     <button class="cat-btn${cat.id===currentTab?' active':''}" id="tab-${cat.id}" onclick="setTab('${cat.id}')">
       <span class="cat-ico">${cat.ico}</span>${cat.nome.replace(/(.{6})/g,'$1­')}
     </button>`).join('')
@@ -22885,11 +22891,87 @@ function renderCatSidebar(){
 
 function setTab(cat){
   currentTab=cat;
-  S.categorie.forEach(ct=>{
-    const el=document.getElementById('tab-'+ct.id);
-    if(el) el.classList.toggle('active',ct.id===cat);
+  // aggiorna active su tutti i tab (categorie + _raccolte)
+  ['_raccolte',...S.categorie.map(c=>c.id)].forEach(id=>{
+    const el=document.getElementById('tab-'+id);
+    if(el) el.classList.toggle('active',id===cat);
   });
-  renderFornitori();
+  if(cat==='_raccolte'){
+    renderRaccolteSocio();
+  } else {
+    showSocioSection('catalogo');
+    renderFornitori();
+  }
+}
+
+function renderRaccolteSocio(){
+  showSocioSection('catalogo');
+  const list=document.getElementById('fornitori-list');
+  if(!list) return;
+  const aperte=S.raccolte.filter(r=>r.aperta);
+  const chiuse=S.raccolte.filter(r=>!r.aperta).slice(0,5);
+
+  function buildItem(r, aperta){
+    const nForn=(r.fornitori&&r.fornitori.length)?r.fornitori.length+' fornitori':'tutti i fornitori';
+    const ritiro=(r.ritiroData||r.ritiroOra||r.ritiroLuogo)
+      ?'<div style="font-size:.78rem;color:var(--terra);font-weight:700;margin-top:4px;">📦 Ritiro: '
+        +(r.ritiroData?new Date(r.ritiroData+'T00:00:00').toLocaleDateString('it-IT',{weekday:'long',day:'2-digit',month:'long'}):'')
+        +(r.ritiroOra?' ore '+r.ritiroOra:'')
+        +(r.ritiroLuogo?' · '+r.ritiroLuogo:'')
+        +'</div>'
+      :'';
+    const cdId='rcd-'+r.id;
+    const cd=aperta&&r.dataChiusura
+      ?'<div id="'+cdId+'" style="font-size:.78rem;font-weight:800;color:#e65100;margin-top:4px;font-variant-numeric:tabular-nums;"></div>'
+      :'';
+    const bg=aperta?'var(--green-pale)':'#f5f5f5';
+    const border=aperta?'var(--green-light)':'#e0e0e0';
+    const pill=aperta
+      ?'<span class="pill pill-green" style="flex-shrink:0;">● Aperta</span>'
+      :'<span class="pill pill-gray" style="flex-shrink:0;">○ Chiusa</span>';
+    return '<div style="background:'+bg+';border:1.5px solid '+border+';border-radius:12px;padding:14px 16px;display:flex;align-items:flex-start;gap:12px;">'
+      +'<span style="font-size:1.4rem;margin-top:2px;">📋</span>'
+      +'<div style="flex:1;min-width:0;">'
+      +'<div style="font-weight:800;font-size:.95rem;color:var(--green-dark);">'+escHtml(r.nome)+'</div>'
+      +'<div style="font-size:.75rem;color:var(--text-light);margin-top:2px;">'+nForn+' disponibili</div>'
+      +ritiro+cd
+      +'</div>'+pill+'</div>';
+  }
+
+  let html='<div style="padding:4px 0 8px;"><div style="font-size:.72rem;font-weight:800;color:var(--green-dark);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">🟢 Raccolte aperte</div>';
+  if(aperte.length===0){
+    html+='<div style="text-align:center;padding:28px 0;color:var(--text-light);font-size:.9rem;">⏸ Nessuna raccolta aperta al momento</div>';
+  } else {
+    html+=aperte.map(r=>buildItem(r,true)).join('<div style="height:8px;"></div>');
+  }
+  if(chiuse.length){
+    html+='<div style="font-size:.72rem;font-weight:800;color:var(--text-mid);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 10px;">Raccolte precedenti</div>';
+    html+=chiuse.map(r=>buildItem(r,false)).join('<div style="height:8px;"></div>');
+  }
+  html+='</div>';
+  list.innerHTML=html;
+
+  // avvia countdown per raccolte aperte con scadenza
+  aperte.filter(r=>r.dataChiusura).forEach(r=>{
+    const deadline=new Date(r.dataChiusura+'T'+(r.oraChiusura||'23:59')+':00');
+    (function tick(){
+      const el=document.getElementById('rcd-'+r.id); if(!el) return;
+      const diff=deadline-Date.now();
+      if(diff<=0){el.textContent='⌛ Raccolta scaduta'; return;}
+      const gg=Math.floor(diff/86400000);
+      const hh=Math.floor((diff%86400000)/3600000);
+      const mm=Math.floor((diff%3600000)/60000);
+      const ss=Math.floor((diff%60000)/1000);
+      const parts=[];
+      if(gg>0) parts.push(gg+'g');
+      parts.push(String(hh).padStart(2,'0')+'h');
+      parts.push(String(mm).padStart(2,'0')+'m');
+      parts.push(String(ss).padStart(2,'0')+'s');
+      el.style.color=diff<3600000?'#b71c1c':'#e65100';
+      el.textContent='⏱ Scade tra: '+parts.join(' ');
+      setTimeout(tick,1000);
+    })();
+  });
 }
 
 function getFornOpenRaccolte(fornId){
@@ -22916,8 +22998,6 @@ function renderFornitori(){
     if(f.categoria!==currentTab||f.attivo===false) return false;
     if(seen.has(f.id)) return false;
     seen.add(f.id);
-    // Se c'è almeno una raccolta aperta, mostra solo i fornitori di quelle raccolte
-    if(hasOpenRaccolte && !isFornAttivo(f.id)) return false;
     if(q){
       const haystack=(f.nome+' '+(f.zona||'')+' '+(f.descrizione||'')+' '+((f.caratteristiche||[]).join(' '))).toLowerCase();
       if(!haystack.includes(q)) return false;
