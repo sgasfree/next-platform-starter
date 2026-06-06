@@ -21769,7 +21769,7 @@ const DEFAULT_RACCOLTE = [
 // ════════ SCHEMA MIGRATION ════════
 // Increment SCHEMA_VER every time the structure of S changes in a breaking way.
 // Add a migration block inside migrateState() for each version bump.
-const SCHEMA_VER = 1;
+const SCHEMA_VER = 2;
 
 function migrateState() {
   const ver = S._schemaVersion || 0;
@@ -21795,8 +21795,20 @@ function migrateState() {
     if (!Array.isArray(S.messaggi))            S.messaggi = [];
   }
 
+  // ── v1 → v2 ──────────────────────────────────────────────────
+  // Remove placeholder/test soci: phone all-zeros and tessera numeric part all-zeros
+  if (ver < 2 && Array.isArray(S.soci)) {
+    S.soci = S.soci.filter(s => {
+      const phone = (s.cellulare || s.telefono || '').replace(/[\s\-]/g, '');
+      const tessNum = (s.tessera || '').replace(/[^0-9]/g, '');
+      const phoneIsPlaceholder = phone.length > 0 && /^0+$/.test(phone);
+      const tessIsPlaceholder  = tessNum.length > 0 && /^0+$/.test(tessNum);
+      return !(phoneIsPlaceholder && tessIsPlaceholder);
+    });
+  }
+
   // ── add future migrations here ────────────────────────────────
-  // if (ver < 2) { /* ... */ }
+  // if (ver < 3) { /* ... */ }
 
   S._schemaVersion = SCHEMA_VER;
   // Persist migrated state immediately so next load skips migration
@@ -22751,6 +22763,11 @@ function loginSocio(){
   const tess=document.getElementById('l-tessera').value.trim().toUpperCase();
   const tel=document.getElementById('l-phone').value.trim().replace(/\s/g,'');
   const tel_norm=tel.replace(/[\s\-]/g,'');
+  // Reject credentials that look like test/placeholder values
+  if(!tess || !tel_norm){toast('❌ Inserisci tessera e numero di cellulare');return;}
+  if(/^0+$/.test(tel_norm)){toast('❌ Numero di cellulare non valido');return;}
+  const tessNum=tess.replace(/[^0-9]/g,'');
+  if(tessNum && /^0+$/.test(tessNum)){toast('❌ Numero tessera non valido');return;}
   const socio=S.soci.find(s=>{
     const stored=(s.cellulare||s.telefono||'').replace(/[\s\-]/g,'');
     return s.tessera.toUpperCase()===tess && stored===tel_norm;
