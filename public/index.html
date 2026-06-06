@@ -22010,6 +22010,10 @@ function _subscribeSupabaseRealtime(){
           S.config.supabaseKey    = _prev.supabaseKey||'';
           if(_prev.logoData)   S.config.logoData   = _prev.logoData;
           if(_prev.logoBase64) S.config.logoBase64 = _prev.logoBase64;
+          // Preserva password admin locali: non devono essere sovrascritte da push remoti
+          if(_prev.adminPassword)  S.config.adminPassword  = _prev.adminPassword;
+          if(_prev.adminPassword2) S.config.adminPassword2 = _prev.adminPassword2;
+          if(_prev.adminPassword3) S.config.adminPassword3 = _prev.adminPassword3;
           // Ripristina immagini locali (non viaggiano su Supabase)
           (S.fornitori||[]).forEach(f=>{if(_rtImgForn[f.id]){if(_rtImgForn[f.id].logo) f.logo=_rtImgForn[f.id].logo; if(_rtImgForn[f.id].banner) f.banner=_rtImgForn[f.id].banner;}});
           (S.prodotti||[]).forEach(p=>{if(_rtImgProd[p.id]) p.foto=_rtImgProd[p.id];});
