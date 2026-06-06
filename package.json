@@ -24,7 +24,10 @@
     "babel-plugin-react-compiler": "^1.0.0",
     "eslint": "9.39.3",
     "eslint-config-next": "^16.0.8",
+    "gif-encoder-2": "^1.0.5",
+    "pngjs": "^7.0.0",
     "postcss": "^8.4.36",
+    "puppeteer": "^25.1.0",
     "tailwindcss": "^4.1.15"
   }
 }
