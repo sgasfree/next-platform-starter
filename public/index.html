@@ -26355,6 +26355,17 @@ applyAppLink();
 
 const _isAdminPath = window.location.hash==='#admin' || window.location.pathname==='/admin';
 
+// Auto-fix: se l'app ha credenziali admin o dati reali, trattala come già configurata
+// Questo evita che la pulizia del localStorage mostri il wizard di setup
+if(!S.config.setupDone){
+  const hasAdminCred = !!(S.config.adminPassword || S.config.adminEmail);
+  const hasData      = (S.fornitori&&S.fornitori.length>0)||(S.soci&&S.soci.length>0);
+  if(hasAdminCred || hasData){
+    S.config.setupDone = true;
+    try{ localStorage.setItem('sgas_state', JSON.stringify(S)); }catch(e){}
+  }
+}
+
 if(_isAdminPath){
   // Su /admin: mostra SEMPRE il form admin, ignora wizard e sessioni socio
   const _sess = restoreSession();
