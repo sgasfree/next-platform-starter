@@ -126,7 +126,8 @@
   <a href="#login">🔑 Login</a>
   <a href="#recupero">🔓 Recupero</a>
   <a href="#assistenza">🆘 Assistenza</a>
-  <a href="#ordine">🛒 Ordine</a>
+  <a href="#raccolte">🛒 Raccolte</a>
+  <a href="#ordine">📦 Ordine</a>
   <a href="#salva">💾 Salva</a>
   <a href="#messaggio">💬 Messaggio</a>
   <a href="#prenotazione">📋 Prenotazione</a>
@@ -284,7 +285,87 @@
 <hr class="divider">
 
 <!-- ══════════════════════════════════════════════════════ -->
-<!--  4. FARE UN ORDINE                                    -->
+<!--  4. RACCOLTE                                          -->
+<!-- ══════════════════════════════════════════════════════ -->
+<section class="sec" id="raccolte">
+  <div class="sec-title">🛒 Le Raccolte</div>
+  <div class="sec-sub">Qui trovi le raccolte aperte con i fornitori già pronti da sfogliare</div>
+
+  <!-- Mockup tab Raccolte -->
+  <div style="background:#fff;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,.1);overflow:hidden;margin:20px 0;">
+    <!-- sidebar simulata -->
+    <div style="display:flex;min-height:200px;">
+      <div style="width:80px;background:#f9f9f9;border-right:1px solid #e0e0e0;display:flex;flex-direction:column;align-items:center;padding:10px 6px;gap:8px;">
+        <div style="background:#2e7d32;color:#fff;border-radius:10px;width:64px;padding:8px 4px;text-align:center;position:relative;">
+          <div style="font-size:20px;">🛒</div>
+          <div style="font-size:10px;font-weight:700;">Raccolte</div>
+          <span style="position:absolute;top:3px;right:3px;background:#fff;color:#2e7d32;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;">1</span>
+        </div>
+        <div style="color:#666;width:64px;padding:8px 4px;text-align:center;border-radius:10px;">
+          <div style="font-size:20px;">🥗</div>
+          <div style="font-size:10px;">Alimentari</div>
+        </div>
+        <div style="color:#666;width:64px;padding:8px 4px;text-align:center;border-radius:10px;">
+          <div style="font-size:20px;">🧴</div>
+          <div style="font-size:10px;">Igiene</div>
+        </div>
+      </div>
+      <!-- contenuto raccolta -->
+      <div style="flex:1;padding:14px 12px;">
+        <div style="font-size:10px;font-weight:800;color:#2e7d32;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">🟢 Raccolte aperte</div>
+        <div style="background:#e8f5e9;border:1.5px solid #a5d6a7;border-radius:10px;padding:12px;">
+          <div style="display:flex;align-items:flex-start;gap:8px;">
+            <span style="font-size:18px;">📋</span>
+            <div style="flex:1;">
+              <div style="font-weight:800;font-size:13px;color:#1b5e20;">Raccolta Giugno 2026</div>
+              <div style="font-size:11px;color:#c62828;font-weight:700;margin-top:3px;">⏱ Scade tra: 5g 19h 34m 19s</div>
+              <div style="font-size:11px;color:#bf360c;font-weight:700;margin-top:2px;">📦 Ritiro: sab 13 giugno · ore 18:00</div>
+            </div>
+            <span style="background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700;white-space:nowrap;">● Aperta</span>
+          </div>
+          <!-- fornitore cliccabile -->
+          <div style="margin-top:10px;background:#fff;border-radius:8px;padding:8px 10px;display:flex;align-items:center;gap:8px;border:1px solid #e0e0e0;cursor:pointer;">
+            <div style="font-size:22px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:#e8f5e9;border-radius:8px;">🐐</div>
+            <div>
+              <div style="font-weight:700;font-size:12px;">Why!Farm</div>
+              <div style="font-size:11px;color:#757575;">📍 Marano Ticino · ✓ Capre al pascolo</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-body">
+      <strong>Tocca il tab «🛒 Raccolte» nella barra laterale</strong>
+      <p>Il numero verde indica quante raccolte sono aperte in questo momento.</p>
+    </div></div>
+
+    <div class="step"><div class="step-num">2</div><div class="step-body">
+      <strong>Vedi le raccolte aperte con il conto alla rovescia</strong>
+      <p>Per ogni raccolta aperta trovi: nome, data e luogo di ritiro, e il timer <span style="color:#e65100;font-weight:700;">⏱ Scade tra:</span> che si aggiorna ogni secondo.</p>
+    </div></div>
+
+    <div class="step"><div class="step-num">3</div><div class="step-body">
+      <strong>Tocca direttamente un fornitore dalla raccolta</strong>
+      <p>I fornitori della raccolta appaiono come card cliccabili. Tocca uno per aprire subito il catalogo prodotti e aggiungere al carrello.</p>
+      <div class="alert ok">✅ Non devi cercare nella categoria — i fornitori sono già qui, pronti!</div>
+    </div></div>
+
+    <div class="step"><div class="step-num">4</div><div class="step-body">
+      <strong>Puoi anche sfogliare per categoria</strong>
+      <p>Le tab <em>Alimentari, Igiene, ecc.</em> mostrano <strong>tutti</strong> i fornitori. Quelli non attivi in una raccolta hanno il badge <span style="background:#eee;padding:1px 6px;border-radius:10px;font-size:12px;">⏸ Ordini chiusi</span> e i pulsanti +/− disabilitati.</p>
+    </div></div>
+  </div>
+
+  <div class="alert info" style="margin-top:4px;">💡 Le raccolte chiuse compaiono in grigio sotto quelle aperte — utile per vedere lo storico delle consegne precedenti.</div>
+</section>
+
+<hr class="divider">
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!--  5. FARE UN ORDINE                                    -->
 <!-- ══════════════════════════════════════════════════════ -->
 <section class="sec" id="ordine">
   <div class="sec-title">🛒 Fare un ordine</div>
@@ -515,7 +596,8 @@
       <tr><td>🔑 Entrare</td><td>Login con Tessera + Cellulare</td></tr>
       <tr><td>🔓 Recuperare i codici</td><td>«Non ricordo i codici di accesso»</td></tr>
       <tr><td>🆘 Chiedere aiuto</td><td>Menu Assistenza (3 canali Telegram) o chat 💬</td></tr>
-      <tr><td>🛒 Ordinare</td><td>Catalogo → Fornitore → + prodotti → 🛒 → Invia Ordine</td></tr>
+      <tr><td>🛒 Vedere le raccolte aperte</td><td>Tab «🛒 Raccolte» nella barra laterale</td></tr>
+      <tr><td>📦 Ordinare</td><td>Raccolte → fornitore → + prodotti → 🛒 → Invia Ordine</td></tr>
       <tr><td>💾 Modificare l'ordine</td><td>🛒 Carrello (si salva in automatico)</td></tr>
       <tr><td>💬 Scrivere all'admin</td><td>Icona 💬 in alto</td></tr>
       <tr><td>📋 Prenotare</td><td>Icona 📋 → Prenota</td></tr>
