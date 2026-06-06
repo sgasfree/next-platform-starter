@@ -20622,6 +20622,7 @@ window.docx = docx;
       </div>
       <h1 id="login-gas-name">S-GAS <span>Freeconomy</span></h1>
       <p>Produttori etici a KM zero</p>
+      <div id="login-clock" style="margin-top:12px;font-size:.95rem;color:#c8e6c9;letter-spacing:.04em;font-variant-numeric:tabular-nums;"></div>
       <div id="login-app-link-wrap" style="margin-top:10px;display:none;">
         <a id="login-app-link" href="#" target="_blank" style="color:#a5d6a7;font-size:.78rem;text-decoration:underline;word-break:break-all;"></a>
       </div>
@@ -26187,6 +26188,26 @@ function applyAppLink(){
 loadState();
 applyLogo();
 applyAppLink();
+
+// ── Login page clock ──
+(function(){
+  const el = document.getElementById('login-clock');
+  if(!el) return;
+  const days = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+  const months = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+  function tick(){
+    const now = new Date();
+    const d = days[now.getDay()];
+    const m = months[now.getMonth()];
+    const dd = String(now.getDate()).padStart(2,'0');
+    const hh = String(now.getHours()).padStart(2,'0');
+    const mm = String(now.getMinutes()).padStart(2,'0');
+    const ss = String(now.getSeconds()).padStart(2,'0');
+    el.textContent = d+' '+dd+' '+m+' '+now.getFullYear()+'  —  '+hh+':'+mm+':'+ss;
+  }
+  tick();
+  setInterval(tick, 1000);
+})();
 
 const _isAdminPath = window.location.hash==='#admin' || window.location.pathname==='/admin';
 
