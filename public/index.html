@@ -21915,6 +21915,11 @@ async function loadFromSupabase(){
     S.config.supabaseKey    = _prevConf.supabaseKey||'';
     if(_prevConf.logoData)   S.config.logoData   = _prevConf.logoData;
     if(_prevConf.logoBase64) S.config.logoBase64 = _prevConf.logoBase64;
+    // Preserva password admin locali: il reset viene fatto sul dispositivo corrente
+    // e non deve essere sovrascritto da uno stato Supabase potenzialmente più vecchio
+    if(_prevConf.adminPassword)  S.config.adminPassword  = _prevConf.adminPassword;
+    if(_prevConf.adminPassword2) S.config.adminPassword2 = _prevConf.adminPassword2;
+    if(_prevConf.adminPassword3) S.config.adminPassword3 = _prevConf.adminPassword3;
     // Ripristina immagini fornitori/prodotti da localStorage (non sincronizzate su Supabase)
     const _prevState=(()=>{try{return JSON.parse(localStorage.getItem('sgas_state')||'{}')}catch(e){return {};}})();
     if(Array.isArray(_prevState.fornitori) && Array.isArray(S.fornitori)){
@@ -22610,7 +22615,8 @@ function adminRecSendCode(){
   _adminRecCode={
     code:Math.floor(100000+Math.random()*900000).toString(),
     expires:Date.now()+15*60*1000,
-    attempts:0
+    attempts:0,
+    adminIndex: isAdmin1 ? 1 : isAdmin2 ? 2 : 3
   };
   // Invia il codice via Telegram agli admin (non mostrato a schermo)
   const tgBot = (S.config.tgBotToken||'').trim();
@@ -22672,7 +22678,11 @@ async function adminRecSavePass(){
   const msg=document.getElementById('rec-adm-msg3');
   if(!np||np.length<8){msg.innerHTML='<div class="alert alert-info">❌ Minimo 8 caratteri.</div>';return;}
   if(np!==cp){msg.innerHTML='<div class="alert alert-info">❌ Le password non coincidono.</div>';return;}
-  S.config.adminPassword=await hashPassword(np);
+  const _adminIdx = (_adminRecCode && _adminRecCode.adminIndex) || 1;
+  const _hashedPw = await hashPassword(np);
+  if(_adminIdx===2) S.config.adminPassword2=_hashedPw;
+  else if(_adminIdx===3) S.config.adminPassword3=_hashedPw;
+  else S.config.adminPassword=_hashedPw;
   saveState();
   msg.innerHTML='<div class="alert alert-success">✅ Password aggiornata! Ora accedi con la nuova password.</div>';
   setTimeout(()=>{
