@@ -22944,18 +22944,45 @@ function renderFornitori(){
           +(r.ritiroLuogo?' · '+r.ritiroLuogo:'')
           +'</div>'
         :'';
+      const countdownId='cd-'+r.id;
+      const countdownHtml=r.dataChiusura
+        ?'<div id="'+countdownId+'" style="font-size:.72rem;font-weight:800;color:#b71c1c;margin-top:4px;font-variant-numeric:tabular-nums;"></div>'
+        :'';
       return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:#fff;border-radius:8px;border:1px solid var(--green-light);">'
         +'<span style="font-size:1.1rem;">📋</span>'
         +'<div style="flex:1;min-width:0;">'
         +'<div style="font-weight:800;font-size:.88rem;color:var(--green-dark);">'+r.nome+'</div>'
         +'<div style="font-size:.72rem;color:var(--text-light);">'+nForn+' disponibili</div>'
         +ritiro
+        +countdownHtml
         +'</div>'
         +'<span class="pill pill-green" style="font-size:.7rem;flex-shrink:0;">● Aperta</span></div>';
     }).join('');
     raccoltaBanner='<div style="background:var(--green-pale);border:1.5px solid var(--green-light);border-radius:12px;padding:12px 14px;margin-bottom:16px;">'
       +'<div style="font-size:.72rem;font-weight:800;color:var(--green-dark);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">🟢 Raccolte in corso</div>'
       +'<div style="display:flex;flex-direction:column;gap:6px;">'+items+'</div></div>';
+    // Avvia timer countdown per ogni raccolta con scadenza
+    aperte.filter(r=>r.dataChiusura).forEach(r=>{
+      const deadline=new Date(r.dataChiusura+'T'+(r.oraChiusura||'23:59')+':00');
+      (function tick(){
+        const el=document.getElementById('cd-'+r.id); if(!el) return;
+        const diff=deadline-Date.now();
+        if(diff<=0){el.textContent='⌛ Raccolta scaduta — ordini chiusi'; return;}
+        const gg=Math.floor(diff/86400000);
+        const hh=Math.floor((diff%86400000)/3600000);
+        const mm=Math.floor((diff%3600000)/60000);
+        const ss=Math.floor((diff%60000)/1000);
+        const parts=[];
+        if(gg>0) parts.push(gg+'g');
+        parts.push(String(hh).padStart(2,'0')+'h');
+        parts.push(String(mm).padStart(2,'0')+'m');
+        parts.push(String(ss).padStart(2,'0')+'s');
+        const urgente=diff<3600000;
+        el.style.color=urgente?'#b71c1c':'#e65100';
+        el.textContent='⏱ Scade tra: '+parts.join(' ');
+        setTimeout(tick,1000);
+      })();
+    });
   }
 
   list.innerHTML=raccoltaBanner+filt.map(f=>{
@@ -24690,6 +24717,12 @@ function modalNewRaccolta(editId){
     +'<input type="hidden" id="m-raccolta-edit-id" value="'+(editId||'')+'">'
     +'<div class="field"><label>Nome raccolta</label><input id="m-rnome" type="text" value="'+defaultName+'"></div>'
     +'<div style="border-top:1px solid var(--border);margin:14px 0 12px;padding-top:14px;">'
+    +'<div style="font-size:.78rem;font-weight:800;color:var(--terra);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">⏰ Scadenza ordini</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'
+    +'<div class="field"><label>Data scadenza</label><input id="m-rchiusura" type="date" value="'+(r&&r.dataChiusura?r.dataChiusura:'')+'"></div>'
+    +'<div class="field"><label>Ora scadenza</label><input id="m-rorachiusura" type="time" value="'+(r&&r.oraChiusura?r.oraChiusura:'')+'"></div>'
+    +'</div></div>'
+    +'<div style="border-top:1px solid var(--border);margin:14px 0 12px;padding-top:14px;">'
     +'<div style="font-size:.78rem;font-weight:800;color:var(--terra);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">📦 Ritiro ordini</div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'
     +'<div class="field"><label>Data ritiro</label><input id="m-rdata" type="date" value="'+(r&&r.ritiroData?r.ritiroData:'')+'"></div>'
@@ -24723,11 +24756,13 @@ function saveRaccolta(){
   const ritiroData=document.getElementById('m-rdata')?.value||null;
   const ritiroOra=document.getElementById('m-rora')?.value||null;
   const ritiroLuogo=document.getElementById('m-rluogo')?.value.trim()||null;
+  const dataChiusura=document.getElementById('m-rchiusura')?.value||null;
+  const oraChiusura=document.getElementById('m-rorachiusura')?.value||null;
   if(editId){
     const r=S.raccolte.find(x=>x.id===editId);
-    if(r){r.nome=nome;r.fornitori=fornIds;r.ritiroData=ritiroData;r.ritiroOra=ritiroOra;r.ritiroLuogo=ritiroLuogo;}
+    if(r){r.nome=nome;r.fornitori=fornIds;r.ritiroData=ritiroData;r.ritiroOra=ritiroOra;r.ritiroLuogo=ritiroLuogo;r.dataChiusura=dataChiusura;r.oraChiusura=oraChiusura;}
   } else {
-    S.raccolte.unshift({id:'r'+uid(),nome,aperta:true,dataCreazione:new Date().toISOString().slice(0,10),fornitori:fornIds,ritiroData,ritiroOra,ritiroLuogo});
+    S.raccolte.unshift({id:'r'+uid(),nome,aperta:true,dataCreazione:new Date().toISOString().slice(0,10),fornitori:fornIds,ritiroData,ritiroOra,ritiroLuogo,dataChiusura,oraChiusura});
     sendPush('🛒 Nuova raccolta aperta!', nome+' — Accedi all\'app per ordinare.', window.location.origin);
   }
   saveState(); closeModal(); renderRaccolte(); toast('✅ Raccolta salvata');
