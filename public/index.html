@@ -20596,8 +20596,8 @@ window.docx = docx;
       <div class="wizard-step" id="ws1">
         <h3 style="font-family:var(--font-serif,serif);margin-bottom:8px;">Accesso Admin 🔐</h3>
         <p style="color:var(--text-mid);font-size:.9rem;margin-bottom:24px;">Scegli le credenziali per il pannello amministratore.</p>
-        <div class="field"><label>Email Admin</label><input id="wiz-email" type="email" placeholder="admin@tuogas.it" value=""></div>
-        <div class="field"><label>Password Admin</label><input id="wiz-pass" type="password" placeholder="Scegli una password sicura" value=""></div>
+        <div class="field"><label>Email Admin</label><input id="wiz-email" type="email" autocomplete="off" placeholder="admin@tuogas.it" value=""></div>
+        <div class="field"><label>Password Admin</label><input id="wiz-pass" type="password" autocomplete="new-password" placeholder="Scegli una password sicura" value=""></div>
         <div style="display:flex;gap:10px;">
           <button class="btn btn-secondary" onclick="wizNext(0)">← Indietro</button>
           <button class="btn btn-primary" style="flex:1" onclick="wizNext(2)">Avanti →</button>
@@ -20659,8 +20659,8 @@ window.docx = docx;
       <!-- Admin form -->
       <div id="login-admin-form" style="">
         <div id="login-admin-normal">
-          <div class="field"><label>Email</label><input id="adm-mail" type="email" placeholder="indirizzo email"></div>
-          <div class="field"><label>Password</label><input id="adm-pw" type="password" placeholder="password"></div>
+          <div class="field"><label>Email</label><input id="adm-mail" type="email" autocomplete="off" placeholder="indirizzo email"></div>
+          <div class="field"><label>Password</label><input id="adm-pw" type="password" autocomplete="off" placeholder="password"></div>
           <button class="btn btn-terra btn-block" onclick="loginAdmin()">Accedi come Admin</button>
           <div style="text-align:center;margin-top:12px;">
             <button onclick="showRecovery('admin')" style="background:none;border:none;color:var(--terra);font-size:.82rem;font-weight:700;cursor:pointer;text-decoration:underline;">🔑 Password dimenticata?</button>
@@ -20672,9 +20672,9 @@ window.docx = docx;
             <div style="font-weight:800;font-size:.85rem;color:#e65100;margin-bottom:4px;">⚙️ Configura accesso Admin</div>
             <div style="font-size:.78rem;color:#bf360c;">Imposta la tua email e password. Questi dati verranno salvati su questo dispositivo.</div>
           </div>
-          <div class="field"><label>Nuova Email Admin</label><input id="setup-email" type="email" placeholder="tua@email.it"></div>
-          <div class="field"><label>Nuova Password Admin</label><input id="setup-pass" type="password" placeholder="Scegli una password sicura"></div>
-          <div class="field"><label>Conferma Password</label><input id="setup-pass2" type="password" placeholder="Ripeti la password"></div>
+          <div class="field"><label>Nuova Email Admin</label><input id="setup-email" type="email" autocomplete="off" placeholder="tua@email.it"></div>
+          <div class="field"><label>Nuova Password Admin</label><input id="setup-pass" type="password" autocomplete="new-password" placeholder="Scegli una password sicura"></div>
+          <div class="field"><label>Conferma Password</label><input id="setup-pass2" type="password" autocomplete="new-password" placeholder="Ripeti la password"></div>
           <div id="setup-err" style="margin-bottom:8px;"></div>
           <button class="btn btn-primary btn-block" onclick="saveSetupAdmin()">💾 Salva e Accedi</button>
           <div style="text-align:center;margin-top:10px;">
@@ -20917,7 +20917,7 @@ window.docx = docx;
       <h3 style="font-family:var(--font-serif,serif);margin-bottom:16px;">⚙️ Configurazione GAS</h3>
       <div class="field"><label>Nome del GAS</label><input id="s-gasname" type="text" value="S-GAS Freeconomy"></div>
       <div class="field"><label>Email Admin</label><input id="s-email" type="email" value="vivinrete@gmail.com"></div>
-      <div class="field"><label>Nuova Password Admin</label><input id="s-pass" type="password" placeholder="Lascia vuoto per non cambiare"></div>
+      <div class="field"><label>Nuova Password Admin</label><input id="s-pass" type="password" autocomplete="new-password" placeholder="Lascia vuoto per non cambiare"></div>
       <div class="field">
         <label>🔗 Link accesso app (URL pubblico)</label>
         <input id="s-applink" type="url" value="" placeholder="es. https://sgas-freeconomy.netlify.app">
@@ -20929,7 +20929,7 @@ window.docx = docx;
       <h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">👥 Secondo Amministratore</h3>
       <p style="font-size:.82rem;color:var(--text-mid);margin-bottom:14px;">Configura un secondo account admin con gli stessi poteri del principale. Lascia vuoto per disabilitarlo.</p>
       <div class="field"><label>Email Admin 2</label><input id="s-email2" type="email" value="${S.config.adminEmail2||''}" placeholder="secondo@admin.it"></div>
-      <div class="field"><label>Password Admin 2</label><input id="s-pass2" type="password" placeholder="Lascia vuoto per non cambiare"></div>
+      <div class="field"><label>Password Admin 2</label><input id="s-pass2" type="password" autocomplete="new-password" placeholder="Lascia vuoto per non cambiare"></div>
       ${S.config.adminEmail2?'<div class="alert alert-info" style="font-size:.78rem;margin-bottom:10px;">✅ Admin 2 attivo: <strong>'+S.config.adminEmail2+'</strong></div>':''}
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn btn-primary" onclick="saveAdmin2()">💾 Salva Admin 2</button>
@@ -20940,7 +20940,7 @@ window.docx = docx;
       <h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">👥 Terzo Amministratore</h3>
       <p style="font-size:.82rem;color:var(--text-mid);margin-bottom:14px;">Configura un terzo account admin con gli stessi poteri del principale. Lascia vuoto per disabilitarlo.</p>
       <div class="field"><label>Email Admin 3</label><input id="s-email3" type="email" value="" placeholder="terzo@admin.it"></div>
-      <div class="field"><label>Password Admin 3</label><input id="s-pass3" type="password" placeholder="Lascia vuoto per non cambiare"></div>
+      <div class="field"><label>Password Admin 3</label><input id="s-pass3" type="password" autocomplete="new-password" placeholder="Lascia vuoto per non cambiare"></div>
        
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn btn-primary" onclick="saveAdmin3()">💾 Salva Admin 3</button>
@@ -25585,7 +25585,7 @@ function renderSettings(){
       </div>
       <div class="field" style="margin-bottom:14px;">
         <label style="font-size:.78rem;">Anon/Public Key</label>
-        <input id="s-supa-key" type="password" value="${S.config.supabaseKey||''}" placeholder="eyJ..." style="font-family:monospace;font-size:.82rem;">
+        <input id="s-supa-key" type="password" autocomplete="off" value="${S.config.supabaseKey||''}" placeholder="eyJ..." style="font-family:monospace;font-size:.82rem;">
         <div style="font-size:.72rem;color:var(--text-light);margin-top:3px;">Usa la chiave <strong>anon/public</strong> (non la service_role). Trovala in Project Settings → API.</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
