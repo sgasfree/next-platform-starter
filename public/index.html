@@ -21825,14 +21825,27 @@ function loadState(){
   if(!S.fornitori) S.fornitori=DEFAULT_FORNITORI;
   else {
     const existingFIds = new Set(S.fornitori.map(f=>f.id));
-    DEFAULT_FORNITORI.forEach(f=>{ if(!existingFIds.has(f.id)) S.fornitori.push(f); });
+    const existingFNames = new Set(S.fornitori.map(f=>(f.nome||'').toLowerCase().trim()));
+    const addedDefaultFIds = new Set();
+    DEFAULT_FORNITORI.forEach(f=>{
+      const nameMatch = existingFNames.has((f.nome||'').toLowerCase().trim());
+      if(!existingFIds.has(f.id) && !nameMatch){
+        S.fornitori.push(f);
+        addedDefaultFIds.add(f.id);
+      }
+    });
+    // Store which default IDs were skipped (replaced by UUID versions) for prodotti merge below
+    S._skippedDefaultFIds = new Set(DEFAULT_FORNITORI.filter(f=>!addedDefaultFIds.has(f.id)&&!existingFIds.has(f.id)).map(f=>f.id));
   }
   if(!S.prodotti) S.prodotti=DEFAULT_PRODOTTI;
   else {
     // Merge: aggiungi eventuali prodotti default mancanti (per aggiornamenti)
+    // Skip products whose fornitorId was replaced by a UUID-based supplier
+    const skipped = S._skippedDefaultFIds || new Set();
     const existingIds = new Set(S.prodotti.map(p=>p.id));
-    DEFAULT_PRODOTTI.forEach(p=>{ if(!existingIds.has(p.id)) S.prodotti.push(p); });
+    DEFAULT_PRODOTTI.forEach(p=>{ if(!existingIds.has(p.id) && !skipped.has(p.fornitorId)) S.prodotti.push(p); });
   }
+  delete S._skippedDefaultFIds;
   if(!S.raccolte) S.raccolte=DEFAULT_RACCOLTE;
   if(!S.ordini) S.ordini=[];
   if(!S.messaggi) S.messaggi=[];
