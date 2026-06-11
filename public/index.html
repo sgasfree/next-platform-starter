@@ -22209,6 +22209,7 @@ function restoreSession(){
   }catch(e){return false;}
 }
 let currentTab='ali';
+let _prevTab=null;
 
 // ════════ AUTO-LOGOUT PER INATTIVITÀ (1 ora) ════════
 const INACTIVITY_LIMIT = 60 * 60 * 1000; // 1 ora in ms
@@ -22273,7 +22274,12 @@ function showSocioSection(sec){
 
 function backToCatalogo(){
   showSocioSection('catalogo');
-  renderFornitori();
+  if(_prevTab==='_raccolte'){
+    setTab('_raccolte');
+  } else {
+    renderFornitori();
+  }
+  _prevTab=null;
 }
 
 // Pulsante flottante: mostra solo se fuori dal catalogo e la pagina è scrollata
@@ -23160,6 +23166,7 @@ function renderFornitori(){
 }
 
 function openFornitore(id){
+  _prevTab = currentTab;   // ricorda da dove vieni
   currentFornId=id;
   const f=S.fornitori.find(x=>x.id===id);
   if(!f) return;
