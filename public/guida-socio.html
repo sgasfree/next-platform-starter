@@ -76,6 +76,10 @@
   .callout.left::after { border-right-color:var(--arrow); right:100%; top:50%; transform:translateY(-50%); }
   .callout.right::after { border-left-color:var(--arrow); left:100%; top:50%; transform:translateY(-50%); }
 
+  /* overlay label grande (stile mockup utente) */
+  .ann-label { position:absolute; color:#e53935; font-weight:900; z-index:10;
+               font-size:1rem; letter-spacing:.3px; text-shadow:0 1px 3px rgba(255,255,255,.9); }
+
   /* circle highlight */
   .circle { position:absolute; border:3px solid var(--circle); border-radius:50%;
              animation: pulse 1.5s ease-in-out infinite; z-index:5; }
@@ -143,12 +147,12 @@
   <div class="phone-wrap">
     <div class="phone-frame ann" id="ann-login">
       <img src="guide/01-login-vuoto.png" class="ann-img" id="img-login">
-      <!-- ① punta al centro del campo Numero Tessera (~57%) -->
-      <div class="callout right" style="top:57%;left:4%;">① Tessera</div>
-      <!-- ② punta al centro del campo Cellulare (~67%) -->
-      <div class="callout right" style="top:67%;left:4%;">② Cellulare</div>
-      <!-- ③ punta al centro del pulsante Accedi come Socio (~75%) -->
-      <div class="callout left" style="top:75%;right:4%;">③ Accedi</div>
+      <!-- etichetta grande dentro il campo Tessera -->
+      <div class="ann-label" style="top:55%;left:32%;font-size:1.05rem;">Tessera socio</div>
+      <!-- etichetta grande dentro il campo Cellulare -->
+      <div class="ann-label" style="top:65%;left:34%;font-size:1.05rem;">Cellulare</div>
+      <!-- etichetta grande sotto il pulsante Accedi -->
+      <div class="ann-label" style="top:77%;right:5%;font-size:.92rem;">clikka accedi</div>
     </div>
   </div>
 
