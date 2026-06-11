@@ -26026,7 +26026,24 @@ function backupData(){
 function restoreData(ev){
   const f=ev.target.files[0]; if(!f)return;
   const r=new FileReader();
-  r.onload=e=>{try{S=JSON.parse(e.target.result);saveState();adminNav('dashboard');toast('✅ Dati ripristinati');}catch{toast('❌ File non valido');}};
+  r.onload=e=>{
+    try{
+      S=JSON.parse(e.target.result);
+      // Deduplicazione fornitori: rimuovi doppi per id, poi per nome (tiene il primo = UUID reale)
+      if(S.fornitori&&S.fornitori.length>0){
+        const _sid={};
+        S.fornitori=S.fornitori.filter(x=>{if(!x.id||_sid[x.id])return false;_sid[x.id]=true;return true;});
+        const _sname={};
+        S.fornitori=S.fornitori.filter(x=>{const k=(x.nome||'').toLowerCase().trim();if(_sname[k])return false;_sname[k]=true;return true;});
+        // Rimuovi prodotti orfani (collegati a fornitori rimossi dalla dedup)
+        const _validF=new Set(S.fornitori.map(x=>x.id));
+        if(S.prodotti) S.prodotti=S.prodotti.filter(p=>_validF.has(p.fornitorId));
+      }
+      saveState();
+      adminNav('dashboard');
+      toast('✅ Dati ripristinati');
+    }catch{toast('❌ File non valido');}
+  };
   r.readAsText(f);
 }
 
