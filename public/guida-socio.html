@@ -7,11 +7,11 @@
 <style>
   :root {
     --green: #2e7d32;
+    --green-dark: #1b5e20;
     --green-light: #4caf50;
     --green-pale: #e8f5e9;
     --accent: #ff6f00;
-    --arrow: #f44336;
-    --circle: #ff6f00;
+    --red: #e53935;
     --bg: #f5f5f5;
     --card: #fff;
     --text: #212121;
@@ -43,7 +43,6 @@
   .divider { border:none; border-top:2px solid var(--green-pale); margin:32px 0; }
 
   /* ── STEP ── */
-  .steps { counter-reset: step; }
   .step { display:flex; gap:14px; margin-bottom:20px; align-items:flex-start; }
   .step-num { min-width:32px; height:32px; border-radius:50%; background:var(--green); color:#fff;
               font-weight:700; font-size:15px; display:flex; align-items:center; justify-content:center;
@@ -51,47 +50,80 @@
   .step-body { flex:1; }
   .step-body strong { display:block; font-size:15px; margin-bottom:3px; }
   .step-body p { font-size:14px; color:var(--muted); line-height:1.5; }
-  .step-tip { background:var(--green-pale); border-left:3px solid var(--green); border-radius:4px;
-              padding:8px 12px; font-size:13px; margin-top:8px; color:#2e7d32; }
 
-  /* ── PHONE FRAME ── */
-  .phone-wrap { position:relative; margin:20px auto; max-width:280px; }
-  .phone-frame { border-radius:28px; border:6px solid #263238; box-shadow:0 8px 32px rgba(0,0,0,.3);
-                 overflow:hidden; background:#000; }
-  .phone-frame img { width:100%; display:block; }
-  .phone-frame .gif-wrap { position:relative; }
-  .phone-frame .gif-badge { position:absolute; top:8px; right:8px; background:var(--accent); color:#fff;
-                             border-radius:12px; font-size:11px; padding:2px 8px; font-weight:700; }
+  /* ── MOCKUP PHONE ── */
+  .mock { max-width:300px; margin:20px auto; border-radius:24px; border:5px solid #263238;
+          overflow:hidden; box-shadow:0 8px 32px rgba(0,0,0,.25); background:#fff; }
+  .mock-hero { background:linear-gradient(160deg,#1b5e20,#2e7d32); padding:22px 16px 18px; text-align:center; }
+  .mock-hero .logo { font-size:26px; }
+  .mock-hero .t1 { color:#fff; font-weight:800; font-size:17px; margin-top:4px; }
+  .mock-hero .t2 { color:#a5d6a7; font-size:11px; margin-top:2px; }
+  .mock-body { padding:16px 14px; }
 
-  /* ── ANNOTATIONS ── */
-  .ann { position:relative; }
-  .ann-img { width:100%; display:block; }
+  /* campi del mockup */
+  .m-label { font-size:11px; font-weight:700; color:#424242; margin-bottom:4px; }
+  .m-field { position:relative; border:1.5px solid #bdbdbd; border-radius:8px; padding:11px 12px;
+             font-size:13px; color:#9e9e9e; margin-bottom:14px; background:#fff; display:flex; align-items:center; }
+  .m-field.focus { border-color:var(--green); background:#f9fbe7; color:#212121; font-family:monospace; }
+  .m-btn { background:var(--green-dark); color:#fff; text-align:center; padding:12px; border-radius:24px;
+           font-weight:800; font-size:13px; position:relative; }
+  .m-btn.light { background:#fff; color:var(--green); border:1.5px solid var(--green-light); }
+  .m-link { text-align:center; font-size:12px; color:var(--green); font-weight:700; text-decoration:underline; margin:12px 0; }
 
-  /* callout box */
-  .callout { position:absolute; background:var(--arrow); color:#fff; border-radius:8px;
-             font-size:11px; font-weight:700; padding:4px 8px; white-space:nowrap; z-index:10; }
-  .callout::after { content:''; position:absolute; border:6px solid transparent; }
-  .callout.down::after { border-top-color:var(--arrow); top:100%; left:50%; transform:translateX(-50%); }
-  .callout.up::after { border-bottom-color:var(--arrow); bottom:100%; left:50%; transform:translateX(-50%); }
-  .callout.left::after { border-right-color:var(--arrow); right:100%; top:50%; transform:translateY(-50%); }
-  .callout.right::after { border-left-color:var(--arrow); left:100%; top:50%; transform:translateY(-50%); }
+  /* etichetta rossa DENTRO il campo */
+  .tag { color:var(--red); font-weight:900; font-size:14px; margin-left:auto; padding-left:8px; white-space:nowrap; }
+  .tag-below { color:var(--red); font-weight:900; font-size:13px; text-align:right; margin:-8px 4px 10px 0; }
+  .tag-inline { color:var(--red); font-weight:900; font-size:13px; }
 
-  /* overlay label grande (stile mockup utente) */
-  .ann-label { position:absolute; color:#e53935; font-weight:900; z-index:10;
-               font-size:1rem; letter-spacing:.3px; text-shadow:0 1px 3px rgba(255,255,255,.9); }
+  /* nav bar app simulata */
+  .m-nav { background:var(--green-dark); display:flex; align-items:center; gap:10px; padding:8px 12px; }
+  .m-nav .brand { color:#fff; font-weight:800; font-size:13px; margin-right:auto; display:flex; align-items:center; gap:5px; }
+  .m-nav .ico { position:relative; font-size:16px; }
+  .m-nav .badge { position:absolute; top:-5px; right:-7px; background:#e53935; color:#fff; border-radius:50%;
+                  min-width:14px; height:14px; font-size:9px; font-weight:800; display:flex; align-items:center; justify-content:center; padding:0 3px; }
+  .m-nav .esci { background:rgba(255,255,255,.2); color:#fff; border-radius:12px; font-size:11px; padding:3px 10px; font-weight:700; }
 
-  /* circle highlight */
-  .circle { position:absolute; border:3px solid var(--circle); border-radius:50%;
-             animation: pulse 1.5s ease-in-out infinite; z-index:5; }
-  @keyframes pulse { 0%,100%{ box-shadow:0 0 0 0 rgba(255,111,0,.5); } 50%{ box-shadow:0 0 0 6px rgba(255,111,0,0); } }
+  /* sidebar + content layout */
+  .m-split { display:flex; min-height:180px; }
+  .m-side { width:74px; background:#f7f7f7; border-right:1px solid #e0e0e0; padding:8px 5px; display:flex; flex-direction:column; gap:6px; align-items:center; }
+  .m-tab { width:62px; text-align:center; padding:7px 3px; border-radius:10px; color:#666; position:relative; }
+  .m-tab.on { background:var(--green); color:#fff; }
+  .m-tab .i { font-size:18px; display:block; }
+  .m-tab .l { font-size:9px; font-weight:700; }
+  .m-tab .b { position:absolute; top:2px; right:2px; background:#fff; color:var(--green); border-radius:50%;
+              width:14px; height:14px; font-size:9px; font-weight:900; display:flex; align-items:center; justify-content:center; }
+  .m-cont { flex:1; padding:10px; }
 
-  /* arrow SVG overlay */
-  .arrow-svg { position:absolute; z-index:8; pointer-events:none; }
+  /* card raccolta */
+  .m-racc { background:var(--green-pale); border:1.5px solid #a5d6a7; border-radius:10px; padding:10px; }
+  .m-racc .rt { font-weight:800; font-size:12px; color:var(--green-dark); }
+  .m-racc .timer { font-size:11px; color:#c62828; font-weight:800; margin-top:3px; }
+  .m-racc .ritiro { font-size:10px; color:#bf360c; font-weight:700; margin-top:2px; }
+  .m-forn { margin-top:8px; background:#fff; border-radius:8px; padding:8px 9px; display:flex; align-items:center; gap:8px; border:1px solid #e0e0e0; }
+  .m-forn .fi { font-size:18px; width:32px; height:32px; display:flex; align-items:center; justify-content:center; background:var(--green-pale); border-radius:8px; }
+  .m-forn .fn { font-weight:700; font-size:11px; }
+  .m-forn .fd { font-size:10px; color:#757575; }
 
-  /* ── GIF SECTION ── */
-  .gif-card { background:var(--card); border-radius:16px; box-shadow:var(--shadow); padding:16px; margin:20px 0; }
-  .gif-card h3 { font-size:15px; color:var(--green); margin-bottom:12px; display:flex; align-items:center; gap:6px; }
-  .gif-card img { width:100%; border-radius:12px; border:1px solid #e0e0e0; }
+  /* riga prodotto */
+  .m-prod { display:flex; align-items:center; gap:6px; padding:9px 4px; border-bottom:1px solid #eee; }
+  .m-prod .pn { flex:1; font-size:11px; font-weight:600; }
+  .m-prod .pp { font-size:11px; font-weight:800; color:var(--green-dark); }
+  .m-qty { display:flex; align-items:center; gap:5px; }
+  .m-qty .qb { width:22px; height:22px; border-radius:50%; border:1.5px solid var(--green-light); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px; color:var(--green); background:#fff; }
+  .m-qty .qb.plus { background:var(--green); color:#fff; }
+  .m-qty .qn { font-size:12px; font-weight:800; min-width:14px; text-align:center; }
+
+  /* chat */
+  .m-chat-msg { background:#fff; border:1px solid #e0e0e0; border-radius:12px; padding:8px 10px; font-size:11px; max-width:80%; margin-bottom:8px; }
+  .m-chat-in { display:flex; gap:6px; align-items:center; margin-top:10px; }
+  .m-chat-in .fld { flex:1; border:1.5px solid #bdbdbd; border-radius:18px; padding:9px 12px; font-size:11px; color:#9e9e9e; position:relative; }
+  .m-chat-in .send { width:34px; height:34px; border-radius:50%; background:var(--green); color:#fff; display:flex; align-items:center; justify-content:center; font-size:14px; }
+
+  /* tabella prenotazione */
+  .m-tbl { width:100%; border-collapse:collapse; font-size:10px; margin:6px 0; }
+  .m-tbl th { background:#eef7ee; color:#33691e; padding:5px 6px; text-align:left; font-size:9px; }
+  .m-tbl td { padding:6px; border-bottom:1px solid #eee; }
+  .m-tbl .qty-cell { border:1.5px solid #212121; border-radius:5px; padding:2px 8px; display:inline-block; font-weight:800; }
 
   /* ── ALERT BOXES ── */
   .alert { border-radius:10px; padding:12px 14px; font-size:14px; margin:12px 0; }
@@ -105,15 +137,13 @@
   .tbl td { padding:8px 10px; border-bottom:1px solid #e0e0e0; vertical-align:middle; }
   .tbl tr:hover td { background:var(--green-pale); }
 
-  /* ── FOOTER ── */
+  /* ── GIF ── */
+  .gif-card { background:var(--card); border-radius:16px; box-shadow:var(--shadow); padding:16px; margin:20px 0; }
+  .gif-card h3 { font-size:15px; color:var(--green); margin-bottom:12px; }
+  .gif-card img { width:100%; border-radius:12px; border:1px solid #e0e0e0; }
+
   footer { text-align:center; padding:24px; font-size:12px; color:var(--muted); }
   footer a { color:var(--green); }
-
-  /* ── RESPONSIVE ── */
-  @media(max-width:380px){
-    .phone-wrap{ max-width:240px; }
-    .callout{ font-size:10px; }
-  }
 </style>
 </head>
 <body>
@@ -129,78 +159,55 @@
 <nav class="nav">
   <a href="#login">🔑 Login</a>
   <a href="#recupero">🔓 Recupero</a>
-  <a href="#assistenza">🆘 Assistenza</a>
   <a href="#raccolte">🛒 Raccolte</a>
   <a href="#ordine">📦 Ordine</a>
-  <a href="#salva">💾 Salva</a>
   <a href="#messaggio">💬 Messaggio</a>
   <a href="#prenotazione">📋 Prenotazione</a>
+  <a href="#assistenza">🆘 Assistenza</a>
 </nav>
 
 <!-- ══════════════════════════════════════════════════════ -->
-<!--  1. LOGIN                                             -->
+<!--  1. LOGIN                                              -->
 <!-- ══════════════════════════════════════════════════════ -->
 <section class="sec" id="login">
   <div class="sec-title">🔑 Come fare il login</div>
-  <div class="sec-sub">L'accesso non usa una password — bastano la tessera e il cellulare</div>
+  <div class="sec-sub">Niente password — bastano tessera e cellulare</div>
 
-  <div class="phone-wrap">
-    <div class="phone-frame ann" id="ann-login">
-      <img src="guide/01-login-vuoto.png" class="ann-img" id="img-login">
-      <!-- etichetta grande dentro il campo Tessera -->
-      <div class="ann-label" style="top:55%;left:32%;font-size:1.05rem;">Tessera socio</div>
-      <!-- etichetta grande dentro il campo Cellulare -->
-      <div class="ann-label" style="top:65%;left:34%;font-size:1.05rem;">Cellulare</div>
-      <!-- etichetta grande sotto il pulsante Accedi -->
-      <div class="ann-label" style="top:77%;right:5%;font-size:.92rem;">clikka accedi</div>
+  <div class="mock">
+    <div class="mock-hero">
+      <div class="logo">🛒</div>
+      <div class="t1">Area Soci</div>
+      <div class="t2">Accedi con tessera e cellulare</div>
+    </div>
+    <div class="mock-body">
+      <div class="m-label">Numero Tessera</div>
+      <div class="m-field focus">SGAS-00000 <span class="tag">← Tessera socio</span></div>
+      <div class="m-label">Cellulare</div>
+      <div class="m-field">es. 3331234567 <span class="tag">← Cellulare</span></div>
+      <div class="m-btn">Accedi come Socio</div>
+      <div class="tag-below" style="margin-top:4px;">↑ clikka accedi</div>
+      <div class="m-link">🔑 Non ricordo i codici di accesso</div>
     </div>
   </div>
 
-  <div class="steps">
-    <div class="step"><div class="step-num">1</div><div class="step-body">
-      <strong>Apri l'app</strong>
-      <p>Si apre la schermata di accesso con due campi.</p>
-    </div></div>
+  <div class="step"><div class="step-num">1</div><div class="step-body">
+    <strong>Inserisci il Numero Tessera</strong>
+    <p>Il codice assegnato all'iscrizione, formato <code>SGAS-00001</code>.</p>
+  </div></div>
 
-    <div class="step"><div class="step-num">2</div><div class="step-body">
-      <strong>Inserisci il Numero Tessera</strong>
-      <p>Scrivi il codice tessera che ti è stato assegnato all'iscrizione (es. <code>SGAS-00001</code>).</p>
-    </div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-body">
+    <strong>Inserisci il Cellulare</strong>
+    <p>Il numero comunicato al GAS, senza spazi (es. <code>3331234567</code>).</p>
+  </div></div>
 
-    <div class="step"><div class="step-num">3</div><div class="step-body">
-      <strong>Inserisci il Cellulare</strong>
-      <p>Il numero di cellulare che hai comunicato al GAS, senza spazi (es. <code>3331234567</code>).</p>
-    </div></div>
-
-    <div class="step"><div class="step-num">4</div><div class="step-body">
-      <strong>Premi «Accedi come Socio»</strong>
-      <p>Se i dati sono corretti entri nel catalogo.</p>
-      <div class="alert ok">✅ Accesso riuscito: sei nel catalogo!</div>
-      <div class="alert warn">❌ «Tessera o cellulare non trovati»: controlla di non avere spazi o errori di battitura. Se il problema resta, usa il recupero credenziali.</div>
-    </div></div>
-  </div>
-
-  <!-- Mockup login compilato con dati di esempio -->
-  <div class="phone-wrap" style="margin-top:24px;">
-    <div class="phone-frame" style="background:#fff;padding:0;">
-      <div style="background:#2e7d32;padding:28px 20px 20px;text-align:center;">
-        <div style="font-size:28px;">🛒</div>
-        <div style="color:#fff;font-weight:700;font-size:14px;margin-top:6px;">Area Soci</div>
-        <div style="color:#a5d6a7;font-size:11px;margin-top:2px;">Accedi con tessera e cellulare</div>
-      </div>
-      <div style="padding:20px 16px;">
-        <div style="font-size:11px;font-weight:700;color:#424242;margin-bottom:4px;">Numero Tessera</div>
-        <div style="border:2px solid #2e7d32;border-radius:8px;padding:10px 12px;font-size:13px;font-family:monospace;color:#212121;background:#f9fbe7;margin-bottom:14px;">SGAS-00000</div>
-        <div style="font-size:11px;font-weight:700;color:#424242;margin-bottom:4px;">Cellulare</div>
-        <div style="border:1.5px solid #bdbdbd;border-radius:8px;padding:10px 12px;font-size:13px;color:#9e9e9e;margin-bottom:18px;">es. 3331234567</div>
-        <div style="background:#2e7d32;color:#fff;text-align:center;padding:12px;border-radius:8px;font-weight:700;font-size:13px;">Accedi come Socio</div>
-      </div>
-    </div>
-  </div>
-  <p style="text-align:center;font-size:12px;color:#757575;margin-top:-10px;margin-bottom:20px;">Esempio di tessera nel formato <strong>SGAS-00001</strong></p>
+  <div class="step"><div class="step-num">3</div><div class="step-body">
+    <strong>Premi «Accedi come Socio»</strong>
+    <div class="alert ok">✅ Sei dentro: si apre il catalogo!</div>
+    <div class="alert warn">❌ «Tessera o cellulare non trovati»? Controlla spazi ed errori di battitura, oppure usa il recupero qui sotto.</div>
+  </div></div>
 
   <div class="gif-card">
-    <h3>🎞️ Vedi il login in azione</h3>
+    <h3>🎞️ Il login in azione</h3>
     <img src="guide/gif-login.gif" alt="GIF login" loading="lazy">
   </div>
 </section>
@@ -208,71 +215,286 @@
 <hr class="divider">
 
 <!-- ══════════════════════════════════════════════════════ -->
-<!--  2. RECUPERO                                          -->
+<!--  2. RECUPERO                                           -->
 <!-- ══════════════════════════════════════════════════════ -->
 <section class="sec" id="recupero">
   <div class="sec-title">🔓 Recuperare le credenziali</div>
-  <div class="sec-sub">Non ricordi la tessera o il cellulare? Tre passi e sei dentro</div>
+  <div class="sec-sub">Non ricordi tessera o cellulare? Tre passi e sei dentro</div>
 
-  <div class="phone-wrap">
-    <div class="phone-frame ann">
-      <img src="guide/04-recupero-step1.png" class="ann-img">
-      <!-- Punta al campo Numero Tessera nel form di recupero (~65%) -->
-      <div class="callout right" style="top:63%;left:5%;">Inserisci tessera</div>
+  <div class="mock">
+    <div class="mock-hero">
+      <div class="logo">🔑</div>
+      <div class="t1">Recupero credenziali</div>
+      <div class="t2">Passo 1 di 3 — Inserisci il numero tessera</div>
+    </div>
+    <div class="mock-body">
+      <div class="m-label">Numero Tessera</div>
+      <div class="m-field focus">SGAS-00000 <span class="tag">← scrivi qui</span></div>
+      <div class="m-btn">Avanti →</div>
+      <div class="tag-below" style="margin-top:4px;">↑ poi premi Avanti</div>
+      <div class="m-link">← Torna al login</div>
     </div>
   </div>
 
-  <div class="steps">
-    <div class="step"><div class="step-num">1</div><div class="step-body">
-      <strong>Premi «🔑 Non ricordo i codici di accesso»</strong>
-      <p>Il link è sotto il pulsante principale nella schermata di login.</p>
-    </div></div>
+  <div class="step"><div class="step-num">1</div><div class="step-body">
+    <strong>Nel login premi «🔑 Non ricordo i codici di accesso»</strong>
+    <p>Il link è sotto il pulsante verde «Accedi come Socio».</p>
+  </div></div>
 
-    <div class="step"><div class="step-num">2</div><div class="step-body">
-      <strong>Passo 1 — Numero Tessera</strong>
-      <p>Inserisci il numero di tessera e tocca <strong>«Avanti →»</strong>.</p>
-    </div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-body">
+    <strong>Segui i 3 passi</strong>
+    <p>① Numero tessera → ② Cellulare → ③ Nome e Cognome. Ad ogni passo premi <strong>«Avanti →»</strong>.</p>
+  </div></div>
 
-    <div class="step"><div class="step-num">3</div><div class="step-body">
-      <strong>Passo 2 — Cellulare</strong>
-      <p>Inserisci il tuo numero di cellulare e tocca <strong>«Avanti →»</strong>.</p>
-    </div></div>
+  <div class="step"><div class="step-num">3</div><div class="step-body">
+    <strong>Verifica completata</strong>
+    <div class="alert ok">✅ «Identità verificata!» — i tuoi codici appaiono in verde. Premi «↩ Accedi ora»: i campi si compilano da soli.</div>
+    <div class="alert warn">❌ Se un passo fallisce, il dato non corrisponde all'archivio. Contatta l'Assistenza Socio.</div>
+  </div></div>
+</section>
 
-    <div class="step"><div class="step-num">4</div><div class="step-body">
-      <strong>Passo 3 — Nome e Cognome</strong>
-      <p>Scrivi il tuo nome completo e tocca <strong>«Verifica ✓»</strong>.</p>
-      <div class="alert ok">✅ «Identità verificata!» — i tuoi codici appaiono in verde. Premi «↩ Accedi ora»: i campi si compilano da soli!</div>
-      <div class="alert warn">❌ Se uno dei passi fallisce, il dato non corrisponde a quello in archivio. Contatta l'Assistenza Socio.</div>
-    </div></div>
+<hr class="divider">
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!--  3. RACCOLTE                                           -->
+<!-- ══════════════════════════════════════════════════════ -->
+<section class="sec" id="raccolte">
+  <div class="sec-title">🛒 Le Raccolte</div>
+  <div class="sec-sub">Il punto di partenza per ordinare: fornitori già pronti</div>
+
+  <div class="mock" style="max-width:330px;">
+    <div class="m-nav">
+      <span class="brand">🌼 S-GAS</span>
+      <span class="ico">📅</span><span class="ico">💬</span><span class="ico">👤</span><span class="ico">🛒</span>
+      <span class="esci">Esci</span>
+    </div>
+    <div class="m-split">
+      <div class="m-side">
+        <div class="m-tab on"><span class="b">1</span><span class="i">🛒</span><span class="l">Raccolte</span></div>
+        <div style="color:var(--red);font-weight:900;font-size:10px;text-align:center;line-height:1.2;">↑ clikka<br>qui</div>
+        <div class="m-tab"><span class="i">🥗</span><span class="l">Alimentari</span></div>
+        <div class="m-tab"><span class="i">🧴</span><span class="l">Igiene</span></div>
+      </div>
+      <div class="m-cont">
+        <div style="font-size:9px;font-weight:800;color:var(--green);text-transform:uppercase;margin-bottom:8px;">🟢 Raccolte aperte</div>
+        <div class="m-racc">
+          <div class="rt">📋 Raccolta Giugno 2026</div>
+          <div class="timer">⏱ Scade tra: 5g 19h 34m <span class="tag-inline">← countdown</span></div>
+          <div class="ritiro">📦 Ritiro: sab 13 giugno · ore 18:00</div>
+          <div class="m-forn">
+            <div class="fi">🐐</div>
+            <div><div class="fn">Why!Farm</div><div class="fd">📍 Marano Ticino</div></div>
+            <span class="tag" style="font-size:11px;">← tocca il fornitore</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step"><div class="step-num">1</div><div class="step-body">
+    <strong>Tocca il tab «🛒 Raccolte» in alto nella barra laterale</strong>
+    <p>Il numero sul tab indica quante raccolte sono aperte adesso.</p>
+  </div></div>
+
+  <div class="step"><div class="step-num">2</div><div class="step-body">
+    <strong>Guarda il countdown ⏱</strong>
+    <p>Ogni raccolta mostra quanto tempo resta per ordinare e quando/dove si ritira.</p>
+  </div></div>
+
+  <div class="step"><div class="step-num">3</div><div class="step-body">
+    <strong>Tocca direttamente il fornitore nella raccolta</strong>
+    <p>Si apre subito il suo catalogo prodotti — non devi cercarlo nelle categorie.</p>
+    <div class="alert ok">✅ Quando finisci, il tasto «🏠 Catalogo» ti riporta qui alle Raccolte.</div>
+  </div></div>
+
+  <div class="alert info">💡 Le tab categorie (🥗 Alimentari, 🧴 Igiene…) restano consultabili, ma i fornitori senza raccolta attiva mostrano «⏸ Ordini chiusi» e i tasti +/− disabilitati.</div>
+</section>
+
+<hr class="divider">
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!--  4. FARE UN ORDINE                                     -->
+<!-- ══════════════════════════════════════════════════════ -->
+<section class="sec" id="ordine">
+  <div class="sec-title">📦 Fare un ordine</div>
+  <div class="sec-sub">Dalla raccolta al tasto «Invia Ordine»</div>
+
+  <div class="mock" style="max-width:330px;">
+    <div class="m-nav">
+      <span class="brand">🌼 S-GAS</span>
+      <span class="ico">💬</span><span class="ico">👤</span>
+      <span class="ico">🛒<span class="badge">2</span></span>
+      <span style="color:var(--red);font-weight:900;font-size:10px;">← carrello</span>
+      <span class="esci">Esci</span>
+    </div>
+    <div class="mock-body" style="padding:12px;">
+      <div style="font-weight:800;font-size:13px;margin-bottom:4px;">Prodotti — Why!Farm</div>
+      <div class="m-prod">
+        <span class="pn">Formaggio caprino fresco</span>
+        <span class="pp">€4.50</span>
+        <div class="m-qty"><span class="qb">−</span><span class="qn">1</span><span class="qb plus">+</span></div>
+        <span class="tag" style="font-size:11px;">← premi +</span>
+      </div>
+      <div class="m-prod">
+        <span class="pn">Yogurt di capra 500g</span>
+        <span class="pp">€3.80</span>
+        <div class="m-qty"><span class="qb">−</span><span class="qn">0</span><span class="qb plus">+</span></div>
+      </div>
+      <div style="margin-top:12px;border-top:1px solid #eee;padding-top:10px;">
+        <div class="m-btn">✅ Invia Ordine</div>
+        <div class="tag-below" style="margin-top:4px;">↑ dal carrello 🛒, alla fine</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step"><div class="step-num">1</div><div class="step-body">
+    <strong>Apri il fornitore dalla raccolta</strong>
+    <p>Vedi la sezione <a href="#raccolte" style="color:var(--green);font-weight:700;">🛒 Raccolte</a> qui sopra.</p>
+  </div></div>
+
+  <div class="step"><div class="step-num">2</div><div class="step-body">
+    <strong>Aggiungi i prodotti con «+»</strong>
+    <p>Premi <strong>+</strong> per aumentare, <strong>−</strong> per diminuire. Il badge sul 🛒 in alto si aggiorna subito.</p>
+  </div></div>
+
+  <div class="step"><div class="step-num">3</div><div class="step-body">
+    <strong>Apri il carrello 🛒 in alto</strong>
+    <p>Trovi il riepilogo dei prodotti. Seleziona la raccolta nel menu a tendina.</p>
+  </div></div>
+
+  <div class="step"><div class="step-num">4</div><div class="step-body">
+    <strong>Premi «✅ Invia Ordine»</strong>
+    <div class="alert ok">✅ Ordine confermato! Scarichi automaticamente il documento Word con il riepilogo.</div>
+    <div class="alert info">📬 L'admin riceve la notifica (e anche tu se hai Telegram collegato).</div>
+  </div></div>
+
+  <div class="alert ok">🔄 <strong>Il carrello si salva da solo:</strong> puoi chiudere l'app e tornare dopo — trovi tutto come l'avevi lasciato. Per modificare: ✕ rimuove un prodotto, «🗑 Svuota carrello» cancella tutto.</div>
+
+  <div class="gif-card">
+    <h3>🎞️ Flusso completo ordine</h3>
+    <img src="guide/gif-ordine.gif" alt="GIF ordine" loading="lazy">
   </div>
 </section>
 
 <hr class="divider">
 
 <!-- ══════════════════════════════════════════════════════ -->
-<!--  3. ASSISTENZA                                        -->
+<!--  5. MESSAGGI                                           -->
 <!-- ══════════════════════════════════════════════════════ -->
-<section class="sec" id="assistenza">
-  <div class="sec-title">🆘 Contattare l'assistenza</div>
-  <div class="sec-sub">Tre canali Telegram, ognuno per il tipo di problema</div>
+<section class="sec" id="messaggio">
+  <div class="sec-title">💬 Inviare un messaggio</div>
+  <div class="sec-sub">Chat diretta con l'amministratore del GAS</div>
 
-  <div class="phone-wrap">
-    <div class="phone-frame ann">
-      <img src="guide/15-assistenza.png" class="ann-img">
-      <!-- SOS button è nella nav bar in alto, ~4% da top, ~30% da destra -->
-      <div class="callout up" style="top:9%;right:28%;">Tocca SOS</div>
+  <div class="mock" style="max-width:330px;">
+    <div class="m-nav">
+      <span class="brand">🌼 S-GAS</span>
+      <span class="ico">💬<span class="badge">1</span></span>
+      <span style="color:var(--red);font-weight:900;font-size:10px;">← clikka qui</span>
+      <span class="ico">👤</span><span class="ico">🛒</span>
+      <span class="esci">Esci</span>
+    </div>
+    <div class="mock-body" style="padding:12px;">
+      <div style="font-weight:800;font-size:13px;margin-bottom:8px;">💬 Messaggi con Admin</div>
+      <div class="m-chat-msg">Benvenuto nel GAS! Scrivi pure per qualsiasi necessità.</div>
+      <div class="m-chat-in">
+        <div class="fld">Scrivi un messaggio… <span class="tag" style="font-size:11px;position:absolute;right:10px;top:8px;">← scrivi qui</span></div>
+        <div class="send">➤</div>
+      </div>
+      <div class="tag-below" style="margin-top:4px;">↑ poi premi ➤</div>
     </div>
   </div>
 
-  <div class="steps">
-    <div class="step"><div class="step-num">1</div><div class="step-body">
-      <strong>Tocca il menu Assistenza in alto</strong>
-      <p>Compare il pannello con i tre canali disponibili.</p>
-    </div></div>
+  <div class="step"><div class="step-num">1</div><div class="step-body">
+    <strong>Tocca l'icona 💬 nella barra in alto</strong>
+    <p>Il pallino rosso segnala messaggi non letti.</p>
+  </div></div>
 
-    <div class="step"><div class="step-num">2</div><div class="step-body">
-      <strong>Scegli il canale giusto</strong>
-    </div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-body">
+    <strong>Scrivi e premi ➤</strong>
+    <p>Quando l'admin legge compaiono le spunte <strong>✓✓</strong>.</p>
+  </div></div>
+
+  <div class="gif-card">
+    <h3>🎞️ Come si invia un messaggio</h3>
+    <img src="guide/gif-messaggio.gif" alt="GIF messaggio" loading="lazy">
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!--  6. PRENOTAZIONI                                       -->
+<!-- ══════════════════════════════════════════════════════ -->
+<section class="sec" id="prenotazione">
+  <div class="sec-title">📋 Fare una prenotazione</div>
+  <div class="sec-sub">Per ordini speciali con quantità definite</div>
+
+  <div class="mock" style="max-width:330px;">
+    <div class="m-nav">
+      <span class="brand">🌼 S-GAS</span>
+      <span class="ico">📅<span class="badge">1</span></span>
+      <span style="color:var(--red);font-weight:900;font-size:10px;">← clikka qui</span>
+      <span class="ico">💬</span><span class="ico">🛒</span>
+      <span class="esci">Esci</span>
+    </div>
+    <div class="mock-body" style="padding:12px;">
+      <div style="font-weight:800;font-size:13px;margin-bottom:6px;">📋 Prenotazioni</div>
+      <table class="m-tbl">
+        <tr><th>PRODOTTO</th><th>PREZZO</th><th>QUANTITÀ</th></tr>
+        <tr><td>Zucchine</td><td>€2.50</td><td><span class="qty-cell">2</span> <span class="tag-inline" style="font-size:11px;">← quantità</span></td></tr>
+        <tr><td>Pomodori</td><td>€3.00</td><td><span style="padding:2px 8px;">0</span></td></tr>
+      </table>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+        <strong style="font-size:12px;">Totale: €5,00</strong>
+        <div class="m-btn" style="padding:8px 16px;font-size:12px;display:inline-block;">📩 Prenota</div>
+      </div>
+      <div class="tag-below" style="margin-top:4px;">↑ poi premi Prenota</div>
+    </div>
+  </div>
+
+  <div class="step"><div class="step-num">1</div><div class="step-body">
+    <strong>Tocca l'icona 📅 nella barra in alto</strong>
+    <p>Si apre l'elenco delle prenotazioni attive. Se non ce ne sono: «Nessuna prenotazione aperta al momento».</p>
+  </div></div>
+
+  <div class="step"><div class="step-num">2</div><div class="step-body">
+    <strong>Inserisci le quantità e premi «📩 Prenota»</strong>
+    <div class="alert ok">✅ «Prenotazione inviata!»</div>
+    <p style="margin-top:6px;">Per annullare: <strong>«🗑️ Cancella prenotazione»</strong> e conferma.</p>
+  </div></div>
+
+  <div class="gif-card">
+    <h3>🎞️ Come si fa una prenotazione</h3>
+    <img src="guide/gif-prenotazione.gif" alt="GIF prenotazione" loading="lazy">
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!--  7. ASSISTENZA                                         -->
+<!-- ══════════════════════════════════════════════════════ -->
+<section class="sec" id="assistenza">
+  <div class="sec-title">🆘 Contattare l'assistenza</div>
+  <div class="sec-sub">Tre canali Telegram, uno per ogni tipo di problema</div>
+
+  <div class="mock" style="max-width:330px;">
+    <div class="m-nav">
+      <span class="brand">🌼 S-GAS</span>
+      <span class="ico">💬</span><span class="ico">👤</span><span class="ico">🛒</span>
+      <span class="ico" style="background:#c62828;border-radius:4px;padding:1px 4px;font-size:10px;color:#fff;font-weight:900;">SOS</span>
+      <span style="color:var(--red);font-weight:900;font-size:10px;">← clikka SOS</span>
+      <span class="esci">Esci</span>
+    </div>
+    <div class="mock-body" style="padding:12px;">
+      <div style="background:var(--green-dark);color:#fff;font-weight:800;font-size:11px;padding:7px 10px;border-radius:8px 8px 0 0;">ASSISTENZA</div>
+      <div style="border:1px solid #e0e0e0;border-top:none;border-radius:0 0 8px 8px;">
+        <div style="padding:9px 10px;border-bottom:1px solid #eee;"><strong style="font-size:12px;">🛠️ Assistenza App</strong><div style="font-size:10px;color:#757575;">Bug, errori, accesso</div></div>
+        <div style="padding:9px 10px;border-bottom:1px solid #eee;"><strong style="font-size:12px;">📦 Assistenza Ordine</strong><div style="font-size:10px;color:#757575;">Spedizioni, pagamenti</div></div>
+        <div style="padding:9px 10px;"><strong style="font-size:12px;">🪪 Assistenza Socio</strong><div style="font-size:10px;color:#757575;">Tessera, iscrizione</div></div>
+      </div>
+      <div class="tag-below" style="margin-top:6px;text-align:center;">↑ scegli il canale giusto</div>
+    </div>
   </div>
 
   <table class="tbl">
@@ -284,326 +506,7 @@
     </tbody>
   </table>
 
-  <div class="alert info">💡 Tocca il canale: si apre Telegram con un messaggio già pronto. Puoi anche usare la chat interna 💬 dell'app.</div>
-</section>
-
-<hr class="divider">
-
-<!-- ══════════════════════════════════════════════════════ -->
-<!--  4. RACCOLTE                                          -->
-<!-- ══════════════════════════════════════════════════════ -->
-<section class="sec" id="raccolte">
-  <div class="sec-title">🛒 Le Raccolte</div>
-  <div class="sec-sub">Qui trovi le raccolte aperte con i fornitori già pronti da sfogliare</div>
-
-  <!-- Mockup tab Raccolte -->
-  <div style="background:#fff;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,.1);overflow:hidden;margin:20px 0;">
-    <!-- sidebar simulata -->
-    <div style="display:flex;min-height:200px;">
-      <div style="width:80px;background:#f9f9f9;border-right:1px solid #e0e0e0;display:flex;flex-direction:column;align-items:center;padding:10px 6px;gap:8px;">
-        <div style="background:#2e7d32;color:#fff;border-radius:10px;width:64px;padding:8px 4px;text-align:center;position:relative;">
-          <div style="font-size:20px;">🛒</div>
-          <div style="font-size:10px;font-weight:700;">Raccolte</div>
-          <span style="position:absolute;top:3px;right:3px;background:#fff;color:#2e7d32;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;">1</span>
-        </div>
-        <div style="color:#666;width:64px;padding:8px 4px;text-align:center;border-radius:10px;">
-          <div style="font-size:20px;">🥗</div>
-          <div style="font-size:10px;">Alimentari</div>
-        </div>
-        <div style="color:#666;width:64px;padding:8px 4px;text-align:center;border-radius:10px;">
-          <div style="font-size:20px;">🧴</div>
-          <div style="font-size:10px;">Igiene</div>
-        </div>
-      </div>
-      <!-- contenuto raccolta -->
-      <div style="flex:1;padding:14px 12px;">
-        <div style="font-size:10px;font-weight:800;color:#2e7d32;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">🟢 Raccolte aperte</div>
-        <div style="background:#e8f5e9;border:1.5px solid #a5d6a7;border-radius:10px;padding:12px;">
-          <div style="display:flex;align-items:flex-start;gap:8px;">
-            <span style="font-size:18px;">📋</span>
-            <div style="flex:1;">
-              <div style="font-weight:800;font-size:13px;color:#1b5e20;">Raccolta Giugno 2026</div>
-              <div style="font-size:11px;color:#c62828;font-weight:700;margin-top:3px;">⏱ Scade tra: 5g 19h 34m 19s</div>
-              <div style="font-size:11px;color:#bf360c;font-weight:700;margin-top:2px;">📦 Ritiro: sab 13 giugno · ore 18:00</div>
-            </div>
-            <span style="background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700;white-space:nowrap;">● Aperta</span>
-          </div>
-          <!-- fornitore cliccabile -->
-          <div style="margin-top:10px;background:#fff;border-radius:8px;padding:8px 10px;display:flex;align-items:center;gap:8px;border:1px solid #e0e0e0;cursor:pointer;">
-            <div style="font-size:22px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:#e8f5e9;border-radius:8px;">🐐</div>
-            <div>
-              <div style="font-weight:700;font-size:12px;">Why!Farm</div>
-              <div style="font-size:11px;color:#757575;">📍 Marano Ticino · ✓ Capre al pascolo</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="steps">
-    <div class="step"><div class="step-num">1</div><div class="step-body">
-      <strong>Tocca il tab «🛒 Raccolte» nella barra laterale</strong>
-      <p>Il numero verde indica quante raccolte sono aperte in questo momento.</p>
-    </div></div>
-
-    <div class="step"><div class="step-num">2</div><div class="step-body">
-      <strong>Vedi le raccolte aperte con il conto alla rovescia</strong>
-      <p>Per ogni raccolta aperta trovi: nome, data e luogo di ritiro, e il timer <span style="color:#e65100;font-weight:700;">⏱ Scade tra:</span> che si aggiorna ogni secondo.</p>
-    </div></div>
-
-    <div class="step"><div class="step-num">3</div><div class="step-body">
-      <strong>Tocca direttamente un fornitore dalla raccolta</strong>
-      <p>I fornitori della raccolta appaiono come card cliccabili. Tocca uno per aprire subito il catalogo prodotti e aggiungere al carrello.</p>
-      <div class="alert ok">✅ Non devi cercare nella categoria — i fornitori sono già qui, pronti!</div>
-    </div></div>
-
-    <div class="step"><div class="step-num">4</div><div class="step-body">
-      <strong>Quando sei pronto, vai direttamente all'ordine</strong>
-      <p>Dopo aver toccato un fornitore dalla raccolta, aggiungi prodotti e vai al 🛒 carrello. Vedi la sezione <a href="#ordine" style="color:var(--green);font-weight:700;">📦 Fare un ordine</a> per il passo-passo completo.</p>
-    </div></div>
-  </div>
-
-  <div class="alert info" style="margin-top:4px;">💡 Le raccolte chiuse compaiono in grigio sotto quelle aperte — utile per vedere lo storico delle consegne precedenti.</div>
-  <div class="alert info" style="margin-top:8px;">🔍 Puoi anche sfogliare per categoria (🥗 🧴 ecc.) — tutti i fornitori sono visibili, ma quelli senza raccolta attiva mostrano <span style="background:#eee;padding:1px 6px;border-radius:10px;font-size:12px;">⏸ Ordini chiusi</span> e i tasti +/− sono disabilitati.</div>
-</section>
-
-<hr class="divider">
-
-<!-- ══════════════════════════════════════════════════════ -->
-<!--  5. FARE UN ORDINE                                    -->
-<!-- ══════════════════════════════════════════════════════ -->
-<section class="sec" id="ordine">
-  <div class="sec-title">🛒 Fare un ordine</div>
-  <div class="sec-sub">Dal tab Raccolte al tasto «Invia Ordine» in pochi tap</div>
-
-  <!-- Percorso consigliato: via Raccolte -->
-  <div class="alert ok" style="margin-bottom:16px;">✅ <strong>Percorso consigliato:</strong> usa il tab <strong>🛒 Raccolte</strong> — i fornitori attivi sono già pronti, non devi cercarli.</div>
-
-  <div class="step" style="margin-top:8px;"><div class="step-num">1</div><div class="step-body">
-    <strong>Tocca «🛒 Raccolte» nella barra laterale</strong>
-    <p>Vedi subito le raccolte aperte con il conto alla rovescia e i fornitori della raccolta come card cliccabili.</p>
-    <div class="alert warn">⏸ Se non ci sono raccolte aperte non è possibile ordinare — ricontrolla più tardi.</div>
-  </div></div>
-
-  <div class="phone-wrap">
-    <div class="phone-frame ann">
-      <img src="guide/06-catalogo.png" class="ann-img">
-      <!-- Banner "RACCOLTE IN CORSO" a ~12% nel content, a destra della sidebar -->
-      <div class="callout down" style="top:10%;left:30%;">🟢 Raccolta aperta</div>
-      <!-- Card fornitore (Una Garlanda) a ~35-40% -->
-      <div class="callout up" style="top:58%;right:4%;">Scegli fornitore</div>
-    </div>
-  </div>
-
-  <div class="step"><div class="step-num">2</div><div class="step-body">
-    <strong>Tocca la card del fornitore</strong>
-    <p>Si apre direttamente il catalogo dei suoi prodotti. Non devi cercare o filtrare per categoria.</p>
-    <div class="alert info">💡 In alternativa puoi sfogliare per categoria (🥗 🧴 ecc.) — ma i fornitori senza raccolta attiva hanno i pulsanti disabilitati.</div>
-  </div></div>
-
-  <div class="phone-wrap">
-    <div class="phone-frame ann">
-      <img src="guide/07-fornitore.png" class="ann-img">
-      <!-- "Raccolta aperta:" appare al fondo (~80%) — scorri per vedere i prodotti con + -->
-      <div class="callout up" style="top:83%;right:4%;">Scorri → prodotti +</div>
-    </div>
-  </div>
-
-  <div class="step"><div class="step-num">3</div><div class="step-body">
-    <strong>Aggiungi prodotti con il tasto «+»</strong>
-    <p>Premi <strong>+</strong> per aumentare la quantità, <strong>−</strong> per diminuirla.</p>
-    <p>Il numero sul <strong>🛒</strong> in alto si aggiorna in tempo reale.</p>
-  </div></div>
-
-  <div class="phone-wrap">
-    <div class="phone-frame ann">
-      <img src="guide/08-prodotto-aggiunto.png" class="ann-img">
-      <!-- Badge "1" sul carrello è nella NAV BAR in alto a destra (~4% top, ~22% da destra) -->
-      <div class="callout up" style="top:9%;right:20%;">Badge carrello</div>
-    </div>
-  </div>
-
-  <div class="step"><div class="step-num">4</div><div class="step-body">
-    <strong>Vai al carrello tocca l'icona 🛒</strong>
-    <p>Trovi il riepilogo di tutti i prodotti selezionati.</p>
-  </div></div>
-
-  <div class="phone-wrap">
-    <div class="phone-frame ann">
-      <img src="guide/09-carrello.png" class="ann-img">
-      <!-- Prodotto nel carrello a ~20% -->
-      <div class="callout down" style="top:15%;left:4%;">Riepilogo prodotti</div>
-      <!-- Raccolta selector dropdown a ~43% -->
-      <div class="callout down" style="top:39%;left:4%;">Seleziona raccolta</div>
-    </div>
-  </div>
-
-  <div class="step"><div class="step-num">5</div><div class="step-body">
-    <strong>Seleziona la Raccolta e premi «✅ Invia Ordine»</strong>
-    <p>Scegli la raccolta attiva dal menu a tendina, poi invia.</p>
-    <div class="alert ok">✅ L'ordine è confermato! Scarichi automaticamente un documento Word con il riepilogo.</div>
-    <div class="alert info">📬 L'admin e tu (se hai Telegram collegato) ricevete una notifica.</div>
-  </div></div>
-
-  <div class="gif-card">
-    <h3>🎞️ Flusso completo ordine</h3>
-    <img src="guide/gif-ordine.gif" alt="GIF ordine" loading="lazy">
-  </div>
-</section>
-
-<hr class="divider">
-
-<!-- ══════════════════════════════════════════════════════ -->
-<!--  5. SALVARE UN ORDINE                                 -->
-<!-- ══════════════════════════════════════════════════════ -->
-<section class="sec" id="salva">
-  <div class="sec-title">💾 Salvare un ordine</div>
-  <div class="sec-sub">Il carrello si salva automaticamente — non devi fare nulla</div>
-
-  <div class="alert ok">🔄 <strong>Salvataggio automatico:</strong> ogni volta che aggiungi un prodotto, l'app salva il carrello. Puoi chiudere l'app e tornare: trovi tutto come prima.</div>
-
-  <div class="steps">
-    <div class="step"><div class="step-num">1</div><div class="step-body">
-      <strong>Il carrello è la tua bozza</strong>
-      <p>Non c'è un tasto «Salva bozza» separato: il carrello <em>è già</em> il tuo ordine in preparazione.</p>
-    </div></div>
-
-    <div class="step"><div class="step-num">2</div><div class="step-body">
-      <strong>Puoi modificarlo quando vuoi</strong>
-      <p>Apri il 🛒 carrello e:</p>
-      <ul style="margin-top:6px;padding-left:20px;font-size:14px;line-height:1.8;">
-        <li>Rimuovi un singolo prodotto con <strong>«✕»</strong></li>
-        <li>Svuota tutto con <strong>«🗑 Svuota carrello»</strong></li>
-      </ul>
-    </div></div>
-
-    <div class="step"><div class="step-num">3</div><div class="step-body">
-      <strong>Quando sei pronto invia</strong>
-      <p>Seleziona la raccolta e premi <strong>«✅ Invia Ordine»</strong>. Solo a quel punto l'ordine diventa definitivo.</p>
-    </div></div>
-  </div>
-
-  <div class="phone-wrap">
-    <div class="phone-frame ann">
-      <img src="guide/10-carrello-raccolta.png" class="ann-img">
-      <!-- Prodotto in carrello a ~20% -->
-      <div class="callout down" style="top:15%;left:4%;">Carrello salvato</div>
-      <!-- Invia Ordine button a ~53% -->
-      <div class="callout left" style="top:51%;right:4%;">Invia Ordine</div>
-    </div>
-  </div>
-</section>
-
-<hr class="divider">
-
-<!-- ══════════════════════════════════════════════════════ -->
-<!--  6. INVIARE UN MESSAGGIO                              -->
-<!-- ══════════════════════════════════════════════════════ -->
-<section class="sec" id="messaggio">
-  <div class="sec-title">💬 Inviare un messaggio</div>
-  <div class="sec-sub">Chat diretta con l'amministratore del GAS</div>
-
-  <div class="phone-wrap">
-    <div class="phone-frame ann">
-      <img src="guide/11-messaggi.png" class="ann-img">
-      <!-- 💬 icon nella nav bar: ~4% top, ~33% da destra -->
-      <div class="callout up" style="top:9%;right:32%;">Icona 💬</div>
-    </div>
-  </div>
-
-  <div class="steps">
-    <div class="step"><div class="step-num">1</div><div class="step-body">
-      <strong>Tocca l'icona 💬 in alto</strong>
-      <p>Il pallino rosso indica messaggi non letti dall'admin.</p>
-    </div></div>
-
-    <div class="step"><div class="step-num">2</div><div class="step-body">
-      <strong>Scrivi il messaggio</strong>
-      <p>Nel campo <em>«Scrivi un messaggio all'admin...»</em> digita quello che vuoi dire.</p>
-    </div></div>
-
-    <div class="step"><div class="step-num">3</div><div class="step-body">
-      <strong>Invia con ➤ o premi Invio</strong>
-      <p>Il messaggio appare nella chat. Quando l'admin lo legge compaiono le spunte <strong>✓✓</strong>.</p>
-    </div></div>
-  </div>
-
-  <div class="phone-wrap">
-    <div class="phone-frame ann">
-      <img src="guide/12-messaggio-scritto.png" class="ann-img">
-      <!-- Pulsante ➤ a destra del campo testo, ~76% dal top -->
-      <div class="callout left" style="top:74%;right:4%;">Premi ➤</div>
-    </div>
-  </div>
-
-  <div class="gif-card">
-    <h3>🎞️ Come si invia un messaggio</h3>
-    <img src="guide/gif-messaggio.gif" alt="GIF messaggio" loading="lazy">
-  </div>
-</section>
-
-<hr class="divider">
-
-<!-- ══════════════════════════════════════════════════════ -->
-<!--  7. PRENOTAZIONE                                       -->
-<!-- ══════════════════════════════════════════════════════ -->
-<section class="sec" id="prenotazione">
-  <div class="sec-title">📋 Fare una prenotazione</div>
-  <div class="sec-sub">Per ordini speciali o acquisti programmati con quantità definite</div>
-
-  <div class="phone-wrap">
-    <div class="phone-frame ann">
-      <img src="guide/13-prenotazioni.png" class="ann-img">
-      <!-- 📋 calendario nella nav bar: ~4% top, sinistra ~22% -->
-      <div class="callout up" style="top:9%;left:18%;">Icona 📋</div>
-      <!-- Card prenotazione inizia a ~19% -->
-      <div class="callout down" style="top:16%;left:4%;">Prenotazione aperta</div>
-    </div>
-  </div>
-
-  <div class="steps">
-    <div class="step"><div class="step-num">1</div><div class="step-body">
-      <strong>Tocca l'icona 📋 in alto</strong>
-      <p>Apre l'elenco delle prenotazioni attive.</p>
-      <div class="alert info">Se non ci sono prenotazioni aperte compare: «Nessuna prenotazione aperta al momento.»</div>
-    </div></div>
-
-    <div class="step"><div class="step-num">2</div><div class="step-body">
-      <strong>Leggi titolo, descrizione e prodotti</strong>
-      <p>Ogni prenotazione mostra i prodotti disponibili con eventuali quantità minime/massime.</p>
-    </div></div>
-
-    <div class="step"><div class="step-num">3</div><div class="step-body">
-      <strong>Inserisci le quantità</strong>
-      <p>Usa il campo numerico accanto a ogni prodotto.</p>
-    </div></div>
-
-    <div class="step"><div class="step-num">4</div><div class="step-body">
-      <strong>Premi «📩 Prenota»</strong>
-      <div class="alert ok">✅ «Prenotazione inviata!»</div>
-    </div></div>
-
-    <div class="step"><div class="step-num">5</div><div class="step-body">
-      <strong>Vuoi annullare?</strong>
-      <p>Premi <strong>«🗑️ Cancella prenotazione»</strong> e conferma.</p>
-    </div></div>
-  </div>
-
-  <div class="phone-wrap">
-    <div class="phone-frame ann">
-      <img src="guide/14-prenotazione-qty.png" class="ann-img">
-      <!-- Campo qty Zucchine a ~38%, destra -->
-      <div class="callout left" style="top:36%;right:4%;">Inserisci quantità</div>
-      <!-- Pulsante "Prenota" a ~58%, destra -->
-      <div class="callout left" style="top:56%;right:4%;">📩 Prenota</div>
-    </div>
-  </div>
-
-  <div class="gif-card">
-    <h3>🎞️ Come si fa una prenotazione</h3>
-    <img src="guide/gif-prenotazione.gif" alt="GIF prenotazione" loading="lazy">
-  </div>
+  <div class="alert info">💡 Toccando un canale si apre Telegram con un messaggio già pronto. In alternativa usa la chat interna 💬.</div>
 </section>
 
 <hr class="divider">
@@ -615,14 +518,13 @@
     <thead><tr><th>Voglio…</th><th>Dove vado</th></tr></thead>
     <tbody>
       <tr><td>🔑 Entrare</td><td>Login con <strong>Tessera + Cellulare</strong></td></tr>
-      <tr><td>🔓 Recuperare i codici</td><td>«Non ricordo i codici di accesso» in basso al login</td></tr>
-      <tr><td>🆘 Chiedere aiuto</td><td>Menu Assistenza (3 canali Telegram) o chat 💬</td></tr>
+      <tr><td>🔓 Recuperare i codici</td><td>«Non ricordo i codici di accesso» sotto il login</td></tr>
       <tr><td>🛒 Vedere raccolte aperte</td><td>Tab <strong>«🛒 Raccolte»</strong> nella barra laterale</td></tr>
-      <tr><td>📦 Ordinare</td><td><strong>Raccolte → tocca fornitore → + prodotti → 🛒 → Invia Ordine</strong></td></tr>
-      <tr><td>🔍 Sfogliare il catalogo</td><td>Tab categoria (🥗 🧴 ecc.) — solo consultazione se no raccolta aperta</td></tr>
-      <tr><td>💾 Modificare l'ordine</td><td>🛒 Carrello (si salva in automatico)</td></tr>
+      <tr><td>📦 Ordinare</td><td><strong>Raccolte → tocca fornitore → + prodotti → 🛒 → Invia</strong></td></tr>
+      <tr><td>💾 Modificare l'ordine</td><td>🛒 Carrello (si salva da solo)</td></tr>
       <tr><td>💬 Scrivere all'admin</td><td>Icona 💬 in alto</td></tr>
-      <tr><td>📋 Prenotare</td><td>Icona 📋 → inserisci quantità → Prenota</td></tr>
+      <tr><td>📋 Prenotare</td><td>Icona 📅 → quantità → Prenota</td></tr>
+      <tr><td>🆘 Chiedere aiuto</td><td>Pulsante SOS in alto (3 canali Telegram)</td></tr>
     </tbody>
   </table>
 
@@ -632,7 +534,7 @@
 </section>
 
 <footer>
-  <p>Guida generata automaticamente per <strong>SGAS Freeconomy</strong></p>
+  <p>Guida per i soci di <strong>SGAS Freeconomy</strong></p>
   <p style="margin-top:4px;"><a href="index.html">← Torna all'app</a></p>
 </footer>
 
@@ -651,5 +553,6 @@
   }, { threshold: 0.3 });
   sections.forEach(s => obs.observe(s));
 </script>
+
 </body>
 </html>
