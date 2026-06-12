@@ -22327,7 +22327,7 @@ function renderCatSidebarOspite(){
   if(!nav) return;
   nav.innerHTML=S.categorie.map(cat=>
     '<button class="cat-btn'+(cat.id===ospiteTab?' active':'')+'" onclick="setTabOspite(\''+cat.id+'\')">'+
-    '<span class="cat-ico">'+cat.ico+'</span>'+cat.nome.replace(/(.{6})/g,'$1\u00AD')+'</button>'
+    '<span class="cat-ico">'+cat.ico+'</span>'+escHtml(cat.nome.replace(/(.{6})/g,'$1\u00AD'))+'</button>'
   ).join('')
   +'<button class="cat-btn" onclick="showOspiteSection(\'chisiamo\');renderChiSiamo(\'ospite\')" style="margin-top:6px;border-top:1px solid var(--green-light);padding-top:8px;"><span class="cat-ico">ℹ️</span>Chi&#xAD;Sie&#xAD;mo</button>';
 }
@@ -22411,9 +22411,9 @@ function openFornitoreOspite(id){
       +'<h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">📦 Prodotti disponibili</h3>'
       +prods.map(p=>
         '<div class="prodotto-row">'
-        +'<div style="flex:1;"><div class="prodotto-name">'+p.nome+'</div>'
-        +(p.descrizione?'<div style="font-size:.75rem;color:var(--text-mid);margin-top:2px;line-height:1.4;">'+p.descrizione+'</div>':'')
-        +'<div style="font-size:.75rem;color:var(--text-light);">'+p.unita+'</div></div>'
+        +'<div style="flex:1;"><div class="prodotto-name">'+escHtml(p.nome)+'</div>'
+        +(p.descrizione?'<div style="font-size:.75rem;color:var(--text-mid);margin-top:2px;line-height:1.4;">'+escHtml(p.descrizione)+'</div>':'')
+        +'<div style="font-size:.75rem;color:var(--text-light);">'+escHtml(p.unita)+'</div></div>'
         +'<div class="prodotto-price">'+(p.prezzo>0?'&euro;'+p.prezzo.toFixed(2):(p.unita&&p.unita.toLowerCase().includes('appuntamento')?'':'Gratuito'))+'</div>'
         +'</div>'
       ).join('')
@@ -22502,8 +22502,8 @@ function showLoginView(){
 
 function gasNameHtml(){
   const parts=S.config.gasName.split(' ');
-  if(parts.length>1) return parts[0]+' <span>'+parts.slice(1).join(' ')+'</span>';
-  return '<span>'+S.config.gasName+'</span>';
+  if(parts.length>1) return escHtml(parts[0])+' <span>'+escHtml(parts.slice(1).join(' '))+'</span>';
+  return '<span>'+escHtml(S.config.gasName)+'</span>';
 }
 
 function switchLoginMode(m){
@@ -22643,11 +22643,11 @@ function recVerifyStep3(){
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:center;">'
     +'<div>'
     +'<div style="font-size:.72rem;font-weight:700;color:var(--text-light);text-transform:uppercase;margin-bottom:4px;">Tessera</div>'
-    +'<div style="font-family:\'DM Serif Display\',serif;font-size:1.5rem;color:var(--green);font-weight:800;">'+found.tessera+'</div>'
+    +'<div style="font-family:\'DM Serif Display\',serif;font-size:1.5rem;color:var(--green);font-weight:800;">'+escHtml(found.tessera)+'</div>'
     +'</div>'
     +'<div>'
     +'<div style="font-size:.72rem;font-weight:700;color:var(--text-light);text-transform:uppercase;margin-bottom:4px;">Cellulare</div>'
-    +'<div style="font-family:\'DM Serif Display\',serif;font-size:1.5rem;color:var(--green);font-weight:800;">'+(found.cellulare||found.telefono||'—')+'</div>'
+    +'<div style="font-family:\'DM Serif Display\',serif;font-size:1.5rem;color:var(--green);font-weight:800;">'+escHtml(found.cellulare||found.telefono||'—')+'</div>'
     +'</div>'
     +'</div>'
     +'</div>'
@@ -22670,7 +22670,7 @@ let _adminRecCode = null;
 function adminRecStep1(){
   const rc=document.getElementById('recovery-content');
   rc.innerHTML=
-    '<div style="text-align:center;margin-bottom:18px;">'    +'<div style="font-size:2.2rem;margin-bottom:8px;">🔑</div>'    +'<h3 style="font-family:\'DM Serif Display\',serif;font-size:1.2rem;">Reset password Admin</h3>'    +'<p style="font-size:.82rem;color:var(--text-mid);margin-top:6px;">Inserisci la tua email admin: riceverai un codice di verifica.</p>'    +'</div>'    +'<div class="alert alert-info" style="font-size:.8rem;margin-bottom:10px;">💡 Email admin salvata: <strong>'+S.config.adminEmail+'</strong></div>'    +'<div class="field"><label>Email Admin</label><input id="rec-adm-email" type="email" placeholder="'+S.config.adminEmail+'" value="'+S.config.adminEmail+'"></div>'    +'<div id="rec-adm-msg" style="margin:10px 0;"></div>'    +'<button class="btn btn-terra btn-block" onclick="adminRecSendCode()">📧 Invia codice via email</button>'    +'<div style="text-align:center;margin-top:16px;">'    +'<button onclick="showLoginView()" style="background:none;border:none;color:var(--text-light);font-size:.82rem;cursor:pointer;">← Torna al login</button>'    +'</div>';
+    '<div style="text-align:center;margin-bottom:18px;">'    +'<div style="font-size:2.2rem;margin-bottom:8px;">🔑</div>'    +'<h3 style="font-family:\'DM Serif Display\',serif;font-size:1.2rem;">Reset password Admin</h3>'    +'<p style="font-size:.82rem;color:var(--text-mid);margin-top:6px;">Inserisci la tua email admin: riceverai un codice di verifica.</p>'    +'</div>'    +'<div class="alert alert-info" style="font-size:.8rem;margin-bottom:10px;">💡 Email admin salvata: <strong>'+escHtml(S.config.adminEmail)+'</strong></div>'    +'<div class="field"><label>Email Admin</label><input id="rec-adm-email" type="email" placeholder="'+escHtml(S.config.adminEmail)+'" value="'+escHtml(S.config.adminEmail)+'"></div>'    +'<div id="rec-adm-msg" style="margin:10px 0;"></div>'    +'<button class="btn btn-terra btn-block" onclick="adminRecSendCode()">📧 Invia codice via email</button>'    +'<div style="text-align:center;margin-top:16px;">'    +'<button onclick="showLoginView()" style="background:none;border:none;color:var(--text-light);font-size:.82rem;cursor:pointer;">← Torna al login</button>'    +'</div>';
 }
 
 function adminRecSendCode(){
@@ -22939,7 +22939,7 @@ function renderCatSidebar(){
     </button>`
   +S.categorie.map(cat=>`
     <button class="cat-btn${cat.id===currentTab?' active':''}" id="tab-${cat.id}" onclick="setTab('${cat.id}')">
-      <span class="cat-ico">${cat.ico}</span>${cat.nome.replace(/(.{6})/g,'$1­')}
+      <span class="cat-ico">${cat.ico}</span>${escHtml(cat.nome.replace(/(.{6})/g,'$1­'))}
     </button>`).join('')
   +'<button class="cat-btn" onclick="showSocioSection(\'chisiamo\');renderChiSiamo(\'socio\')" style="margin-top:6px;border-top:1px solid var(--green-light);padding-top:8px;"><span class="cat-ico">ℹ️</span>Chi&#xAD;Sie&#xAD;mo</button>';
 }
@@ -22984,8 +22984,8 @@ function renderRaccolteSocio(){
     const ritiro=(r.ritiroData||r.ritiroOra||r.ritiroLuogo)
       ?'<div style="font-size:.78rem;color:var(--terra);font-weight:700;margin-top:4px;">📦 Ritiro: '
         +(r.ritiroData?new Date(r.ritiroData+'T00:00:00').toLocaleDateString('it-IT',{weekday:'long',day:'2-digit',month:'long'}):'')
-        +(r.ritiroOra?' ore '+r.ritiroOra:'')
-        +(r.ritiroLuogo?' · '+r.ritiroLuogo:'')
+        +(r.ritiroOra?' ore '+escHtml(r.ritiroOra):'')
+        +(r.ritiroLuogo?' · '+escHtml(r.ritiroLuogo):'')
         +'</div>'
       :'';
     const cdId='rcd-'+r.id;
@@ -23104,8 +23104,8 @@ function renderFornitori(){
       const ritiro=(r.ritiroData||r.ritiroOra||r.ritiroLuogo)
         ?'<div style="font-size:.72rem;color:var(--terra);margin-top:3px;font-weight:700;">📦 Ritiro: '
           +(r.ritiroData?new Date(r.ritiroData+'T00:00:00').toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'2-digit'}):'')
-          +(r.ritiroOra?' ore '+r.ritiroOra:'')
-          +(r.ritiroLuogo?' · '+r.ritiroLuogo:'')
+          +(r.ritiroOra?' ore '+escHtml(r.ritiroOra):'')
+          +(r.ritiroLuogo?' · '+escHtml(r.ritiroLuogo):'')
           +'</div>'
         :'';
       const countdownId='cd-'+r.id;
@@ -23115,7 +23115,7 @@ function renderFornitori(){
       return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:#fff;border-radius:8px;border:1px solid var(--green-light);">'
         +'<span style="font-size:1.1rem;">📋</span>'
         +'<div style="flex:1;min-width:0;">'
-        +'<div style="font-weight:800;font-size:.88rem;color:var(--green-dark);">'+r.nome+'</div>'
+        +'<div style="font-weight:800;font-size:.88rem;color:var(--green-dark);">'+escHtml(r.nome)+'</div>'
         +'<div style="font-size:.72rem;color:var(--text-light);">'+nForn+' disponibili</div>'
         +ritiro
         +countdownHtml
@@ -23154,7 +23154,7 @@ function renderFornitori(){
     const openRacc=getFornOpenRaccolte(f.id);
     const attivo=openRacc.length>0;
     const badge=attivo
-      ?'<span class="raccolta-badge">📋 '+openRacc.map(r=>r.nome).join(' · ')+'</span>'
+      ?'<span class="raccolta-badge">📋 '+openRacc.map(r=>escHtml(r.nome)).join(' · ')+'</span>'
       :'<span class="raccolta-badge raccolta-badge-closed">⏸ Ordini chiusi</span>';
     return '<div class="forn-card" style="position:relative;" onclick="openFornitore(&#39;'+f.id+'&#39;)">'
       +'<div class="forn-card-header">'
@@ -23180,7 +23180,7 @@ function openFornitore(id){
   const prods=S.prodotti.filter(p=>p.fornitorId===id);
   const chars=f.caratteristiche||[];
   const logoHtml=(f.banner||f.logo)
-    ?`<div style="margin-bottom:0;overflow:hidden;border-radius:14px 14px 0 0;"><img src="${f.banner||f.logo}" style="width:100%;max-height:180px;object-fit:cover;display:block;" alt="${f.nome}"></div>`
+    ?`<div style="margin-bottom:0;overflow:hidden;border-radius:14px 14px 0 0;"><img src="${f.banner||f.logo}" style="width:100%;max-height:180px;object-fit:cover;display:block;" alt="${escHtml(f.nome)}"></div>`
     :'';
   const avatarHtml=f.logo
     ?`<img src="${f.logo}" style="width:56px;height:56px;object-fit:cover;border-radius:12px;flex-shrink:0;" alt="">`
@@ -23212,8 +23212,8 @@ function openFornitore(id){
     let btns = '';
     if(tel) btns+=`<a href="tel:+39${tel}" style="display:inline-flex;align-items:center;gap:8px;background:var(--green-dark);color:#fff;text-decoration:none;padding:11px 22px;border-radius:24px;font-size:.95rem;font-weight:800;font-family:'Nunito',sans-serif;box-shadow:0 2px 10px rgba(30,70,32,.25);">📞 ${tel.replace(/(\d{4})(\d{3})(\d{4})/,'$1 $2 $3').replace(/(\d{3,4})(\d{2,3})(\d{2})(\d{2})/,'$1 $2 $3 $4')}</a>`;
     if(wa)  btns+=`<a href="https://wa.me/39${wa}" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:#25d366;color:#fff;text-decoration:none;padding:11px 22px;border-radius:24px;font-size:.95rem;font-weight:800;font-family:'Nunito',sans-serif;">💬 WhatsApp</a>`;
-    if(em)  btns+=`<a href="mailto:${em}" style="display:inline-flex;align-items:center;gap:8px;background:#e8430a;color:#fff;text-decoration:none;padding:11px 22px;border-radius:24px;font-size:.95rem;font-weight:800;font-family:'Nunito',sans-serif;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg> Email</a>`;
-    if(tg)  btns+=`<a href="https://t.me/${tg}" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:#29a8e0;color:#fff;text-decoration:none;padding:11px 22px;border-radius:24px;font-size:.95rem;font-weight:800;font-family:'Nunito',sans-serif;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.16 13.947l-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.99.612z"/></svg> Telegram</a>`;
+    if(em)  btns+=`<a href="mailto:${escHtml(em)}" style="display:inline-flex;align-items:center;gap:8px;background:#e8430a;color:#fff;text-decoration:none;padding:11px 22px;border-radius:24px;font-size:.95rem;font-weight:800;font-family:'Nunito',sans-serif;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg> Email</a>`;
+    if(tg)  btns+=`<a href="https://t.me/${escHtml(tg)}" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:#29a8e0;color:#fff;text-decoration:none;padding:11px 22px;border-radius:24px;font-size:.95rem;font-weight:800;font-family:'Nunito',sans-serif;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.16 13.947l-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.99.612z"/></svg> Telegram</a>`;
     html+=`<div class="card" style="border:1.5px solid var(--green-light);background:var(--green-pale);">
       <div style="text-align:center;margin-bottom:14px;">
         <div style="font-size:.78rem;font-weight:800;color:var(--terra);letter-spacing:.08em;text-transform:uppercase;">📞 Contatta direttamente (${escHtml(nome)})</div>
@@ -23240,14 +23240,14 @@ function openFornitore(id){
       const ritiroHtml=openRacc.filter(r=>r.ritiroData||r.ritiroOra||r.ritiroLuogo).map(r=>
         '<div style="font-size:.75rem;color:var(--terra);font-weight:700;margin-top:4px;">📦 Ritiro: '
         +(r.ritiroData?new Date(r.ritiroData+'T00:00:00').toLocaleDateString('it-IT',{weekday:'long',day:'2-digit',month:'long'}):'')
-        +(r.ritiroOra?' ore '+r.ritiroOra:'')
-        +(r.ritiroLuogo?' · '+r.ritiroLuogo:'')
+        +(r.ritiroOra?' ore '+escHtml(r.ritiroOra):'')
+        +(r.ritiroLuogo?' · '+escHtml(r.ritiroLuogo):'')
         +'</div>'
       ).join('');
       html+='<div style="background:var(--green-pale);border:1.5px solid var(--green-light);border-radius:10px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;">'
         +'<span style="font-size:1.2rem;">📋</span>'
         +'<div style="flex:1;">'
-        +'<div style="font-weight:800;font-size:.85rem;color:var(--green-dark);">Raccolta aperta: '+openRacc.map(r=>r.nome).join(', ')+'</div>'
+        +'<div style="font-weight:800;font-size:.85rem;color:var(--green-dark);">Raccolta aperta: '+openRacc.map(r=>escHtml(r.nome)).join(', ')+'</div>'
         +'<div style="font-size:.75rem;color:var(--text-light);">Aggiungi i prodotti al carrello e vai alla raccolta</div>'
         +ritiroHtml
         +'</div>'
@@ -23268,10 +23268,10 @@ function openFornitore(id){
         const disp = p.disponibile !== false;
         const codBadge = p.codice ? '<span style="font-family:monospace;background:#e8f5e9;color:var(--green-dark);font-size:.7rem;padding:1px 6px;border-radius:4px;font-weight:700;margin-left:6px;">cod. '+escHtml(p.codice)+'</span>' : '';
         if(canOrder && disp){
-          return '<div class="prodotto-row" data-name="'+p.nome.toLowerCase()+'">'
-            +'<div><div class="prodotto-name">'+p.nome+codBadge+'</div>'
+          return '<div class="prodotto-row" data-name="'+escHtml(p.nome.toLowerCase())+'">'
+            +'<div><div class="prodotto-name">'+escHtml(p.nome)+codBadge+'</div>'
             +(p.descrizione?'<div style="font-size:.75rem;color:var(--text-mid);margin-top:2px;line-height:1.4;">'+escHtml(p.descrizione)+'</div>':'')
-            +'<div style="font-size:.75rem;color:var(--text-light);">'+p.unita+'</div></div>'
+            +'<div style="font-size:.75rem;color:var(--text-light);">'+escHtml(p.unita)+'</div></div>'
             +'<div class="prodotto-price">'+(p.prezzo>0?'&#8364;'+p.prezzo.toFixed(2):(p.unita&&p.unita.toLowerCase().includes('appuntamento')?'':'Gratuito'))+'</div>'
             +'<div class="qty-ctrl">'
             +'<button class="qty-btn" onclick="cartChange(&#39;'+p.id+'&#39;,-1)">&#8722;</button>'
@@ -23283,10 +23283,10 @@ function openFornitore(id){
           const label = !disp
             ? '<span style="font-size:.72rem;background:#f5f5f5;color:#999;border-radius:20px;padding:2px 10px;font-weight:700;border:1px solid #e0e0e0;">⛔ Non disponibile</span>'
             : '<div style="font-size:.8rem;color:var(--text-light);padding:4px 8px;">—</div>';
-          return '<div class="prodotto-row" data-name="'+p.nome.toLowerCase()+'" style="opacity:'+(!disp?'.5':'.55')+'; pointer-events:none;">'
-            +'<div><div class="prodotto-name" style="color:var(--text-light);">'+p.nome+codBadge+'</div>'
+          return '<div class="prodotto-row" data-name="'+escHtml(p.nome.toLowerCase())+'" style="opacity:'+(!disp?'.5':'.55')+'; pointer-events:none;">'
+            +'<div><div class="prodotto-name" style="color:var(--text-light);">'+escHtml(p.nome)+codBadge+'</div>'
             +(p.descrizione?'<div style="font-size:.75rem;color:var(--text-light);margin-top:2px;line-height:1.4;">'+escHtml(p.descrizione)+'</div>':'')
-            +'<div style="font-size:.75rem;color:var(--text-light);">'+p.unita+'</div></div>'
+            +'<div style="font-size:.75rem;color:var(--text-light);">'+escHtml(p.unita)+'</div></div>'
             +'<div class="prodotto-price" style="color:var(--text-light);">'+(p.prezzo>0?'&#8364;'+p.prezzo.toFixed(2):'—')+'</div>'
             +label
             +'</div>';
@@ -23351,8 +23351,8 @@ function renderCart(){
     const codStr = p.codice ? ' · cod. '+escHtml(p.codice) : '';
     return `<div class="cart-item">
       <div style="flex:1;">
-        <div class="cart-item-name">${p.nome}</div>
-        <div class="cart-item-sub">${f?f.nome:''}${codStr} · ${i.qty} × €${p.prezzo.toFixed(2)}</div>
+        <div class="cart-item-name">${escHtml(p.nome)}</div>
+        <div class="cart-item-sub">${f?escHtml(f.nome):''}${codStr} · ${i.qty} × €${p.prezzo.toFixed(2)}</div>
       </div>
       <div class="cart-item-price">€${sub.toFixed(2)}</div>
       <button class="btn btn-xs btn-danger" onclick="removeCartItem('${i.prodottoId}')">✕</button>
@@ -23362,7 +23362,7 @@ function renderCart(){
   let raccSelect='';
   if(opens.length){
     raccSelect=`<div class="field" style="margin-top:16px;"><label>Raccolta ordini di riferimento</label>
-      <select id="cart-raccolta">${opens.map(r=>`<option value="${r.id}" ${S.cart.raccoltaId===r.id?'selected':''}>${r.nome}</option>`).join('')}</select>
+      <select id="cart-raccolta">${opens.map(r=>`<option value="${r.id}" ${S.cart.raccoltaId===r.id?'selected':''}>${escHtml(r.nome)}</option>`).join('')}</select>
     </div>`;
   } else {
     raccSelect=`<div class="alert alert-info" style="margin-top:16px;">⚠️ Nessuna raccolta ordini aperta. Contatta l'admin del GAS.</div>`;
@@ -23617,20 +23617,20 @@ function renderProfilo(){
   const ordHtml=ordiniSocio.slice().reverse().map(o=>{
     const racc=S.raccolte.find(r=>r.id===o.raccoltaId);
     return `<div class="card-sm" style="display:flex;justify-content:space-between;align-items:center;">
-      <div><div style="font-weight:700;font-size:.9rem;">${o.id}</div><div style="font-size:.78rem;color:var(--text-light);">${racc?racc.nome:''} · ${new Date(o.data).toLocaleDateString('it-IT')}</div></div>
+      <div><div style="font-weight:700;font-size:.9rem;">${escHtml(o.id)}</div><div style="font-size:.78rem;color:var(--text-light);">${racc?escHtml(racc.nome):''} · ${new Date(o.data).toLocaleDateString('it-IT')}</div></div>
       <div style="font-weight:800;color:var(--green);">€${o.totale.toFixed(2)}</div>
     </div>`;
   }).join('')||`<div class="empty" style="padding:24px;"><p>Nessun ordine ancora</p></div>`;
 
   document.getElementById('profilo-content').innerHTML=`
     <div class="card">
-      <h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;font-size:1.15rem;">👤 ${s.tessera}</h3>
+      <h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;font-size:1.15rem;">👤 ${escHtml(s.tessera)}</h3>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
-        <div><div style="font-size:.75rem;color:var(--text-light);font-weight:700;">NOME</div><div style="font-weight:800;">${s.nome||'—'}</div></div>
-        <div><div style="font-size:.75rem;color:var(--text-light);font-weight:700;">COGNOME</div><div style="font-weight:800;">${s.cognome||'—'}</div></div>
-        <div><div style="font-size:.75rem;color:var(--text-light);font-weight:700;">CELLULARE</div><div style="font-weight:800;">${s.cellulare||s.telefono||'—'}</div></div>
-        <div><div style="font-size:.75rem;color:var(--text-light);font-weight:700;">TELEGRAM</div><div style="font-weight:800;">${s.telegram?'@'+s.telegram:'—'}</div></div>
-        <div><div style="font-size:.75rem;color:var(--text-light);font-weight:700;">CHAT ID TG</div><div style="font-weight:800;">${s.telegramChatId||'—'}</div></div>
+        <div><div style="font-size:.75rem;color:var(--text-light);font-weight:700;">NOME</div><div style="font-weight:800;">${escHtml(s.nome||'—')}</div></div>
+        <div><div style="font-size:.75rem;color:var(--text-light);font-weight:700;">COGNOME</div><div style="font-weight:800;">${escHtml(s.cognome||'—')}</div></div>
+        <div><div style="font-size:.75rem;color:var(--text-light);font-weight:700;">CELLULARE</div><div style="font-weight:800;">${escHtml(s.cellulare||s.telefono||'—')}</div></div>
+        <div><div style="font-size:.75rem;color:var(--text-light);font-weight:700;">TELEGRAM</div><div style="font-weight:800;">${s.telegram?'@'+escHtml(s.telegram):'—'}</div></div>
+        <div><div style="font-size:.75rem;color:var(--text-light);font-weight:700;">CHAT ID TG</div><div style="font-weight:800;">${escHtml(s.telegramChatId||'—')}</div></div>
       </div>
       <div class="tessera-validity">
         <div class="semaforo ${semClass}"></div>
@@ -23862,7 +23862,7 @@ function buildLegend(containerId, labels, values, palette, isCurrency=true){
     const val=isCurrency?`€${values[i].toFixed(2)}`:`${values[i]}`;
     return `<div class="legend-item">
       <div class="legend-dot" style="background:${palette[i]||'#ccc'};"></div>
-      <span class="legend-label">${l}</span>
+      <span class="legend-label">${escHtml(l)}</span>
       <span class="legend-val">${val}</span>
       <span class="legend-pct">(${pct}%)</span>
     </div>`;
@@ -24034,14 +24034,14 @@ function renderDashboard(){
     <div class="card">
       <h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">📋 Raccolte aperte</h3>
       ${S.raccolte.filter(r=>r.aperta).map(r=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
-        <span style="font-weight:700;">${r.nome}</span>
+        <span style="font-weight:700;">${escHtml(r.nome)}</span>
         <span class="pill pill-green">● Aperta</span>
       </div>`).join('')||'<p style="color:var(--text-light);font-size:.88rem;">Nessuna raccolta aperta</p>'}
     </div>
     <div class="card">
       <h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">🛒 Ultimi ordini</h3>
       ${S.ordini.slice(-5).reverse().map(o=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
-        <div><div style="font-weight:700;font-size:.88rem;">${o.id} — ${o.socioNome||o.socioId}</div>
+        <div><div style="font-weight:700;font-size:.88rem;">${escHtml(o.id)} — ${escHtml(o.socioNome||o.socioId)}</div>
         <div style="font-size:.75rem;color:var(--text-light);">${new Date(o.data).toLocaleDateString('it-IT')}</div></div>
         <span style="font-weight:800;color:var(--green);">€${o.totale.toFixed(2)}</span>
       </div>`).join('')||'<p style="color:var(--text-light);font-size:.88rem;">Nessun ordine</p>'}
@@ -24218,12 +24218,12 @@ function modalEditSocio(id){
   const s=S.soci.find(x=>x.id===id);if(!s)return;
   openModal(`<h3>✏️ Modifica Socio</h3>
     <input type="hidden" id="m-id" value="${s.id}">
-    <div class="field"><label>Numero Tessera</label><input id="m-tess" type="text" value="${s.tessera}"></div>
-    <div class="field"><label>Nome</label><input id="m-nome" type="text" value="${s.nome||''}"></div>
-    <div class="field"><label>Cognome</label><input id="m-cognome" type="text" value="${s.cognome||''}"></div>
-    <div class="field"><label>Cellulare</label><input id="m-tel" type="tel" value="${s.cellulare||s.telefono||''}"></div>
-    <div class="field"><label>Contatto Telegram</label><input id="m-telegram" type="text" value="${s.telegram||''}" placeholder="nomeutente (senza @)"></div>
-    <div class="field"><label>Chat ID Telegram <span style='font-size:.75rem;color:var(--text-light);'>(notifiche — da @userinfobot)</span></label><input id="m-tgchatid" type="text" value="${s.telegramChatId||''}" placeholder="es. 123456789"></div>
+    <div class="field"><label>Numero Tessera</label><input id="m-tess" type="text" value="${escHtml(s.tessera)}"></div>
+    <div class="field"><label>Nome</label><input id="m-nome" type="text" value="${escHtml(s.nome||'')}"></div>
+    <div class="field"><label>Cognome</label><input id="m-cognome" type="text" value="${escHtml(s.cognome||'')}"></div>
+    <div class="field"><label>Cellulare</label><input id="m-tel" type="tel" value="${escHtml(s.cellulare||s.telefono||'')}"></div>
+    <div class="field"><label>Contatto Telegram</label><input id="m-telegram" type="text" value="${escHtml(s.telegram||'')}" placeholder="nomeutente (senza @)"></div>
+    <div class="field"><label>Chat ID Telegram <span style='font-size:.75rem;color:var(--text-light);'>(notifiche — da @userinfobot)</span></label><input id="m-tgchatid" type="text" value="${escHtml(s.telegramChatId||'')}" placeholder="es. 123456789"></div>
     <div class="field"><label>Data emissione</label><input id="m-emi" type="date" value="${s.emissione||''}"></div>
     <div class="field"><label>Data scadenza</label><input id="m-sca" type="date" value="${s.scadenza||''}"></div>
     <div class="modal-footer">
@@ -24427,11 +24427,11 @@ function renderFornitori_admin(){
     <td>
       <div style="display:flex;align-items:center;gap:10px;">
         ${f.logo?`<img src="${f.logo}" style="width:38px;height:38px;object-fit:cover;border-radius:8px;flex-shrink:0;" alt="">`:`<span style="font-size:1.4rem;flex-shrink:0;">${f.emoji||'🏪'}</span>`}
-        <strong>${f.nome}</strong>
+        <strong>${escHtml(f.nome)}</strong>
       </div>
     </td>
-    <td>${catLabel[f.categoria]||f.categoria}</td>
-    <td>${f.zona||''}</td>
+    <td>${catLabel[f.categoria]||escHtml(f.categoria)}</td>
+    <td>${escHtml(f.zona||'')}</td>
     <td><span class="pill ${f.attivo===false?'pill-gray':'pill-green'}">${f.attivo===false?'Sospeso':'Attivo'}</span></td>
     <td><div class="td-actions">
       <button class="btn btn-xs btn-secondary" onclick="modalEditFornitore('${f.id}')">✏️</button>
@@ -24467,18 +24467,18 @@ function fornForm(f){
       ${bannerPreview}
       <label class="btn btn-secondary btn-sm" style="cursor:pointer;display:inline-block;">🖼 Carica banner<input type="file" accept="image/*" style="display:none;" onchange="previewFornBanner(event)"></label>
     </div>
-    <div class="field"><label>Nome</label><input id="m-fnome" type="text" value="${f.nome||''}" placeholder="Nome azienda"></div>
+    <div class="field"><label>Nome</label><input id="m-fnome" type="text" value="${escHtml(f.nome||'')}" placeholder="Nome azienda"></div>
     <div class="field"><label>Categoria</label><select id="m-fcat">
-      ${S.categorie.map(cat=>`<option value="${cat.id}" ${f.categoria===cat.id?'selected':''}>${cat.ico} ${cat.nome}</option>`).join('')}
+      ${S.categorie.map(cat=>`<option value="${cat.id}" ${f.categoria===cat.id?'selected':''}>${cat.ico} ${escHtml(cat.nome)}</option>`).join('')}
     </select></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-      <div class="field"><label>Emoji</label><input id="m-femi" type="text" value="${f.emoji||''}" placeholder="🏪"></div>
+      <div class="field"><label>Emoji</label><input id="m-femi" type="text" value="${escHtml(f.emoji||'')}" placeholder="🏪"></div>
 
     </div>
-    <div class="field"><label>Zona / Città</label><input id="m-fzona" type="text" value="${f.zona||''}" placeholder="es. Varese, Lombardia"></div>
-    <div class="field"><label>Descrizione</label><textarea id="m-fdesc" placeholder="Descrizione del produttore...">${f.descrizione||''}</textarea></div>
-    <div class="field"><label>Caratteristiche (separate da virgola)</label><input id="m-fchar" type="text" value="${(f.caratteristiche||[]).join(', ')}" placeholder="Biologico, Km 0, Slow Food"></div>
-    <div class="field"><label>Vision / Frase ispiratrice</label><input id="m-fvis" type="text" value="${f.vision||''}" placeholder="La nostra filosofia..."></div>
+    <div class="field"><label>Zona / Città</label><input id="m-fzona" type="text" value="${escHtml(f.zona||'')}" placeholder="es. Varese, Lombardia"></div>
+    <div class="field"><label>Descrizione</label><textarea id="m-fdesc" placeholder="Descrizione del produttore...">${escHtml(f.descrizione||'').replace(/<br>/g,'\n')}</textarea></div>
+    <div class="field"><label>Caratteristiche (separate da virgola)</label><input id="m-fchar" type="text" value="${escHtml((f.caratteristiche||[]).join(', '))}" placeholder="Biologico, Km 0, Slow Food"></div>
+    <div class="field"><label>Vision / Frase ispiratrice</label><input id="m-fvis" type="text" value="${escHtml(f.vision||'')}" placeholder="La nostra filosofia..."></div>
     <div class="field" style="margin-top:16px;border-top:1px solid var(--green-light);padding-top:14px;">
       <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:700;">
         <input type="checkbox" id="m-fcontatto" ${f.contattodiretto?'checked':''} onchange="document.getElementById('m-fcontatto-fields').style.display=this.checked?'block':'none'" style="width:18px;height:18px;">
@@ -24486,12 +24486,12 @@ function fornForm(f){
       </label>
     </div>
     <div id="m-fcontatto-fields" style="display:${f.contattodiretto?'block':'none'}">
-      <div class="field"><label>Nome referente</label><input id="m-fnome-contatto" type="text" value="${f.nomeContatto||''}" placeholder="es. Mario Rossi"></div>
-      <div class="field"><label>Telefono</label><input id="m-ftel" type="tel" value="${f.telefono||''}" placeholder="es. 3401234567"></div>
-      <div class="field"><label>WhatsApp <span style="font-weight:400;font-size:.78rem;">(lascia vuoto se uguale al tel.)</span></label><input id="m-fwa" type="tel" value="${f.whatsapp||''}" placeholder="es. 3401234567"></div>
-      <div class="field"><label>Email contatto</label><input id="m-femail-contatto" type="email" value="${f.emailContatto||''}" placeholder="es. info@fornitore.it"></div>
-      <div class="field"><label>Telegram <span style="font-weight:400;font-size:.78rem;">(username senza @)</span></label><input id="m-ftelegram" type="text" value="${f.telegramContatto||''}" placeholder="es. nomeutente"></div>
-      <div class="field"><label>Indirizzo</label><input id="m-findirizzo" type="text" value="${f.indirizzoContatto||''}" placeholder="es. Via Roma 1, Milano"></div>
+      <div class="field"><label>Nome referente</label><input id="m-fnome-contatto" type="text" value="${escHtml(f.nomeContatto||'')}" placeholder="es. Mario Rossi"></div>
+      <div class="field"><label>Telefono</label><input id="m-ftel" type="tel" value="${escHtml(f.telefono||'')}" placeholder="es. 3401234567"></div>
+      <div class="field"><label>WhatsApp <span style="font-weight:400;font-size:.78rem;">(lascia vuoto se uguale al tel.)</span></label><input id="m-fwa" type="tel" value="${escHtml(f.whatsapp||'')}" placeholder="es. 3401234567"></div>
+      <div class="field"><label>Email contatto</label><input id="m-femail-contatto" type="email" value="${escHtml(f.emailContatto||'')}" placeholder="es. info@fornitore.it"></div>
+      <div class="field"><label>Telegram <span style="font-weight:400;font-size:.78rem;">(username senza @)</span></label><input id="m-ftelegram" type="text" value="${escHtml(f.telegramContatto||'')}" placeholder="es. nomeutente"></div>
+      <div class="field"><label>Indirizzo</label><input id="m-findirizzo" type="text" value="${escHtml(f.indirizzoContatto||'')}" placeholder="es. Via Roma 1, Milano"></div>
     </div>
     `;
 }
@@ -24681,7 +24681,7 @@ function renderProdotti_admin(){
       <td style="color:var(--text-light);font-size:.78rem;">${escHtml(fornNome)}</td>
       <td>${codCell}</td>
       <td>€${p.prezzo.toFixed(2)}</td>
-      <td>${p.unita}</td>
+      <td>${escHtml(p.unita)}</td>
       <td><div class="td-actions">
         <button class="btn btn-xs ${disp?'btn-amber':'btn-primary'}" onclick="toggleDisponibile('${p.id}')" title="${disp?'Segna non disponibile':'Rendi disponibile'}">${disp?'⛔':'✅'}</button>
         <button class="btn btn-xs btn-secondary" onclick="modalEditProdotto('${p.id}')">✏️</button>
@@ -24731,14 +24731,14 @@ function filterAdminProdotti(q){
 }
 
 function prodForm(p){
-  const fornOpts=S.fornitori.filter(f=>f.attivo!==false).map(f=>`<option value="${f.id}" ${p.fornitorId===f.id?'selected':''}>${f.emoji||''} ${f.nome}</option>`).join('');
+  const fornOpts=S.fornitori.filter(f=>f.attivo!==false).map(f=>`<option value="${f.id}" ${p.fornitorId===f.id?'selected':''}>${f.emoji||''} ${escHtml(f.nome)}</option>`).join('');
   return `<div class="field"><label>Fornitore</label><select id="m-pforn">${fornOpts}</select></div>
-    <div class="field"><label>Nome prodotto</label><input id="m-pnome" type="text" value="${p.nome||''}" placeholder="es. Miele di Acacia Bio"></div>
+    <div class="field"><label>Nome prodotto</label><input id="m-pnome" type="text" value="${escHtml(p.nome||'')}" placeholder="es. Miele di Acacia Bio"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div class="field"><label>Prezzo (€)</label><input id="m-ppr" type="number" step="0.01" value="${p.prezzo||0}"></div>
-      <div class="field"><label>Unità</label><input id="m-pun" type="text" value="${p.unita||''}" placeholder="kg, vasetto, pezzo..."></div>
+      <div class="field"><label>Unità</label><input id="m-pun" type="text" value="${escHtml(p.unita||'')}" placeholder="kg, vasetto, pezzo..."></div>
     </div>
-    <div class="field"><label>Codice articolo <span style="font-size:.72rem;color:var(--text-light);font-weight:400;">(opzionale, per riordino fornitore)</span></label><input id="m-pcod" type="text" value="${p.codice||''}" placeholder="es. 22-A"></div>`;
+    <div class="field"><label>Codice articolo <span style="font-size:.72rem;color:var(--text-light);font-weight:400;">(opzionale, per riordino fornitore)</span></label><input id="m-pcod" type="text" value="${escHtml(p.codice||'')}" placeholder="es. 22-A"></div>`;
 }
 
 function modalNewProdotto(){
@@ -24832,8 +24832,8 @@ function renderRaccolte(){
     const ritiroInfo=(r.ritiroData||r.ritiroOra||r.ritiroLuogo)
       ?'<div style="font-size:.72rem;color:var(--green-dark);margin-top:3px;">📦 '
         +(r.ritiroData?new Date(r.ritiroData+'T00:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'}):'')
-        +(r.ritiroOra?' ore '+r.ritiroOra:'')
-        +(r.ritiroLuogo?' · '+r.ritiroLuogo:'')
+        +(r.ritiroOra?' ore '+escHtml(r.ritiroOra):'')
+        +(r.ritiroLuogo?' · '+escHtml(r.ritiroLuogo):'')
         +'</div>'
       :'';
     return '<tr>'
@@ -24871,16 +24871,16 @@ function modalNewRaccolta(editId){
   (S.categorie||DEFAULT_CATEGORIE).forEach(cat=>{
     const fs=attivi.filter(f=>f.categoria===cat.id);
     if(!fs.length) return;
-    fornHtml+='<div style="font-size:.75rem;font-weight:800;color:var(--text-mid);text-transform:uppercase;margin:10px 0 4px;">'+cat.ico+' '+cat.nome+'</div>';
+    fornHtml+='<div style="font-size:.75rem;font-weight:800;color:var(--text-mid);text-transform:uppercase;margin:10px 0 4px;">'+cat.ico+' '+escHtml(cat.nome)+'</div>';
     fornHtml+=fs.map(f=>{
       const chk=selected.includes(f.id)||selected.length===0?'checked':'';
-      return '<label style="display:flex;align-items:center;gap:8px;padding:7px 6px;border-radius:8px;cursor:pointer;font-size:.88rem;transition:.1s;" onmouseover="this.style.background=&#39;#f0f7f0&#39;" onmouseout="this.style.background=&#39;&#39;"><input type="checkbox" class="m-forn-chk" value="'+f.id+'" '+chk+' style="width:16px;height:16px;accent-color:var(--green);"><span>'+f.emoji+' '+f.nome+'</span><span style="margin-left:auto;font-size:.75rem;color:var(--text-light);">'+f.km+' km</span></label>';
+      return '<label style="display:flex;align-items:center;gap:8px;padding:7px 6px;border-radius:8px;cursor:pointer;font-size:.88rem;transition:.1s;" onmouseover="this.style.background=&#39;#f0f7f0&#39;" onmouseout="this.style.background=&#39;&#39;"><input type="checkbox" class="m-forn-chk" value="'+f.id+'" '+chk+' style="width:16px;height:16px;accent-color:var(--green);"><span>'+f.emoji+' '+escHtml(f.nome)+'</span><span style="margin-left:auto;font-size:.75rem;color:var(--text-light);">'+f.km+' km</span></label>';
     }).join('');
   });
   openModal(
     '<h3>'+(editId?'✏️ Modifica':'➕ Nuova')+' Raccolta</h3>'
     +'<input type="hidden" id="m-raccolta-edit-id" value="'+(editId||'')+'">'
-    +'<div class="field"><label>Nome raccolta</label><input id="m-rnome" type="text" value="'+defaultName+'"></div>'
+    +'<div class="field"><label>Nome raccolta</label><input id="m-rnome" type="text" value="'+escHtml(defaultName)+'"></div>'
     +'<div style="border-top:1px solid var(--border);margin:14px 0 12px;padding-top:14px;">'
     +'<div style="font-size:.78rem;font-weight:800;color:var(--terra);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">⏰ Scadenza ordini</div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'
@@ -24893,7 +24893,7 @@ function modalNewRaccolta(editId){
     +'<div class="field"><label>Data ritiro</label><input id="m-rdata" type="date" value="'+(r&&r.ritiroData?r.ritiroData:'')+'"></div>'
     +'<div class="field"><label>Ora ritiro</label><input id="m-rora" type="time" value="'+(r&&r.ritiroOra?r.ritiroOra:'')+'"></div>'
     +'</div>'
-    +'<div class="field"><label>Luogo ritiro</label><input id="m-rluogo" type="text" value="'+(r&&r.ritiroLuogo?r.ritiroLuogo:'')+'" placeholder="es. Via Roma 1, Varese — presso sede GAS"></div>'
+    +'<div class="field"><label>Luogo ritiro</label><input id="m-rluogo" type="text" value="'+(r&&r.ritiroLuogo?escHtml(r.ritiroLuogo):'')+'" placeholder="es. Via Roma 1, Varese — presso sede GAS"></div>'
     +'</div>'
     +'<div class="field">'
     +'<label style="display:flex;align-items:center;justify-content:space-between;"><span>Fornitori disponibili in questa raccolta</span>'
@@ -25554,7 +25554,7 @@ function renderCatListAdmin(){
   el.innerHTML=S.categorie.map((cat,i)=>`
     <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
       <span style="font-size:1.4rem;">${cat.ico}</span>
-      <span style="flex:1;font-weight:700;font-size:.9rem;">${cat.nome}</span>
+      <span style="flex:1;font-weight:700;font-size:.9rem;">${escHtml(cat.nome)}</span>
       <span style="font-size:.75rem;color:var(--text-light);background:var(--green-pale);padding:2px 8px;border-radius:20px;">${S.fornitori.filter(f=>f.categoria===cat.id).length} fornitori</span>
       ${S.categorie.length>1?`<button onclick="deleteCategoria('${cat.id}')" style="background:none;border:none;cursor:pointer;color:var(--terra);font-size:1rem;" title="Elimina">🗑</button>`:''}
     </div>`).join('');
@@ -25637,11 +25637,11 @@ function renderSettings(){
       </div>
       <div class="field" style="margin-bottom:10px;">
         <label style="font-size:.78rem;">URL Progetto Supabase</label>
-        <input id="s-supa-url" type="url" value="${S.config.supabaseUrl||''}" placeholder="https://xxxx.supabase.co" style="font-family:monospace;font-size:.82rem;">
+        <input id="s-supa-url" type="url" value="${escHtml(S.config.supabaseUrl||'')}" placeholder="https://xxxx.supabase.co" style="font-family:monospace;font-size:.82rem;">
       </div>
       <div class="field" style="margin-bottom:14px;">
         <label style="font-size:.78rem;">Anon/Public Key</label>
-        <input id="s-supa-key" type="password" autocomplete="off" value="${S.config.supabaseKey||''}" placeholder="eyJ..." style="font-family:monospace;font-size:.82rem;">
+        <input id="s-supa-key" type="password" autocomplete="off" value="${escHtml(S.config.supabaseKey||'')}" placeholder="eyJ..." style="font-family:monospace;font-size:.82rem;">
         <div style="font-size:.72rem;color:var(--text-light);margin-top:3px;">Usa la chiave <strong>anon/public</strong> (non la service_role). Trovala in Project Settings → API.</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
@@ -25687,12 +25687,12 @@ INSERT INTO config (chiave,valore) VALUES ('sgas_app_state','{}');</pre>
     </div>
     <div class="card" style="margin-bottom:16px;">
       <h3 style="font-family:var(--font-serif,serif);margin-bottom:16px;">⚙️ Configurazione GAS</h3>
-      <div class="field"><label>Nome del GAS</label><input id="s-gasname" type="text" value="${S.config.gasName}"></div>
-      <div class="field"><label>Email Admin</label><input id="s-email" type="email" value="${S.config.adminEmail}"></div>
+      <div class="field"><label>Nome del GAS</label><input id="s-gasname" type="text" value="${escHtml(S.config.gasName)}"></div>
+      <div class="field"><label>Email Admin</label><input id="s-email" type="email" value="${escHtml(S.config.adminEmail)}"></div>
       <div class="field"><label>Nuova Password Admin</label><input id="s-pass" type="password" placeholder="Lascia vuoto per non cambiare"></div>
       <div class="field">
         <label>🔗 Link accesso app (URL pubblico)</label>
-        <input id="s-applink" type="url" value="${S.config.appLink||''}" placeholder="es. https://sgas-freeconomy.netlify.app">
+        <input id="s-applink" type="url" value="${escHtml(S.config.appLink||'')}" placeholder="es. https://sgas-freeconomy.netlify.app">
         <div style="font-size:.75rem;color:var(--text-light);margin-top:4px;">Questo link viene mostrato nella schermata di login e può essere condiviso con i soci.</div>
       </div>
       <button class="btn btn-primary" onclick="saveConfigGAS()">💾 Salva config GAS</button>
@@ -25700,9 +25700,9 @@ INSERT INTO config (chiave,valore) VALUES ('sgas_app_state','{}');</pre>
     <div class="card" style="margin-bottom:16px;">
       <h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">👥 Secondo Amministratore</h3>
       <p style="font-size:.82rem;color:var(--text-mid);margin-bottom:14px;">Configura un secondo account admin con gli stessi poteri del principale. Lascia vuoto per disabilitarlo.</p>
-      <div class="field"><label>Email Admin 2</label><input id="s-email2" type="email" value="${S.config.adminEmail2||''}" placeholder="secondo@admin.it"></div>
+      <div class="field"><label>Email Admin 2</label><input id="s-email2" type="email" value="${escHtml(S.config.adminEmail2||'')}" placeholder="secondo@admin.it"></div>
       <div class="field"><label>Password Admin 2</label><input id="s-pass2" type="password" placeholder="Lascia vuoto per non cambiare"></div>
-      ${S.config.adminEmail2?'<div class="alert alert-info" style="font-size:.78rem;margin-bottom:10px;">✅ Admin 2 attivo: <strong>'+S.config.adminEmail2+'</strong></div>':''}
+      ${S.config.adminEmail2?'<div class="alert alert-info" style="font-size:.78rem;margin-bottom:10px;">✅ Admin 2 attivo: <strong>'+escHtml(S.config.adminEmail2)+'</strong></div>':''}
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn btn-primary" onclick="saveAdmin2()">💾 Salva Admin 2</button>
         ${S.config.adminEmail2?'<button class="btn btn-danger btn-sm" onclick="removeAdmin2()">🗑 Rimuovi Admin 2</button>':''}
@@ -25711,9 +25711,9 @@ INSERT INTO config (chiave,valore) VALUES ('sgas_app_state','{}');</pre>
     <div class="card" style="margin-bottom:16px;">
       <h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">👥 Terzo Amministratore</h3>
       <p style="font-size:.82rem;color:var(--text-mid);margin-bottom:14px;">Configura un terzo account admin con gli stessi poteri del principale. Lascia vuoto per disabilitarlo.</p>
-      <div class="field"><label>Email Admin 3</label><input id="s-email3" type="email" value="${S.config.adminEmail3||''}" placeholder="terzo@admin.it"></div>
+      <div class="field"><label>Email Admin 3</label><input id="s-email3" type="email" value="${escHtml(S.config.adminEmail3||'')}" placeholder="terzo@admin.it"></div>
       <div class="field"><label>Password Admin 3</label><input id="s-pass3" type="password" placeholder="Lascia vuoto per non cambiare"></div>
-      ${S.config.adminEmail3?'<div class="alert alert-info" style="font-size:.78rem;margin-bottom:10px;">✅ Admin 3 attivo: <strong>'+S.config.adminEmail3+'</strong></div>':''} 
+      ${S.config.adminEmail3?'<div class="alert alert-info" style="font-size:.78rem;margin-bottom:10px;">✅ Admin 3 attivo: <strong>'+escHtml(S.config.adminEmail3)+'</strong></div>':''}
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn btn-primary" onclick="saveAdmin3()">💾 Salva Admin 3</button>
         ${S.config.adminEmail3?'<button class="btn btn-danger btn-sm" onclick="removeAdmin3()">🗑 Rimuovi Admin 3</button>':''} 
@@ -25722,10 +25722,10 @@ INSERT INTO config (chiave,valore) VALUES ('sgas_app_state','{}');</pre>
     <div class="card" style="margin-bottom:16px;">
       <h3 style="font-family:var(--font-serif,serif);margin-bottom:8px;">📧 EmailJS — Notifiche Ordini</h3>
       <p style="font-size:.82rem;color:var(--text-light);margin-bottom:16px;">Configura per ricevere una email ad ogni nuovo ordine. Registrati su <a href="https://emailjs.com" target="_blank" style="color:var(--green);">emailjs.com</a> (piano gratuito).</p>
-      <div class="field"><label>Service ID</label><input id="s-ejsvc" type="text" value="${S.config.emailjsServiceId||''}" placeholder="service_xxxxxxx"></div>
-      <div class="field"><label>Template ID</label><input id="s-ejtpl" type="text" value="${S.config.emailjsTemplateId||''}" placeholder="template_xxxxxxx"></div>
-      <div class="field"><label>Public Key</label><input id="s-ejkey" type="text" value="${S.config.emailjsPublicKey||''}" placeholder="xxxxxxxxxxxxxxxxxxx"></div>
-      <div class="field"><label>Email destinatario notifiche</label><input id="s-ejdest" type="email" value="${S.config.emailDest||''}" placeholder="tuaemail@esempio.it"></div>
+      <div class="field"><label>Service ID</label><input id="s-ejsvc" type="text" value="${escHtml(S.config.emailjsServiceId||'')}" placeholder="service_xxxxxxx"></div>
+      <div class="field"><label>Template ID</label><input id="s-ejtpl" type="text" value="${escHtml(S.config.emailjsTemplateId||'')}" placeholder="template_xxxxxxx"></div>
+      <div class="field"><label>Public Key</label><input id="s-ejkey" type="text" value="${escHtml(S.config.emailjsPublicKey||'')}" placeholder="xxxxxxxxxxxxxxxxxxx"></div>
+      <div class="field"><label>Email destinatario notifiche</label><input id="s-ejdest" type="email" value="${escHtml(S.config.emailDest||'')}" placeholder="tuaemail@esempio.it"></div>
       <div class="alert alert-info" style="margin-bottom:14px;">📌 Variabili disponibili nel template: {{order_id}} {{socio_nome}} {{raccolta}} {{totale}} {{items}}</div>
       <button class="btn btn-primary" onclick="saveEmailJS()">💾 Salva configurazione EmailJS</button>
       <button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="testEmailJS()">📤 Invia email di test</button>
@@ -25862,10 +25862,10 @@ function testEmailJS(){
       totale:     '€0.00',
       items:      'Prodotto di test x1 = €0.00'
     }).then(r=>{
-      if(res) res.innerHTML='<span style="color:var(--green);">✅ Email inviata a <b>'+dest+'</b> — controlla la casella!</span>';
+      if(res) res.innerHTML='<span style="color:var(--green);">✅ Email inviata a <b>'+escHtml(dest)+'</b> — controlla la casella!</span>';
     }).catch(e=>{
       const msg = e.text||e.message||JSON.stringify(e);
-      if(res) res.innerHTML='<span style="color:#e53935;">❌ Errore: '+msg+'</span>';
+      if(res) res.innerHTML='<span style="color:#e53935;">❌ Errore: '+escHtml(msg)+'</span>';
     });
   }catch(e){
     if(res) res.innerHTML='<span style="color:#e53935;">❌ Errore init: '+e.message+'</span>';
@@ -26234,7 +26234,7 @@ function renderAdminMsgList(){
   let newMsgHtml=`<div style="margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
     <select id="admin-new-msg-socio" style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Nunito',sans-serif;font-size:.88rem;outline:none;">
       <option value="">— Seleziona un socio —</option>
-      ${S.soci.map(s=>`<option value="${s.id}">${s.nome||s.tessera} (${s.tessera})</option>`).join('')}
+      ${S.soci.map(s=>`<option value="${s.id}">${escHtml(s.nome||s.tessera)} (${escHtml(s.tessera)})</option>`).join('')}
     </select>
     <button class="btn btn-primary btn-sm" onclick="adminStartConvo()">✉️ Nuovo messaggio</button>
   </div>`;
@@ -26250,9 +26250,9 @@ function renderAdminMsgList(){
     const preview=last?(last.da==='admin'?'Tu: ':'')+last.testo:'';
     const initials=(conv.nome||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
     return `<div class="msg-conv-item ${unread?'unread':''}" onclick="openAdminConvo('${conv.socioId}')">
-      <div class="msg-conv-avatar">${initials}</div>
+      <div class="msg-conv-avatar">${escHtml(initials)}</div>
       <div class="msg-conv-info">
-        <div class="msg-conv-name">${conv.nome}${unread?`<span class="msg-topbar-badge">${unread}</span>`:''}</div>
+        <div class="msg-conv-name">${escHtml(conv.nome)}${unread?`<span class="msg-topbar-badge">${unread}</span>`:''}</div>
         <div class="msg-conv-preview">${escHtml(preview.slice(0,60))}</div>
       </div>
       <div class="msg-conv-time">${last?formatMsgTime(last.data):''}</div>
@@ -26293,10 +26293,10 @@ function renderAdminConversation(socioId){
     <button class="back-btn" onclick="renderAdminMsgList();document.getElementById('admin-section-title').textContent='Messaggi';" style="margin-bottom:14px;">← Tutte le conversazioni</button>
     <div class="card" style="padding:16px;">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border);">
-        <div class="msg-conv-avatar" style="font-size:1rem;">${initials}</div>
+        <div class="msg-conv-avatar" style="font-size:1rem;">${escHtml(initials)}</div>
         <div>
           <div style="font-weight:700;">${escHtml(socio.nome||socio.tessera)}</div>
-          <div style="font-size:.75rem;color:var(--text-light);">Tessera: ${socio.tessera}</div>
+          <div style="font-size:.75rem;color:var(--text-light);">Tessera: ${escHtml(socio.tessera)}</div>
         </div>
         <button class="btn btn-xs btn-danger" style="margin-left:auto;" onclick="deleteConvo('${socioId}')">🗑 Elimina chat</button>
       </div>
@@ -26358,7 +26358,7 @@ function updateSidebarName(){
   const parts=S.config.gasName.split(' ');
   const first=parts[0]||'';
   const rest=parts.slice(1).join(' ');
-  el.innerHTML='<strong>'+first+'</strong>'+(rest?' <span style="color:#c8e6c9;">'+rest+'</span>':'');
+  el.innerHTML='<strong>'+escHtml(first)+'</strong>'+(rest?' <span style="color:#c8e6c9;">'+escHtml(rest)+'</span>':'');
 }
 
 function applyLogo(){
@@ -26496,10 +26496,10 @@ function renderPrenotazioni(){
         html+=`<div style="background:var(--bg-card);border-radius:12px;padding:16px 20px;margin-bottom:12px;border-left:4px solid ${p.aperta?'var(--green-main)':'#ccc'};">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
             <div style="flex:1;">
-              <div style="font-weight:700;font-size:1rem;">${p.titolo}</div>
+              <div style="font-weight:700;font-size:1rem;">${escHtml(p.titolo)}</div>
               <div style="font-size:.82rem;color:var(--text-light);margin-top:2px;">
-                ${forn?forn.emoji+' '+forn.nome:'—'} · Consegna: <strong>${p.dataConsegna||'da definire'}</strong>
-                ${p.notaConsegna?'· '+p.notaConsegna:''}
+                ${forn?forn.emoji+' '+escHtml(forn.nome):'—'} · Consegna: <strong>${escHtml(p.dataConsegna||'da definire')}</strong>
+                ${p.notaConsegna?'· '+escHtml(p.notaConsegna):''}
               </div>
               <div style="font-size:.82rem;color:var(--text-light);margin-top:4px;">${p.prodotti.length} prodotti · ${ordini.length} ordini (${totPezzi} pz totali)</div>
             </div>
@@ -26519,21 +26519,21 @@ function renderPrenotazioni(){
 function openModalNuovaPrenotazione(editId){
   initPrenotazioni();
   const p=editId?S.prenotazioni.find(x=>x.id===editId):null;
-  const fornOptions=S.fornitori.filter(f=>f.attivo).map(f=>`<option value="${f.id}" ${p&&p.fornitorId===f.id?'selected':''}>${f.emoji} ${f.nome}</option>`).join('');
+  const fornOptions=S.fornitori.filter(f=>f.attivo).map(f=>`<option value="${f.id}" ${p&&p.fornitorId===f.id?'selected':''}>${f.emoji} ${escHtml(f.nome)}</option>`).join('');
 
   const righe=p?p.prodotti.map((r,i)=>rigaProdsHTML(i,r.nome,r.prezzo,r.qtyMin)).join(''): rigaProdsHTML(0,'','','');
 
   openModal(`<div class="modal-header"><h3>${editId?'Modifica':'Nuova'} Prenotazione</h3><button class="modal-close" onclick="closeModal()">×</button></div>
   <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
     <div><label class="form-label">Titolo campagna *</label>
-      <input class="form-input" id="pren-titolo" value="${p?p.titolo:''}" placeholder="es. Salse estive Villa Karina"/></div>
+      <input class="form-input" id="pren-titolo" value="${p?escHtml(p.titolo):''}" placeholder="es. Salse estive Villa Karina"/></div>
     <div><label class="form-label">Fornitore *</label>
       <select class="form-input" id="pren-forn"><option value="">— seleziona —</option>${fornOptions}</select></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div><label class="form-label">Data/periodo consegna</label>
-        <input class="form-input" id="pren-data" value="${p?p.dataConsegna:''}" placeholder="es. Luglio 2025"/></div>
+        <input class="form-input" id="pren-data" value="${p?escHtml(p.dataConsegna):''}" placeholder="es. Luglio 2025"/></div>
       <div><label class="form-label">Nota consegna</label>
-        <input class="form-input" id="pren-nota" value="${p?p.notaConsegna:''}" placeholder="es. ordine minimo 12 pz"/></div>
+        <input class="form-input" id="pren-nota" value="${p?escHtml(p.notaConsegna):''}" placeholder="es. ordine minimo 12 pz"/></div>
     </div>
     <div>
       <label class="form-label">Prodotti</label>
@@ -26549,9 +26549,9 @@ function openModalNuovaPrenotazione(editId){
 
 function rigaProdsHTML(i,nome,prezzo,qtyMin){
   return `<div class="pren-riga" style="display:grid;grid-template-columns:1fr auto auto auto;gap:6px;align-items:center;">
-    <input class="form-input" placeholder="Nome prodotto" value="${nome}" style="font-size:.85rem;"/>
-    <input class="form-input" placeholder="€ prezzo" value="${prezzo}" style="width:80px;font-size:.85rem;"/>
-    <input class="form-input" placeholder="Qty min" value="${qtyMin||''}" style="width:72px;font-size:.85rem;" title="Quantità minima ordinabile (opzionale)"/>
+    <input class="form-input" placeholder="Nome prodotto" value="${escHtml(nome)}" style="font-size:.85rem;"/>
+    <input class="form-input" placeholder="€ prezzo" value="${escHtml(prezzo)}" style="width:80px;font-size:.85rem;"/>
+    <input class="form-input" placeholder="Qty min" value="${escHtml(qtyMin||'')}" style="width:72px;font-size:.85rem;" title="Quantità minima ordinabile (opzionale)"/>
     <button class="btn btn-secondary btn-sm" onclick="this.closest('.pren-riga').remove()" style="padding:6px 10px;">✕</button>
   </div>`;
 }
@@ -26617,7 +26617,7 @@ function viewOrdiniPrenotazione(prenId){
     riepilogo[r.nome].tot+=r.qty*r.prezzo;
   }));
 
-  let html=`<div class="modal-header"><h3>📋 Ordini — ${p.titolo}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+  let html=`<div class="modal-header"><h3>📋 Ordini — ${escHtml(p.titolo)}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
   <div class="modal-body">`;
 
   if(!ordini.length){
@@ -26632,7 +26632,7 @@ function viewOrdiniPrenotazione(prenId){
       </tr></thead><tbody>`;
     Object.entries(riepilogo).forEach(([nome,{qty,tot}])=>{
       html+=`<tr style="border-bottom:1px solid var(--border-color);">
-        <td style="padding:6px;">${nome}</td>
+        <td style="padding:6px;">${escHtml(nome)}</td>
         <td style="text-align:center;padding:6px;">${qty}</td>
         <td style="text-align:right;padding:6px;">€${tot.toFixed(2)}</td>
       </tr>`;
@@ -26644,9 +26644,9 @@ function viewOrdiniPrenotazione(prenId){
       const soc=S.soci?S.soci.find(s=>s.id===o.socioId):null;
       const nome=soc?soc.nome+' '+soc.cognome:'Socio #'+o.socioId;
       html+=`<div style="background:var(--bg-card);border-radius:8px;padding:12px;margin-bottom:8px;">
-        <strong>${nome}</strong> <span style="font-size:.8rem;color:var(--text-light);">${o.data}</span>
+        <strong>${escHtml(nome)}</strong> <span style="font-size:.8rem;color:var(--text-light);">${escHtml(o.data)}</span>
         <div style="margin-top:6px;font-size:.85rem;">`;
-      o.prodotti.forEach(r=>{ html+=`<span style="display:inline-block;background:var(--green-pale);border-radius:6px;padding:2px 8px;margin:2px;">${r.nome} × ${r.qty} — €${(r.qty*r.prezzo).toFixed(2)}</span>`; });
+      o.prodotti.forEach(r=>{ html+=`<span style="display:inline-block;background:var(--green-pale);border-radius:6px;padding:2px 8px;margin:2px;">${escHtml(r.nome)} × ${r.qty} — €${(r.qty*r.prezzo).toFixed(2)}</span>`; });
       html+=`</div><div style="text-align:right;font-weight:700;margin-top:4px;">Totale: €${o.totale.toFixed(2)}</div></div>`;
     });
   }
@@ -26676,14 +26676,14 @@ function renderPrenotazioniSocio(){
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
         <span style="font-size:1.4rem;">${forn?forn.emoji:'🏪'}</span>
         <div>
-          <div style="font-weight:700;font-size:1.05rem;">${p.titolo}</div>
-          <div style="font-size:.8rem;color:var(--text-light);">${forn?forn.nome:'—'}</div>
+          <div style="font-weight:700;font-size:1.05rem;">${escHtml(p.titolo)}</div>
+          <div style="font-size:.8rem;color:var(--text-light);">${forn?escHtml(forn.nome):'—'}</div>
         </div>
       </div>`;
 
     if(p.dataConsegna||p.notaConsegna){
       html+=`<div style="font-size:.82rem;color:var(--text-light);margin-bottom:14px;">
-        ${p.dataConsegna?'🗓️ Consegna: <strong>'+p.dataConsegna+'</strong>':''} ${p.notaConsegna?'· '+p.notaConsegna:''}
+        ${p.dataConsegna?'🗓️ Consegna: <strong>'+escHtml(p.dataConsegna)+'</strong>':''} ${p.notaConsegna?'· '+escHtml(p.notaConsegna):''}
       </div>`;
     }
 
@@ -26691,7 +26691,7 @@ function renderPrenotazioniSocio(){
       html+=`<div style="background:#e8f5e9;border-radius:8px;padding:12px;margin-bottom:10px;">
         <strong style="color:var(--green-main);">✅ Hai già prenotato</strong>
         <div style="font-size:.85rem;margin-top:6px;">`;
-      mioOrdine.prodotti.forEach(r=>{ html+=`<span style="display:inline-block;background:rgba(0,0,0,.06);border-radius:6px;padding:2px 8px;margin:2px;">${r.nome} × ${r.qty}</span>`; });
+      mioOrdine.prodotti.forEach(r=>{ html+=`<span style="display:inline-block;background:rgba(0,0,0,.06);border-radius:6px;padding:2px 8px;margin:2px;">${escHtml(r.nome)} × ${r.qty}</span>`; });
       html+=`<div style="font-weight:700;margin-top:6px;">Totale: €${mioOrdine.totale.toFixed(2)}</div></div>
         <button class="btn btn-secondary btn-sm" style="margin-top:8px;" onclick="cancellaOrdinePrenotazione('${mioOrdine.id}','${p.id}')">🗑️ Cancella prenotazione</button>
       </div>`;
@@ -26706,7 +26706,7 @@ function renderPrenotazioniSocio(){
           </tr></thead><tbody>`;
       p.prodotti.forEach((pr,i)=>{
         html+=`<tr style="border-bottom:1px solid var(--border-color);">
-          <td style="padding:6px;">${pr.nome}${pr.qtyMin>1?'<br><small style="color:var(--text-light);">min. '+pr.qtyMin+' pz</small>':''}</td>
+          <td style="padding:6px;">${escHtml(pr.nome)}${pr.qtyMin>1?'<br><small style="color:var(--text-light);">min. '+pr.qtyMin+' pz</small>':''}</td>
           <td style="text-align:right;padding:6px;">€${pr.prezzo.toFixed(2)}</td>
           <td style="text-align:center;padding:6px;">
             <input type="number" min="0" value="0" id="qty-${p.id}-${i}"
