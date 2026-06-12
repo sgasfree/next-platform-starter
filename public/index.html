@@ -20981,7 +20981,7 @@ window.docx = docx;
         3️⃣ Visita <code>https://api.telegram.org/bot<b>TOKEN</b>/getUpdates</code> dopo aver scritto al bot → copia il campo <b>"id"</b> dentro "chat" → è il tuo <b>Chat ID admin</b><br>
         4️⃣ Ogni socio può ottenere il proprio Chat ID scrivendo a <b>@userinfobot</b> su Telegram
       </div>
-      <div class="field"><label>🤖 Bot Token</label><input id="s-tgtoken" type="text" value="${S.config.tgBotToken||''}" placeholder="1234567890:AAF..."></div>
+      <div class="alert alert-info" style="font-size:.8rem;margin-bottom:10px;">🔒 Il Bot Token è protetto su Netlify (variabile d'ambiente <code>TELEGRAM_BOT_TOKEN</code>) — non va inserito qui.</div>
       <div class="field"><label>💬 Chat ID Admin 1 (per ricevere ordini)</label><input id="s-tgadmin" type="text" value="${S.config.tgAdminChatId||''}" placeholder="es. 123456789"></div>
       <div class="field"><label>💬 Chat ID Admin 2 <span style="font-size:.75rem;color:var(--text-light);">(opzionale)</span></label><input id="s-tgadmin2" type="text" value="${S.config.tgAdminChatId2||''}" placeholder="es. 987654321"></div>
       <div class="field"><label>💬 Chat ID Admin 3 <span style="font-size:.75rem;color:var(--text-light);">(opzionale)</span></label><input id="s-tgadmin3" type="text" value="${S.config.tgAdminChatId3||''}" placeholder="es. 111222333"></div>
@@ -22095,10 +22095,9 @@ function _subscribeSupabaseRealtime(){
 
 // ════════ TELEGRAM NOTIFICATIONS ════════
 async function sendTelegramMsg(chatId, text){
-  const token = (S.config.tgBotToken||'').trim();
-  if(!token || !chatId) return;
+  if(!chatId) return;
   try{
-    await fetch('https://api.telegram.org/bot'+token+'/sendMessage',{
+    await fetch('/.netlify/functions/telegram',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({chat_id:chatId, text:text, parse_mode:'HTML'})
@@ -25882,7 +25881,6 @@ function saveEmailJS(){
 }
 
 function saveTelegramConfig(){
-  S.config.tgBotToken=(document.getElementById('s-tgtoken').value||'').trim();
   S.config.tgAdminChatId=(document.getElementById('s-tgadmin').value||'').trim();
   S.config.tgAdminChatId2=(document.getElementById('s-tgadmin2')||{value:''}).value.trim();
   S.config.tgAdminChatId3=(document.getElementById('s-tgadmin3')||{value:''}).value.trim();
@@ -25890,11 +25888,10 @@ function saveTelegramConfig(){
 }
 
 async function testTelegramMsg(){
-  const token=(document.getElementById('s-tgtoken').value||'').trim();
   const chatId=(document.getElementById('s-tgadmin').value||'').trim();
-  if(!token||!chatId){toast('❌ Inserisci prima Bot Token e Chat ID');return;}
+  if(!chatId){toast('❌ Inserisci prima il Chat ID Admin');return;}
   try{
-    const res=await fetch('https://api.telegram.org/bot'+token+'/sendMessage',{
+    const res=await fetch('/.netlify/functions/telegram',{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({chat_id:chatId,text:'✅ <b>Test S-GAS Freeconomy</b>\n\nBot Telegram configurato correttamente! 🎉',parse_mode:'HTML'})
     });
