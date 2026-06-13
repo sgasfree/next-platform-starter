@@ -16,6 +16,11 @@ const json = (status, obj) => ({
 const hashCode = (code, tessera) =>
   createHash('sha256').update(code + '|' + tessera).digest('hex');
 
+// Normalizza la tessera per il confronto: ignora spazi, trattini e zeri iniziali.
+const normTessera = s => String(s || '').toUpperCase()
+  .replace(/[^A-Z0-9]/g, '')
+  .replace(/([A-Z])0+(\d)/g, '$1$2');
+
 // Email sintetica stabile per l'account Auth del socio (mai usata per ricevere mail).
 const socioEmail = id => `socio-${String(id).toLowerCase()}@soci.sgas-freeconomy.app`;
 
@@ -75,11 +80,13 @@ export const handler = async (event) => {
 
   // ── 3. Recupera il socio ──────────────────────────────────────────────────
   const socioRes = await sbFetch(SUPA_URL, SUPA_KEY,
-    `/rest/v1/soci?tessera=eq.${encodeURIComponent(tessera)}&select=id,user_id,tessera`
+    `/rest/v1/soci?select=id,user_id,tessera`
   );
   const soci = await socioRes.json();
-  if (!Array.isArray(soci) || soci.length === 0) return json(404, { ok: false, error: 'Socio non trovato' });
-  const socio = soci[0];
+  const socio = Array.isArray(soci)
+    ? soci.find(s => normTessera(s.tessera) === normTessera(tessera))
+    : null;
+  if (!socio) return json(404, { ok: false, error: 'Socio non trovato' });
   const email = socioEmail(socio.id);
 
   const authHeaders = {

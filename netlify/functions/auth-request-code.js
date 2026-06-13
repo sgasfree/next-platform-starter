@@ -19,6 +19,12 @@ const hashCode = (code, tessera) =>
 
 const normTel = s => String(s || '').replace(/[\s\-]/g, '');
 
+// Normalizza la tessera per il confronto: ignora spazi, trattini e zeri iniziali
+// del numero. Così "SGAS 0016" = "SGAS-00016" = "SGAS00016".
+const normTessera = s => String(s || '').toUpperCase()
+  .replace(/[^A-Z0-9]/g, '')
+  .replace(/([A-Z])0+(\d)/g, '$1$2');
+
 // Helper: chiama la Supabase REST API
 const sbFetch = (url, key, path, opts = {}) =>
   fetch(`${url}${path}`, {
@@ -48,13 +54,17 @@ export const handler = async (event) => {
   if (!tessera || !cellulare) return json(400, { ok: false, error: 'Inserisci tessera e cellulare' });
 
   // ── 1. Trova il socio ──────────────────────────────────────────────────────
+  // Confronto tollerante al formato: la tessera può essere salvata con spazio,
+  // trattino o zeri diversi rispetto a quanto digitato dall'utente.
   const socioRes = await sbFetch(SUPA_URL, SUPA_KEY,
-    `/rest/v1/soci?tessera=eq.${encodeURIComponent(tessera)}&select=id,tessera,cellulare,telegram,telegram_chat_id,attivo`
+    `/rest/v1/soci?select=id,tessera,cellulare,telegram,telegram_chat_id,attivo`
   );
   const soci = await socioRes.json();
-  if (!Array.isArray(soci) || soci.length === 0 || normTel(soci[0].cellulare) !== cellulare)
+  const socio = Array.isArray(soci)
+    ? soci.find(s => normTessera(s.tessera) === normTessera(tessera) && normTel(s.cellulare) === cellulare)
+    : null;
+  if (!socio)
     return json(404, { ok: false, error: 'Tessera o cellulare non trovati' });
-  const socio = soci[0];
   if (socio.attivo === false) return json(403, { ok: false, error: 'Tessera non attiva' });
   if (!socio.telegram_chat_id)
     return json(409, { ok: false, error: "Nessun Telegram collegato a questa tessera. Contatta l'assistenza." });
