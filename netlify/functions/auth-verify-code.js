@@ -1,16 +1,9 @@
-// ============================================================================
-// auth-verify-code — Login socio via Telegram (passo 2: verifica codice)
-// ----------------------------------------------------------------------------
-// Riceve { tessera, code }. Verifica il codice OTP; se valido, garantisce che
-// il socio abbia un account Supabase Auth collegato e restituisce un token_hash
-// monouso che il client scambia con verifyOtp() per ottenere una sessione vera
-// (su cui funzionano le regole RLS).
+// auth-verify-code — Login socio via Telegram (passo 2: verifica OTP)
+// Usa solo fetch nativo + crypto (Node 18 built-in) — nessuna dipendenza npm.
 //
-// Variabili d'ambiente richieste su Netlify:
-//   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
-// ============================================================================
-const crypto = require('crypto');
-const { createClient } = require('@supabase/supabase-js');
+// Env richieste: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+
+import { createHash, randomBytes } from 'node:crypto';
 
 const MAX_ATTEMPTS = 5;
 
@@ -21,87 +14,113 @@ const json = (status, obj) => ({
 });
 
 const hashCode = (code, tessera) =>
-  crypto.createHash('sha256').update(code + '|' + tessera).digest('hex');
+  createHash('sha256').update(code + '|' + tessera).digest('hex');
 
-// Email sintetica e stabile per l'account Auth del socio (non riceve mail).
-const socioEmail = (socioId) => `socio-${String(socioId).toLowerCase()}@soci.sgas-freeconomy.app`;
+// Email sintetica stabile per l'account Auth del socio (mai usata per ricevere mail).
+const socioEmail = id => `socio-${String(id).toLowerCase()}@soci.sgas-freeconomy.app`;
 
-exports.handler = async (event) => {
+const sbFetch = (url, key, path, opts = {}) =>
+  fetch(`${url}${path}`, {
+    ...opts,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${key}`,
+      'apikey': key,
+      'Prefer': opts.prefer || '',
+      ...opts.headers
+    }
+  });
+
+export const handler = async (event) => {
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method Not Allowed' });
 
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return json(500, { ok: false, error: 'Configurazione server incompleta' });
+  const SUPA_URL = (process.env.SUPABASE_URL || '').trim();
+  const SUPA_KEY = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+  if (!SUPA_URL || !SUPA_KEY) return json(500, { ok: false, error: 'Configurazione server incompleta' });
 
   let body;
   try { body = JSON.parse(event.body); } catch { return json(400, { ok: false, error: 'JSON non valido' }); }
 
   const tessera = String(body.tessera || '').trim().toUpperCase();
-  const code = String(body.code || '').trim();
+  const code    = String(body.code    || '').trim();
   if (!tessera || !/^\d{6}$/.test(code)) return json(400, { ok: false, error: 'Codice non valido' });
 
-  const sb = createClient(url, key, { auth: { persistSession: false } });
-
-  // ── Recupera l'ultimo codice valido per la tessera ──────────────────────
-  const { data: otp, error: oErr } = await sb
-    .from('otp_codes').select('*')
-    .eq('tessera', tessera).eq('consumed', false)
-    .order('created_at', { ascending: false }).limit(1).maybeSingle();
-
-  if (oErr) return json(500, { ok: false, error: 'Errore database' });
-  if (!otp) return json(404, { ok: false, error: 'Nessun codice attivo. Richiedine uno nuovo.' });
-  if (new Date(otp.expires_at).getTime() < Date.now()) {
+  // ── 1. Recupera l'ultimo OTP valido ───────────────────────────────────────
+  const otpRes = await sbFetch(SUPA_URL, SUPA_KEY,
+    `/rest/v1/otp_codes?tessera=eq.${encodeURIComponent(tessera)}&consumed=eq.false&order=created_at.desc&limit=1`
+  );
+  const otps = await otpRes.json();
+  if (!Array.isArray(otps) || otps.length === 0)
+    return json(404, { ok: false, error: 'Nessun codice attivo. Richiedine uno nuovo.' });
+  const otp = otps[0];
+  if (new Date(otp.expires_at).getTime() < Date.now())
     return json(410, { ok: false, error: 'Codice scaduto. Richiedine uno nuovo.' });
-  }
   if (otp.attempts >= MAX_ATTEMPTS) {
-    await sb.from('otp_codes').update({ consumed: true }).eq('id', otp.id);
+    await sbFetch(SUPA_URL, SUPA_KEY, `/rest/v1/otp_codes?id=eq.${otp.id}`,
+      { method: 'PATCH', prefer: 'return=minimal', body: JSON.stringify({ consumed: true }) });
     return json(429, { ok: false, error: 'Troppi tentativi. Richiedi un nuovo codice.' });
   }
 
-  // ── Confronta il codice ─────────────────────────────────────────────────
+  // ── 2. Confronta il codice ────────────────────────────────────────────────
   if (hashCode(code, tessera) !== otp.code_hash) {
-    await sb.from('otp_codes').update({ attempts: otp.attempts + 1 }).eq('id', otp.id);
+    await sbFetch(SUPA_URL, SUPA_KEY, `/rest/v1/otp_codes?id=eq.${otp.id}`,
+      { method: 'PATCH', prefer: 'return=minimal', body: JSON.stringify({ attempts: otp.attempts + 1 }) });
     const left = MAX_ATTEMPTS - (otp.attempts + 1);
     return json(401, { ok: false, error: `Codice errato (${left} tentativi rimasti)` });
   }
 
   // Codice corretto → consuma
-  await sb.from('otp_codes').update({ consumed: true }).eq('id', otp.id);
+  await sbFetch(SUPA_URL, SUPA_KEY, `/rest/v1/otp_codes?id=eq.${otp.id}`,
+    { method: 'PATCH', prefer: 'return=minimal', body: JSON.stringify({ consumed: true }) });
 
-  // ── Trova il socio ──────────────────────────────────────────────────────
-  const { data: socio, error: sErr } = await sb
-    .from('soci').select('id, user_id, tessera').eq('tessera', tessera).maybeSingle();
-  if (sErr || !socio) return json(404, { ok: false, error: 'Socio non trovato' });
-
+  // ── 3. Recupera il socio ──────────────────────────────────────────────────
+  const socioRes = await sbFetch(SUPA_URL, SUPA_KEY,
+    `/rest/v1/soci?tessera=eq.${encodeURIComponent(tessera)}&select=id,user_id,tessera`
+  );
+  const soci = await socioRes.json();
+  if (!Array.isArray(soci) || soci.length === 0) return json(404, { ok: false, error: 'Socio non trovato' });
+  const socio = soci[0];
   const email = socioEmail(socio.id);
 
-  // ── Garantisci l'esistenza dell'account Auth collegato ──────────────────
+  // ── 4. Garantisci l'account Auth del socio ────────────────────────────────
   let userId = socio.user_id;
   if (!userId) {
-    // Crea l'utente Auth (email sintetica già confermata, password casuale)
-    const { data: created, error: cErr } = await sb.auth.admin.createUser({
-      email,
-      email_confirm: true,
-      password: crypto.randomBytes(24).toString('hex'),
-      user_metadata: { socio_id: socio.id, tessera: socio.tessera }
+    // Crea l'utente Auth con email sintetica già confermata
+    const createRes = await fetch(`${SUPA_URL}/auth/v1/admin/users`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPA_KEY}`,
+        'apikey': SUPA_KEY
+      },
+      body: JSON.stringify({
+        email,
+        email_confirm: true,
+        password: randomBytes(24).toString('hex'),
+        user_metadata: { socio_id: socio.id, tessera: socio.tessera }
+      })
     });
-    if (cErr || !created || !created.user) {
-      // Forse esiste già: prova a recuperarlo per email
-      return json(500, { ok: false, error: 'Impossibile creare la sessione' });
-    }
-    userId = created.user.id;
-    await sb.from('soci').update({ user_id: userId }).eq('id', socio.id);
+    const created = await createRes.json();
+    if (!created || !created.id) return json(500, { ok: false, error: 'Impossibile creare la sessione' });
+    userId = created.id;
+    // Collega il user_id al socio
+    await sbFetch(SUPA_URL, SUPA_KEY, `/rest/v1/soci?id=eq.${encodeURIComponent(socio.id)}`,
+      { method: 'PATCH', prefer: 'return=minimal', body: JSON.stringify({ user_id: userId }) });
   }
 
-  // ── Genera un magic link e restituisci il token_hash al client ──────────
-  const { data: link, error: lErr } = await sb.auth.admin.generateLink({ type: 'magiclink', email });
-  if (lErr || !link || !link.properties) {
-    return json(500, { ok: false, error: 'Impossibile generare la sessione' });
-  }
-
-  return json(200, {
-    ok: true,
-    token_hash: link.properties.hashed_token,
-    socioId: socio.id
+  // ── 5. Genera il magic link monouso ───────────────────────────────────────
+  const linkRes = await fetch(`${SUPA_URL}/auth/v1/admin/generate_link`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SUPA_KEY}`,
+      'apikey': SUPA_KEY
+    },
+    body: JSON.stringify({ type: 'magiclink', email })
   });
+  const link = await linkRes.json();
+  if (!link || !link.properties || !link.properties.hashed_token)
+    return json(500, { ok: false, error: 'Impossibile generare la sessione' });
+
+  return json(200, { ok: true, token_hash: link.properties.hashed_token, socioId: socio.id });
 };

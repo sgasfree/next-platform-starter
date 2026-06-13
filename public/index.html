@@ -20652,9 +20652,23 @@ window.docx = docx;
 
       <!-- Socio form -->
       <div id="login-socio-form" style="display: none;">
-        <div class="field"><label>Numero Tessera</label><input id="l-tessera" type="text" placeholder="es. SGAS-00001"></div>
-        <div class="field"><label>Cellulare</label><input id="l-phone" type="tel" placeholder="es. 3331234567"></div>
-        <button class="btn btn-primary btn-block" onclick="loginSocio()">Accedi come Socio</button>
+        <!-- Passo 1: tessera + cellulare → ricevi codice -->
+        <div id="login-socio-step1">
+          <div class="field"><label>Numero Tessera</label><input id="l-tessera" type="text" placeholder="es. SGAS 0001"></div>
+          <div class="field"><label>Cellulare</label><input id="l-phone" type="tel" placeholder="es. 3331234567"></div>
+          <button class="btn btn-primary btn-block" id="btn-request-code" onclick="socioRequestCode()">📲 Ricevi codice su Telegram</button>
+        </div>
+        <!-- Passo 2: inserisci il codice ricevuto -->
+        <div id="login-socio-step2" style="display:none;">
+          <div style="font-size:.85rem;color:var(--text-mid);text-align:center;margin-bottom:12px;">
+            📩 <span id="otp-sent-msg">Ti abbiamo inviato un codice su Telegram.</span><br>Inseriscilo qui sotto:
+          </div>
+          <div class="field"><label>Codice a 6 cifre</label><input id="l-otp" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="••••••" style="letter-spacing:.4em;text-align:center;font-size:1.3rem;"></div>
+          <button class="btn btn-primary btn-block" id="btn-verify-code" onclick="socioVerifyCode()">✅ Accedi</button>
+          <div style="text-align:center;margin-top:10px;">
+            <button onclick="socioResetLogin()" style="background:none;border:none;color:var(--green);font-size:.82rem;font-weight:700;cursor:pointer;text-decoration:underline;">↩ Cambia tessera o rinvia il codice</button>
+          </div>
+        </div>
         <div style="text-align:center;margin-top:10px;">
           <button onclick="showRecovery('socio')" style="background:none;border:none;color:var(--green);font-size:.82rem;font-weight:700;cursor:pointer;text-decoration:underline;">🔑 Non ricordo i codici di accesso</button>
         </div>
@@ -22815,6 +22829,103 @@ function resetLocalStorage(){
   }
 }
 
+// ════════ LOGIN SOCIO via codice Telegram (Supabase Auth) ════════
+// Client Supabase con anon key (pubblica, protetta dalle regole RLS).
+const SUPA_AUTH_URL  = 'https://luhuwhmtaerkwipyilcy.supabase.co';
+const SUPA_AUTH_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1aHV3aG10YWVya3dpcHlpbGN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzNjk0NzEsImV4cCI6MjA5MTk0NTQ3MX0.QduS-IHbfea5BFL5oKxI6gGTaFoBrWe1Aen7PuQBgds';
+let _authSb = null;
+function getAuthSb(){
+  if(!_authSb && window.supabase){
+    try{ _authSb = window.supabase.createClient(SUPA_AUTH_URL, SUPA_AUTH_ANON); }catch(e){ _authSb=null; }
+  }
+  return _authSb;
+}
+
+let _otpTessera = '';
+
+// Passo 1: richiedi il codice OTP (inviato sul Telegram del socio)
+async function socioRequestCode(){
+  const tess=document.getElementById('l-tessera').value.trim().toUpperCase();
+  const tel =document.getElementById('l-phone').value.trim().replace(/[\s\-]/g,'');
+  if(!tess || !tel){toast('❌ Inserisci tessera e cellulare');return;}
+  if(/^0+$/.test(tel)){toast('❌ Numero di cellulare non valido');return;}
+  const btn=document.getElementById('btn-request-code');
+  btn.disabled=true; const _t=btn.textContent; btn.textContent='⏳ Invio in corso…';
+  try{
+    const res=await fetch('/.netlify/functions/auth-request-code',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({tessera:tess,cellulare:tel})
+    });
+    const data=await res.json();
+    if(!data.ok){toast('❌ '+(data.error||'Errore'));return;}
+    _otpTessera=tess;
+    document.getElementById('otp-sent-msg').textContent='Codice inviato su '+(data.sentTo||'Telegram')+'.';
+    document.getElementById('login-socio-step1').style.display='none';
+    document.getElementById('login-socio-step2').style.display='';
+    document.getElementById('l-otp').focus();
+    toast('📩 Codice inviato su Telegram');
+  }catch(e){toast('❌ Connessione non riuscita');}
+  finally{btn.disabled=false;btn.textContent=_t;}
+}
+
+// Passo 2: verifica il codice e crea la sessione Supabase
+async function socioVerifyCode(){
+  const code=document.getElementById('l-otp').value.trim();
+  if(!/^\d{6}$/.test(code)){toast('❌ Inserisci il codice a 6 cifre');return;}
+  const btn=document.getElementById('btn-verify-code');
+  btn.disabled=true; const _t=btn.textContent; btn.textContent='⏳ Verifica…';
+  try{
+    const res=await fetch('/.netlify/functions/auth-verify-code',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({tessera:_otpTessera,code})
+    });
+    const data=await res.json();
+    if(!data.ok){toast('❌ '+(data.error||'Codice errato'));return;}
+    // Scambia il token monouso per una sessione Supabase vera (abilita RLS)
+    const sb=getAuthSb();
+    if(sb && data.token_hash){
+      try{
+        const {error}=await sb.auth.verifyOtp({type:'magiclink',token_hash:data.token_hash});
+        if(error) console.warn('verifyOtp:',error.message);
+      }catch(e){ console.warn('verifyOtp ex:',e); }
+    }
+    // Completa il login: l'app continua a usare i dati locali finché non
+    // migriamo le query a Supabase (Fase 3).
+    const socio=(S.soci||[]).find(s=>(s.tessera||'').toUpperCase()===_otpTessera);
+    if(!socio){toast('❌ Socio non trovato nei dati locali');return;}
+    socioResetLogin();
+    _enterSocio(socio);
+  }catch(e){toast('❌ Connessione non riuscita');}
+  finally{btn.disabled=false;btn.textContent=_t;}
+}
+
+function socioResetLogin(){
+  const s2=document.getElementById('login-socio-step2');
+  const s1=document.getElementById('login-socio-step1');
+  if(s2) s2.style.display='none';
+  if(s1) s1.style.display='';
+  const otp=document.getElementById('l-otp'); if(otp) otp.value='';
+  _otpTessera='';
+}
+
+// Logica post-login condivisa (usata sia dall'OTP che dal metodo legacy)
+function _enterSocio(socio){
+  currentUser={type:'socio',...socio};
+  saveSession();
+  resetInactivityTimer();
+  document.getElementById('topbar-gas-name').textContent=S.config.gasName.split(' ')[0]||'S-GAS';
+  applyLogo();
+  showView('socio');
+  renderCatSidebar();
+  setTab('ali');
+  showSocioSection('catalogo');
+  renderFornitori();
+  updateCartBadge();
+  updateMsgBadges();
+  updateNewsBadge();
+}
+
+// Metodo legacy (tessera+cellulare senza codice) — mantenuto come riserva
 function loginSocio(){
   const tess=document.getElementById('l-tessera').value.trim().toUpperCase();
   const tel=document.getElementById('l-phone').value.trim().replace(/\s/g,'');
@@ -22829,19 +22940,7 @@ function loginSocio(){
     return s.tessera.toUpperCase()===tess && stored===tel_norm;
   });
   if(!socio){toast('❌ Tessera o cellulare non trovati');return;}
-  currentUser={type:'socio',...socio};
-  saveSession();
-  resetInactivityTimer();
-  document.getElementById('topbar-gas-name').textContent=S.config.gasName.split(' ')[0]||'S-GAS';
-  applyLogo();
-  showView('socio');
-  renderCatSidebar();
-  setTab('ali');
-  showSocioSection('catalogo');
-  renderFornitori();
-  updateCartBadge();
-  updateMsgBadges();
-  updateNewsBadge();
+  _enterSocio(socio);
 }
 
 // ── Password hashing via Web Crypto PBKDF2 ──
