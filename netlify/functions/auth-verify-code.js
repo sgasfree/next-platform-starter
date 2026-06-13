@@ -82,17 +82,21 @@ export const handler = async (event) => {
   const socio = soci[0];
   const email = socioEmail(socio.id);
 
+  const authHeaders = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${SUPA_KEY}`,
+    'apikey': SUPA_KEY
+  };
+
   // ── 4. Garantisci l'account Auth del socio ────────────────────────────────
+  // Se il socio non ha ancora un user_id, prova a creare l'utente Auth.
+  // Se l'email esiste già (run precedente), non è un errore: il magic link
+  // qui sotto lo trova comunque per email.
   let userId = socio.user_id;
   if (!userId) {
-    // Crea l'utente Auth con email sintetica già confermata
     const createRes = await fetch(`${SUPA_URL}/auth/v1/admin/users`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPA_KEY}`,
-        'apikey': SUPA_KEY
-      },
+      headers: authHeaders,
       body: JSON.stringify({
         email,
         email_confirm: true,
@@ -100,27 +104,28 @@ export const handler = async (event) => {
         user_metadata: { socio_id: socio.id, tessera: socio.tessera }
       })
     });
-    const created = await createRes.json();
-    if (!created || !created.id) return json(500, { ok: false, error: 'Impossibile creare la sessione' });
-    userId = created.id;
-    // Collega il user_id al socio
+    const created = await createRes.json().catch(() => ({}));
+    if (created && created.id) userId = created.id;  // altrimenti lo prendiamo dal link
+  }
+
+  // ── 5. Genera il magic link monouso ───────────────────────────────────────
+  // L'API REST di GoTrue restituisce hashed_token al livello principale
+  // (la libreria supabase-js lo annida sotto "properties").
+  const linkRes = await fetch(`${SUPA_URL}/auth/v1/admin/generate_link`, {
+    method: 'POST',
+    headers: authHeaders,
+    body: JSON.stringify({ type: 'magiclink', email })
+  });
+  const link = await linkRes.json().catch(() => ({}));
+  const tokenHash = (link.properties && link.properties.hashed_token) || link.hashed_token;
+  if (!tokenHash) return json(500, { ok: false, error: 'Impossibile generare la sessione' });
+
+  // ── 6. Collega il user_id al socio se non era ancora impostato ────────────
+  if (!userId) userId = link.user_id || link.id || (link.user && link.user.id) || null;
+  if (userId && userId !== socio.user_id) {
     await sbFetch(SUPA_URL, SUPA_KEY, `/rest/v1/soci?id=eq.${encodeURIComponent(socio.id)}`,
       { method: 'PATCH', prefer: 'return=minimal', body: JSON.stringify({ user_id: userId }) });
   }
 
-  // ── 5. Genera il magic link monouso ───────────────────────────────────────
-  const linkRes = await fetch(`${SUPA_URL}/auth/v1/admin/generate_link`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SUPA_KEY}`,
-      'apikey': SUPA_KEY
-    },
-    body: JSON.stringify({ type: 'magiclink', email })
-  });
-  const link = await linkRes.json();
-  if (!link || !link.properties || !link.properties.hashed_token)
-    return json(500, { ok: false, error: 'Impossibile generare la sessione' });
-
-  return json(200, { ok: true, token_hash: link.properties.hashed_token, socioId: socio.id });
+  return json(200, { ok: true, token_hash: tokenHash, socioId: socio.id });
 };
