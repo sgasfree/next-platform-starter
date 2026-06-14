@@ -25738,15 +25738,26 @@ function toggleSupabaseSync(){
   toast(S.config.supabasePaused ? '⏸ Supabase in standby' : '▶️ Supabase riattivato');
 }
 
+// Normalizza la tessera per il confronto: ignora maiuscole, spazi, trattini e
+// zeri iniziali del numero. "SGAS 0016" = "SGAS-00016" = "sgas00016".
+// Stessa logica delle Netlify Functions (auth-request-code / auth-verify-code).
+function normTessera(s){
+  return String(s||'').toUpperCase()
+    .replace(/[^A-Z0-9]/g,'')
+    .replace(/([A-Z])0+(\d)/g,'$1$2');
+}
+
 // Migra l'anagrafica soci dal blob locale alla tabella public.soci di Supabase.
 // Mappa i campi camelCase dell'app verso lo schema snake_case del database.
-// Usa upsert su 'id': aggiorna i soci esistenti e aggiunge quelli nuovi,
-// senza mai cancellare nulla. user_id resta gestito dal login OTP.
+// Per evitare righe duplicate (gli id/tessere esistenti possono differire per
+// maiuscole/formato), abbina ogni socio del blob a quello già presente sul DB
+// tramite tessera normalizzata e ne riusa l'id. Upsert su 'id': aggiorna gli
+// esistenti, aggiunge i nuovi, non cancella nulla. user_id non viene toccato.
 //
 // IMPORTANTE: la tabella soci ha RLS che richiede is_admin(). Per scrivere
-// serve quindi una sessione Supabase autenticata (login OTP via Telegram)
-// il cui user_id sia presente nella tabella admins. Usiamo getAuthSb(),
-// l'unico client che porta con sé il token di sessione.
+// serve una sessione Supabase autenticata (login OTP via Telegram) il cui
+// user_id sia presente nella tabella admins. Usiamo getAuthSb(), l'unico
+// client che porta con sé il token di sessione.
 async function migrateSociToSupabase(){
   const sb = getAuthSb();
   if(!sb){ toast('⚠️ Supabase non disponibile'); return; }
@@ -25759,9 +25770,23 @@ async function migrateSociToSupabase(){
   }
   const soci = Array.isArray(S.soci) ? S.soci : [];
   if(soci.length === 0){ toast('⚠️ Nessun socio da migrare'); return; }
-  if(!confirm(`Migrare ${soci.length} soci nella tabella Supabase?\n\nI soci esistenti verranno aggiornati, i nuovi aggiunti. Nessun dato verrà cancellato.`)) return;
+  if(!confirm(`Migrare ${soci.length} soci nella tabella Supabase?\n\nI soci esistenti verranno aggiornati (abbinati per tessera), i nuovi aggiunti. Nessun dato verrà cancellato.`)) return;
+  toast('☁️ Lettura soci esistenti...');
+  // Abbina per tessera normalizzata agli id già presenti sul DB
+  let existing = [];
+  try{
+    const { data, error } = await sb.from('soci').select('id,tessera');
+    if(error){
+      if(/row-level security|permission|policy/i.test(error.message||''))
+        { toast('🔒 Permesso negato: la tua tessera non risulta admin su Supabase (tabella admins).'); return; }
+      toast('❌ Lettura soci fallita: '+error.message); return;
+    }
+    existing = data || [];
+  }catch(e){ toast('❌ Lettura soci fallita: '+e.message); return; }
+  const idByTessera = {};
+  existing.forEach(r => { idByTessera[normTessera(r.tessera)] = r.id; });
   const rows = soci.map(s => ({
-    id:               s.id,
+    id:               idByTessera[normTessera(s.tessera)] || s.id,  // riusa id esistente
     tessera:          s.tessera || '',
     nome:             s.nome || '',
     cognome:          s.cognome || '',
@@ -25781,7 +25806,8 @@ async function migrateSociToSupabase(){
       return;
     }
     const withChat = rows.filter(r => r.telegram_chat_id).length;
-    toast(`✅ ${rows.length} soci migrati (${withChat} con Telegram collegato)`);
+    const nuovi = rows.filter(r => !idByTessera[normTessera(r.tessera)]).length;
+    toast(`✅ ${rows.length} soci migrati (${nuovi} nuovi, ${withChat} con Telegram)`);
   }catch(e){ toast('❌ Migrazione fallita: '+e.message); }
 }
 
