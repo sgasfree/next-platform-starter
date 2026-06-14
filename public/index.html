@@ -21947,6 +21947,16 @@ function syncToSupabase(){
         payloadObj.config.supabasePaused = false;
         delete payloadObj.config.logoData;
         delete payloadObj.config.logoBase64;
+        // Non sincronizzare segreti su config table (lettura pubblica)
+        delete payloadObj.config.tgBotToken;
+        delete payloadObj.config.adminPassword;
+        delete payloadObj.config.adminPassword2;
+        delete payloadObj.config.adminPassword3;
+        delete payloadObj.config.adminEmail;
+        delete payloadObj.config.adminEmail2;
+        delete payloadObj.config.adminEmail3;
+        delete payloadObj.config.supabaseUrl;
+        delete payloadObj.config.supabaseKey;
       }
       // Rimuovi immagini base64 da fornitori e prodotti per ridurre il payload
       if(Array.isArray(payloadObj.fornitori)){
@@ -21994,11 +22004,14 @@ async function loadFromSupabase(){
     S.config.supabaseKey    = _prevConf.supabaseKey||'';
     if(_prevConf.logoData)   S.config.logoData   = _prevConf.logoData;
     if(_prevConf.logoBase64) S.config.logoBase64 = _prevConf.logoBase64;
-    // Preserva password admin locali: il reset viene fatto sul dispositivo corrente
-    // e non deve essere sovrascritto da uno stato Supabase potenzialmente più vecchio
+    // Preserva segreti locali (non vengono mai sincronizzati su Supabase)
+    if(_prevConf.tgBotToken)     S.config.tgBotToken     = _prevConf.tgBotToken;
     if(_prevConf.adminPassword)  S.config.adminPassword  = _prevConf.adminPassword;
     if(_prevConf.adminPassword2) S.config.adminPassword2 = _prevConf.adminPassword2;
     if(_prevConf.adminPassword3) S.config.adminPassword3 = _prevConf.adminPassword3;
+    if(_prevConf.adminEmail)     S.config.adminEmail     = _prevConf.adminEmail;
+    if(_prevConf.adminEmail2)    S.config.adminEmail2    = _prevConf.adminEmail2;
+    if(_prevConf.adminEmail3)    S.config.adminEmail3    = _prevConf.adminEmail3;
     // Ripristina immagini fornitori/prodotti da localStorage (non sincronizzate su Supabase)
     const _prevState=(()=>{try{return JSON.parse(localStorage.getItem('sgas_state')||'{}')}catch(e){return {};}})();
     if(Array.isArray(_prevState.fornitori) && Array.isArray(S.fornitori)){
