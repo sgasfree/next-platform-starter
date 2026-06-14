@@ -25738,6 +25738,53 @@ function toggleSupabaseSync(){
   toast(S.config.supabasePaused ? '⏸ Supabase in standby' : '▶️ Supabase riattivato');
 }
 
+// Migra l'anagrafica soci dal blob locale alla tabella public.soci di Supabase.
+// Mappa i campi camelCase dell'app verso lo schema snake_case del database.
+// Usa upsert su 'id': aggiorna i soci esistenti e aggiunge quelli nuovi,
+// senza mai cancellare nulla. user_id resta gestito dal login OTP.
+//
+// IMPORTANTE: la tabella soci ha RLS che richiede is_admin(). Per scrivere
+// serve quindi una sessione Supabase autenticata (login OTP via Telegram)
+// il cui user_id sia presente nella tabella admins. Usiamo getAuthSb(),
+// l'unico client che porta con sé il token di sessione.
+async function migrateSociToSupabase(){
+  const sb = getAuthSb();
+  if(!sb){ toast('⚠️ Supabase non disponibile'); return; }
+  // Verifica che ci sia una sessione autenticata (login OTP fatto)
+  let session = null;
+  try{ session = (await sb.auth.getSession()).data.session; }catch(e){}
+  if(!session){
+    toast('🔒 Per migrare devi prima fare il login come socio via Telegram (OTP) con una tessera admin.');
+    return;
+  }
+  const soci = Array.isArray(S.soci) ? S.soci : [];
+  if(soci.length === 0){ toast('⚠️ Nessun socio da migrare'); return; }
+  if(!confirm(`Migrare ${soci.length} soci nella tabella Supabase?\n\nI soci esistenti verranno aggiornati, i nuovi aggiunti. Nessun dato verrà cancellato.`)) return;
+  const rows = soci.map(s => ({
+    id:               s.id,
+    tessera:          s.tessera || '',
+    nome:             s.nome || '',
+    cognome:          s.cognome || '',
+    cellulare:        s.cellulare || s.telefono || '',
+    telegram:         s.telegram || '',
+    telegram_chat_id: (s.telegramChatId || '').trim() || null,
+    attivo:           s.attivo === false ? false : true
+  }));
+  toast(`☁️ Migrazione di ${rows.length} soci in corso...`);
+  try{
+    const { error } = await sb.from('soci').upsert(rows, { onConflict:'id' });
+    if(error){
+      if(/row-level security|permission|policy/i.test(error.message||''))
+        toast('🔒 Permesso negato: la tua tessera non risulta admin su Supabase (tabella admins).');
+      else
+        toast('❌ Errore migrazione: '+error.message);
+      return;
+    }
+    const withChat = rows.filter(r => r.telegram_chat_id).length;
+    toast(`✅ ${rows.length} soci migrati (${withChat} con Telegram collegato)`);
+  }catch(e){ toast('❌ Migrazione fallita: '+e.message); }
+}
+
 function renderSettings(){
   const hasLogo=(S.config.logoBase64||S.config.logoData)?true:false;
   const supabasePaused=S.config.supabasePaused||false;
@@ -25764,6 +25811,7 @@ function renderSettings(){
         <button class="btn btn-primary btn-sm" onclick="saveSupabaseConfig()">💾 Salva e connetti</button>
         <button class="btn btn-secondary btn-sm" onclick="testSupabaseConnection()">🔌 Testa connessione</button>
         ${S.config.supabaseUrl?`<button class="btn btn-sm ${supabasePaused?'btn-primary':'btn-amber'}" onclick="toggleSupabaseSync()">${supabasePaused?'▶️ Riattiva':'⏸ Standby'}</button>`:''}
+        ${S.config.supabaseUrl?`<button class="btn btn-secondary btn-sm" onclick="migrateSociToSupabase()">👥 Migra soci su Supabase</button>`:''}
       </div>
       <details style="font-size:.78rem;color:var(--text-light);">
         <summary style="cursor:pointer;font-weight:700;color:var(--green-dark);">📋 Setup Supabase (prima volta)</summary>
