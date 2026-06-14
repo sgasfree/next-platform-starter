@@ -257,9 +257,13 @@ create policy prenotazioni_socio on public.prenotazioni
     or socio_id in (select id from public.soci where user_id = auth.uid())
   );
 
--- config: lettura pubblica (impostazioni GAS, nome, logo url…), scrittura admin
+-- config: lettura pubblica limitata alla sola chiave 'sgas_app_state'
+-- (l'unica usata dall'app via anon key). Le altre righe restano leggibili
+-- solo agli admin tramite config_admin: così eventuali segreti/seed non
+-- vengono esposti con l'anon key pubblica.
 drop policy if exists config_read on public.config;
-create policy config_read on public.config for select using (true);
+create policy config_read on public.config
+  for select using ( chiave = 'sgas_app_state' );
 drop policy if exists config_admin on public.config;
 create policy config_admin on public.config
   for all using (public.is_admin()) with check (public.is_admin());
