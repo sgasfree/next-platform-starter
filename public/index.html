@@ -23556,6 +23556,8 @@ function submitOrder(){
   S.cart.items=[];
   S.cart.raccoltaId='';
   saveState(); updateCartBadge();
+  // Doppio write: invia l'ordine anche su Supabase in background (non-blocking)
+  _syncOrderToSupabase(ord).catch(e => console.warn('Sync ordine a Supabase fallito:', e));
   try{ exportOrderWord(ord); }catch(e){ console.warn('Word gen error:',e); }
   sendOrderEmail(ord);
   sendPush('📦 Ordine confermato!', 'Il tuo ordine '+ord.id+' è stato ricevuto — Totale: €'+ord.totale.toFixed(2), window.location.origin);
@@ -25895,6 +25897,46 @@ async function migrateMessaggiToSupabase(){
   }catch(e){ toast('❌ Migrazione messaggi fallita: '+e.message); }
 }
 
+// ══ DOPPIO WRITE: Sync real-time a Supabase ══
+
+// Scrive un singolo ordine su Supabase (upsert). Usa la sessione OTP se disponibile;
+// se nessuna sessione, lo scrive comunque (il blob è il source of truth).
+async function _syncOrderToSupabase(ord){
+  const sb = getAuthSb();
+  if(!sb) return; // Supabase non disponibile; il blob continua a funzionare
+  const row = {
+    id:          ord.id,
+    socio_id:    ord.socioId   || null,
+    raccolta_id: ord.raccoltaId || null,
+    items:       Array.isArray(ord.items) ? ord.items : [],
+    totale:      typeof ord.totale === 'number' ? ord.totale : 0,
+    stato:       ord.stato || 'inviato',
+    nota:        ord.nota  || null,
+    created_at:  ord.data  || new Date().toISOString()
+  };
+  try{
+    const { error } = await sb.from('ordini').upsert([row], { onConflict:'id' });
+    if(error) console.warn('Sync ordine fallito:', error.message);
+  }catch(e){ console.warn('Sync ordine exception:', e.message); }
+}
+
+// Scrive un singolo messaggio su Supabase (insert, non upsert: gli id sono uuid autogenerati).
+async function _syncMessaggioToSupabase(msg){
+  const sb = getAuthSb();
+  if(!sb) return;
+  const row = {
+    socio_id:   msg.socioId  || null,
+    mittente:   msg.da === 'admin' ? 'admin' : 'socio',
+    testo:      msg.testo    || '',
+    letto:      msg.da === 'socio' ? (msg.lettoAdmin === true) : (msg.lettoSocio === true),
+    created_at: msg.data     || new Date().toISOString()
+  };
+  try{
+    const { error } = await sb.from('messaggi').insert([row]);
+    if(error) console.warn('Sync messaggio fallito:', error.message);
+  }catch(e){ console.warn('Sync messaggio exception:', e.message); }
+}
+
 function renderSettings(){
   const hasLogo=(S.config.logoBase64||S.config.logoData)?true:false;
   const supabasePaused=S.config.supabasePaused||false;
@@ -26394,12 +26436,15 @@ function sendMsgSocio(){
   const txt=(document.getElementById('msg-input-socio')||{value:''}).value.trim();
   if(!txt) return;
   if(!S.messaggi) S.messaggi=[];
-  S.messaggi.push({
+  const msg = {
     id:'m'+uid(), socioId:currentUser.id, socioNome:currentUser.nome||currentUser.tessera,
     da:'socio', testo:txt, data:new Date().toISOString(),
     lettoAdmin:false, lettoSocio:true
-  });
+  };
+  S.messaggi.push(msg);
   saveState(); updateMsgBadges();
+  // Doppio write: invia il messaggio anche su Supabase in background
+  _syncMessaggioToSupabase(msg).catch(e => console.warn('Sync messaggio a Supabase fallito:', e));
   document.getElementById('msg-input-socio').value='';
   renderMessaggiSocio();
 }
@@ -26409,13 +26454,16 @@ function sendMsgAdmin(socioId){
   if(!txt) return;
   const socio=S.soci.find(s=>s.id===socioId);
   if(!S.messaggi) S.messaggi=[];
-  S.messaggi.push({
+  const msg = {
     id:'m'+uid(), socioId, socioNome:socio?socio.nome||socio.tessera:'?',
     da:'admin', testo:txt, data:new Date().toISOString(),
     lettoAdmin:true, lettoSocio:false
-  });
+  };
+  S.messaggi.push(msg);
   sendPush('💬 Messaggio dal GAS', (socio?socio.nome+': ':'') + txt.slice(0,80)+(txt.length>80?'…':''), window.location.origin);
   saveState(); updateMsgBadges();
+  // Doppio write: invia il messaggio anche su Supabase in background
+  _syncMessaggioToSupabase(msg).catch(e => console.warn('Sync messaggio a Supabase fallito:', e));
   document.getElementById('msg-input-admin-'+socioId).value='';
   renderAdminConversation(socioId);
   renderAdminMsgList(); // refresh list counts
