@@ -25863,12 +25863,15 @@ async function migrateOrdiniToSupabase(){
 // l'id del blob è testo 'm...', il DB usa uuid autogenerato).
 // Usa created_at dal campo 'data' del blob per preservare la cronologia.
 // Prima svuota i messaggi esistenti per evitare duplicati su ri-esecuzione.
+// Risolve il socioId del blob → id reale nel DB via tessera (stesso meccanismo soci).
 async function migrateMessaggiToSupabase(){
   const sb = await _requireAdminSb();
   if(!sb) return;
   const messaggi = Array.isArray(S.messaggi) ? S.messaggi : [];
   if(messaggi.length === 0){ toast('⚠️ Nessun messaggio da migrare'); return; }
   if(!confirm(`Migrare ${messaggi.length} messaggi nella tabella Supabase?\n\nI messaggi esistenti verranno prima cancellati e riscritti per evitare duplicati.`)) return;
+  // Costruisce la mappa blobId→dbId tramite tessera normalizzata
+  const dbIdBySocioId = await _buildSocioIdMap(sb);
   toast('☁️ Pulizia messaggi precedenti...');
   try{
     const { error: delErr } = await sb.from('messaggi').delete().neq('id', '00000000-0000-0000-0000-000000000000');
@@ -25877,7 +25880,7 @@ async function migrateMessaggiToSupabase(){
     }
   }catch(e){ toast('❌ Pulizia messaggi fallita: '+e.message); return; }
   const rows = messaggi.map(m => ({
-    socio_id:   m.socioId  || null,
+    socio_id:   dbIdBySocioId[m.socioId] || null,
     mittente:   m.da === 'admin' ? 'admin' : 'socio',
     testo:      m.testo    || '',
     letto:      m.da === 'socio' ? (m.lettoAdmin === true) : (m.lettoSocio === true),
@@ -25899,14 +25902,31 @@ async function migrateMessaggiToSupabase(){
 
 // ══ DOPPIO WRITE: Sync real-time a Supabase ══
 
+// Helper: costruisce la mappa blobId→dbId leggendo soci dal DB e dal blob locale.
+// Usa la tessera normalizzata come chiave di join.
+async function _buildSocioIdMap(sb){
+  try{
+    const { data } = await sb.from('soci').select('id,tessera');
+    const dbIdByTessera = {};
+    (data||[]).forEach(r => { dbIdByTessera[normTessera(r.tessera)] = r.id; });
+    const map = {};
+    (S.soci||[]).forEach(s => {
+      const dbId = dbIdByTessera[normTessera(s.tessera)];
+      if(dbId) map[s.id] = dbId;
+    });
+    return map;
+  }catch(e){ return {}; }
+}
+
 // Scrive un singolo ordine su Supabase (upsert). Usa la sessione OTP se disponibile;
 // se nessuna sessione, lo scrive comunque (il blob è il source of truth).
 async function _syncOrderToSupabase(ord){
   const sb = getAuthSb();
   if(!sb) return; // Supabase non disponibile; il blob continua a funzionare
+  const dbIdBySocioId = await _buildSocioIdMap(sb);
   const row = {
     id:          ord.id,
-    socio_id:    ord.socioId   || null,
+    socio_id:    dbIdBySocioId[ord.socioId] || ord.socioId || null,
     raccolta_id: ord.raccoltaId || null,
     items:       Array.isArray(ord.items) ? ord.items : [],
     totale:      typeof ord.totale === 'number' ? ord.totale : 0,
@@ -25924,8 +25944,9 @@ async function _syncOrderToSupabase(ord){
 async function _syncMessaggioToSupabase(msg){
   const sb = getAuthSb();
   if(!sb) return;
+  const dbIdBySocioId = await _buildSocioIdMap(sb);
   const row = {
-    socio_id:   msg.socioId  || null,
+    socio_id:   dbIdBySocioId[msg.socioId] || null,
     mittente:   msg.da === 'admin' ? 'admin' : 'socio',
     testo:      msg.testo    || '',
     letto:      msg.da === 'socio' ? (msg.lettoAdmin === true) : (msg.lettoSocio === true),
