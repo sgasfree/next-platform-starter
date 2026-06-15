@@ -25811,6 +25811,90 @@ async function migrateSociToSupabase(){
   }catch(e){ toast('❌ Migrazione fallita: '+e.message); }
 }
 
+// Helper condiviso: verifica sessione admin autenticata.
+// Restituisce il client Supabase autenticato o null (con toast).
+async function _requireAdminSb(){
+  const sb = getAuthSb();
+  if(!sb){ toast('⚠️ Supabase non disponibile'); return null; }
+  let session = null;
+  try{ session = (await sb.auth.getSession()).data.session; }catch(e){}
+  if(!session){
+    toast('🔒 Fai prima il login come socio via Telegram (OTP) con una tessera admin.');
+    return null;
+  }
+  return sb;
+}
+
+// Migra S.ordini → tabella public.ordini (upsert su id).
+// Mappa: socioId→socio_id, raccoltaId→raccolta_id, data→created_at.
+async function migrateOrdiniToSupabase(){
+  const sb = await _requireAdminSb();
+  if(!sb) return;
+  const ordini = Array.isArray(S.ordini) ? S.ordini : [];
+  if(ordini.length === 0){ toast('⚠️ Nessun ordine da migrare'); return; }
+  if(!confirm(`Migrare ${ordini.length} ordini nella tabella Supabase?\n\nGli ordini esistenti verranno aggiornati, i nuovi aggiunti.`)) return;
+  const rows = ordini.map(o => ({
+    id:          o.id,
+    socio_id:    o.socioId   || null,
+    raccolta_id: o.raccoltaId || null,
+    items:       Array.isArray(o.items) ? o.items : [],
+    totale:      typeof o.totale === 'number' ? o.totale : 0,
+    stato:       o.stato || 'inviato',
+    nota:        o.nota  || null,
+    created_at:  o.data  || new Date().toISOString()
+  }));
+  toast(`☁️ Migrazione di ${rows.length} ordini in corso...`);
+  try{
+    const { error } = await sb.from('ordini').upsert(rows, { onConflict:'id' });
+    if(error){
+      if(/row-level security|permission|policy/i.test(error.message||''))
+        toast('🔒 Permesso negato: la tua tessera non risulta admin su Supabase.');
+      else
+        toast('❌ Errore migrazione ordini: '+error.message);
+      return;
+    }
+    toast(`✅ ${rows.length} ordini migrati su Supabase`);
+  }catch(e){ toast('❌ Migrazione ordini fallita: '+e.message); }
+}
+
+// Migra S.messaggi → tabella public.messaggi (insert, senza upsert:
+// l'id del blob è testo 'm...', il DB usa uuid autogenerato).
+// Usa created_at dal campo 'data' del blob per preservare la cronologia.
+// Prima svuota i messaggi esistenti per evitare duplicati su ri-esecuzione.
+async function migrateMessaggiToSupabase(){
+  const sb = await _requireAdminSb();
+  if(!sb) return;
+  const messaggi = Array.isArray(S.messaggi) ? S.messaggi : [];
+  if(messaggi.length === 0){ toast('⚠️ Nessun messaggio da migrare'); return; }
+  if(!confirm(`Migrare ${messaggi.length} messaggi nella tabella Supabase?\n\nI messaggi esistenti verranno prima cancellati e riscritti per evitare duplicati.`)) return;
+  toast('☁️ Pulizia messaggi precedenti...');
+  try{
+    const { error: delErr } = await sb.from('messaggi').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    if(delErr && !/0 rows/i.test(delErr.message||'')){
+      toast('❌ Errore pulizia messaggi: '+delErr.message); return;
+    }
+  }catch(e){ toast('❌ Pulizia messaggi fallita: '+e.message); return; }
+  const rows = messaggi.map(m => ({
+    socio_id:   m.socioId  || null,
+    mittente:   m.da === 'admin' ? 'admin' : 'socio',
+    testo:      m.testo    || '',
+    letto:      m.da === 'socio' ? (m.lettoAdmin === true) : (m.lettoSocio === true),
+    created_at: m.data     || new Date().toISOString()
+  }));
+  toast(`☁️ Migrazione di ${rows.length} messaggi in corso...`);
+  try{
+    const { error } = await sb.from('messaggi').insert(rows);
+    if(error){
+      if(/row-level security|permission|policy/i.test(error.message||''))
+        toast('🔒 Permesso negato: la tua tessera non risulta admin su Supabase.');
+      else
+        toast('❌ Errore migrazione messaggi: '+error.message);
+      return;
+    }
+    toast(`✅ ${rows.length} messaggi migrati su Supabase`);
+  }catch(e){ toast('❌ Migrazione messaggi fallita: '+e.message); }
+}
+
 function renderSettings(){
   const hasLogo=(S.config.logoBase64||S.config.logoData)?true:false;
   const supabasePaused=S.config.supabasePaused||false;
@@ -25838,6 +25922,8 @@ function renderSettings(){
         <button class="btn btn-secondary btn-sm" onclick="testSupabaseConnection()">🔌 Testa connessione</button>
         ${S.config.supabaseUrl?`<button class="btn btn-sm ${supabasePaused?'btn-primary':'btn-amber'}" onclick="toggleSupabaseSync()">${supabasePaused?'▶️ Riattiva':'⏸ Standby'}</button>`:''}
         ${S.config.supabaseUrl?`<button class="btn btn-secondary btn-sm" onclick="migrateSociToSupabase()">👥 Migra soci su Supabase</button>`:''}
+        ${S.config.supabaseUrl?`<button class="btn btn-secondary btn-sm" onclick="migrateOrdiniToSupabase()">📦 Migra ordini su Supabase</button>`:''}
+        ${S.config.supabaseUrl?`<button class="btn btn-secondary btn-sm" onclick="migrateMessaggiToSupabase()">💬 Migra messaggi su Supabase</button>`:''}
       </div>
       <details style="font-size:.78rem;color:var(--text-light);">
         <summary style="cursor:pointer;font-weight:700;color:var(--green-dark);">📋 Setup Supabase (prima volta)</summary>
