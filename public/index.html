@@ -25108,6 +25108,14 @@ function deleteRaccolta(id){
 
 // ════════════════════ ADMIN — ORDINI ════════════════════
 function renderOrdini(){
+  // Se c'è sessione OTP, aggiorna S.ordini da Supabase prima di renderizzare
+  loadOrdiniFromSupabase().then(loaded => {
+    if(loaded) _renderOrdiniTable();
+    else _renderOrdiniTable();
+  });
+}
+
+function _renderOrdiniTable(){
   const rows=S.ordini.slice().reverse().map(o=>{
     const racc=S.raccolte.find(r=>r.id===o.raccoltaId);
     return `<tr>
@@ -25958,6 +25966,87 @@ async function _syncMessaggioToSupabase(msg){
   }catch(e){ console.warn('Sync messaggio exception:', e.message); }
 }
 
+// ══ LETTURA DA SUPABASE (Step 3 Fase 3) ══
+
+// Legge gli ordini da Supabase e popola S.ordini.
+// Usa la sessione OTP (getAuthSb): RLS filtra automaticamente per ruolo
+// (admin vede tutto, socio vede solo i propri).
+// Ricostruisce i campi denormalizzati (socioNome, ecc.) da S.soci locale.
+// Restituisce true se la lettura è riuscita, false se non disponibile.
+async function loadOrdiniFromSupabase(){
+  const sb = getAuthSb();
+  if(!sb) return false;
+  let session;
+  try{ session = (await sb.auth.getSession()).data.session; }catch(e){}
+  if(!session) return false;
+  try{
+    const { data, error } = await sb.from('ordini')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if(error || !data) return false;
+    S.ordini = data.map(o => {
+      // Cerca il socio localmente per ricostruire i campi denormalizzati
+      const socio = (S.soci||[]).find(s => s.id === o.socio_id);
+      return {
+        id:              o.id,
+        socioId:         o.socio_id  || '',
+        socioNome:       socio ? (socio.nome||'') : (o.socio_id||''),
+        socioCognome:    socio ? (socio.cognome||'') : '',
+        socioCellulare:  socio ? (socio.cellulare||socio.telefono||'') : '',
+        socioTelegram:   socio ? (socio.telegram||'') : '',
+        raccoltaId:      o.raccolta_id || '',
+        items:           Array.isArray(o.items) ? o.items : [],
+        totale:          typeof o.totale === 'number' ? o.totale : 0,
+        stato:           o.stato || 'inviato',
+        nota:            o.nota  || null,
+        data:            o.created_at || new Date().toISOString()
+      };
+    });
+    return true;
+  }catch(e){ console.warn('loadOrdiniFromSupabase error:', e); return false; }
+}
+
+// Legge i messaggi da Supabase e popola S.messaggi.
+// Per il socio carica solo i propri (RLS li filtra).
+async function loadMessaggiFromSupabase(){
+  const sb = getAuthSb();
+  if(!sb) return false;
+  let session;
+  try{ session = (await sb.auth.getSession()).data.session; }catch(e){}
+  if(!session) return false;
+  try{
+    const { data, error } = await sb.from('messaggi')
+      .select('*')
+      .order('created_at', { ascending: true });
+    if(error || !data) return false;
+    // Costruisce mappa dbId→blobId per ricostruire socioId locale
+    const blobIdByDbId = {};
+    const dbIdByTessera = {};
+    let dbSoci = [];
+    try{ const r = await sb.from('soci').select('id,tessera'); dbSoci = r.data||[]; }catch(e){}
+    dbSoci.forEach(r => { dbIdByTessera[normTessera(r.tessera)] = r.id; });
+    (S.soci||[]).forEach(s => {
+      const dbId = dbIdByTessera[normTessera(s.tessera)];
+      if(dbId) blobIdByDbId[dbId] = s.id;
+    });
+    S.messaggi = data.map(m => {
+      const blobSocioId = blobIdByDbId[m.socio_id] || m.socio_id || '';
+      const socio = (S.soci||[]).find(s => s.id === blobSocioId);
+      return {
+        id:          'm'+m.id.replace(/-/g,'').slice(0,8),  // id compatibile blob
+        socioId:     blobSocioId,
+        socioNome:   socio ? (socio.nome||socio.tessera||'') : (m.socio_id||''),
+        da:          m.mittente === 'admin' ? 'admin' : 'socio',
+        testo:       m.testo || '',
+        data:        m.created_at || new Date().toISOString(),
+        lettoAdmin:  m.mittente === 'socio' ? (m.letto === true) : true,
+        lettoSocio:  m.mittente === 'admin' ? (m.letto === true) : true
+      };
+    });
+    return true;
+  }catch(e){ console.warn('loadMessaggiFromSupabase error:', e); return false; }
+}
+
 function renderSettings(){
   const hasLogo=(S.config.logoBase64||S.config.logoData)?true:false;
   const supabasePaused=S.config.supabasePaused||false;
@@ -26511,6 +26600,14 @@ function formatMsgTime(iso){
 // ── SOCIO: visualizza thread con admin ──
 function renderMessaggiSocio(){
   if(!currentUser||currentUser.type!=='socio') return;
+  // Aggiorna i messaggi da Supabase in background, poi ri-renderizza
+  loadMessaggiFromSupabase().then(loaded => {
+    if(loaded) _renderMessaggiSocioInner();
+  });
+  _renderMessaggiSocioInner();
+}
+function _renderMessaggiSocioInner(){
+  if(!currentUser||currentUser.type!=='socio') return;
   markReadSocio(currentUser.id);
   const msgs=getMsgsForSocio(currentUser.id);
   const el=document.getElementById('messaggi-socio-content');
@@ -26560,6 +26657,10 @@ function updateNewsBadge(){ /* rimossa sezione news */ }
 
 // ── ADMIN: lista conversazioni ──
 function renderAdminMsgList(){
+  // Legge i messaggi da Supabase se c'è sessione OTP, poi renderizza
+  loadMessaggiFromSupabase().then(() => _renderAdminMsgListInner());
+}
+function _renderAdminMsgListInner(){
   // Raggruppa per socio
   const soci_with_msgs={};
   (S.messaggi||[]).forEach(m=>{
