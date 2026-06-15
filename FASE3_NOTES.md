@@ -1,6 +1,6 @@
-# 📋 SGAS — Note Fase 3 (ripartenza)
+# 📋 SGAS — Note Fase 3
 
-> Ultimo aggiornamento: 14/06/2026
+> Ultimo aggiornamento: 15/06/2026
 
 ## ✅ Completato
 
@@ -9,50 +9,81 @@
 - `loadFromSupabase()` preserva i segreti da localStorage.
 - RLS `config` ristretta: l'anon key legge **solo** la riga `sgas_app_state`.
 - Password admin cambiata (`sgas2024` dismessa).
-
-### Pulizia database Supabase
-- Eliminate righe seed con segreti nella tabella `config`.
+- Eliminate righe seed con segreti dalla tabella `config` (admin_password, emailjs_*, telegram_token).
 - Eliminate tabelle inglesi duplicate: `members`, `orders`, `order_items`, `products`.
-- Eliminata `categoria` (singolare, vuota, nome sbagliato). La tabella ufficiale è `categorie` (plurale, nello schema; verrà creata applicando `schema.sql`).
+- Eliminata `categoria` (singolare, vuota, nome sbagliato). La tabella ufficiale è `categorie`.
 
-### Migrazione soci (Fase 3 — primo pezzo)
-- Aggiunto pulsante **👥 Migra soci su Supabase** nel pannello admin (sezione Supabase).
-- `migrateSociToSupabase()` mappa i campi camelCase del blob → snake_case del DB e abbina i soci esistenti per **tessera normalizzata** (riusa l'id già presente → nessun duplicato).
-- ✅ 4 soci ora presenti nella tabella `soci`; cognome Labanca corretto.
+### Migrazione soci (Fase 3 — Step 0)
+- `migrateSociToSupabase()` mappa camelCase del blob → snake_case del DB.
+- Abbina i soci esistenti per **tessera normalizzata** (`normTessera()`) → nessun duplicato.
+- ✅ 4 soci presenti nella tabella `soci`.
 - Admin registrati nella tabella `admins`.
 
+### Fase 3 — Step 1: Migrazione one-shot
+
+| Dato | Funzione | Stato |
+|------|----------|-------|
+| Soci | `migrateSociToSupabase()` | ✅ 4 soci migrati |
+| Ordini | `migrateOrdiniToSupabase()` | ✅ funzionante |
+| Messaggi | `migrateMessaggiToSupabase()` | ✅ funzionante (usa `_buildSocioIdMap`) |
+
+- `_buildSocioIdMap(sb)` risolve blobId → dbId via tessera normalizzata (evita FK violation su messaggi).
+- Colonne aggiunte al volo su DB vecchio: `ordini.created_at`, `ordini.stato`, `ordini.nota`, `messaggi.created_at`, `messaggi.letto`.
+
+### Fase 3 — Step 2: Doppio write (non-blocking)
+
+| Evento | Funzione sync | Stato |
+|--------|--------------|-------|
+| Nuovo ordine | `_syncOrderToSupabase(ord)` | ✅ |
+| Messaggio socio→admin | `_syncMessaggioToSupabase(msg)` | ✅ |
+| Messaggio admin→socio | `_syncMessaggioToSupabase(msg)` | ✅ |
+
+- Chiamate con `.catch(console.warn)` — non bloccano mai l'utente.
+- Il blob rimane sorgente di verità; Supabase riceve la copia in background.
+
+### Fase 3 — Step 3: Lettura da Supabase (multi-device)
+
+| Vista | Funzione load | Refactor render |
+|-------|--------------|----------------|
+| Ordini (admin) | `loadOrdiniFromSupabase()` | `renderOrdini()` → shell + `_renderOrdiniTable()` |
+| Messaggi (admin) | `loadMessaggiFromSupabase()` | `renderAdminMsgList()` → shell + `_renderAdminMsgListInner()` |
+| Messaggi (socio) | `loadMessaggiFromSupabase()` | `renderMessaggiSocio()` → mostra blob subito, aggiorna da DB |
+
+- Tutte e tre le viste testate ✅ su **desktop** e ✅ su **mobile** (multi-device verificato).
+- `loadOrdiniFromSupabase()` popola `S.ordini` → tutto il codice esistente continua a funzionare senza modifiche.
+
 ### Logo Telegram
-- Foto profilo 512×512 + welcome banner 640×360 generati e consegnati.
+- Foto profilo 512×512 (`/tmp/logo_sgas2.svg`) + welcome banner 640×360 (`/tmp/welcome_sgas.svg`) generati e consegnati.
 
-## ⚠️ DA FARE SUBITO (prima di tutto)
+---
 
-1. **Mergiare la PR #44** (branch `claude/review-sgas-freeconomy-GtDm6`) — contiene i commit non ancora in `main`:
-   - `d667640` security: restringi config_read alla sola chiave sgas_app_state
-   - `67f9edb` feat(fase3): pulsante migrazione soci su Supabase
-   - `d8434b0` fix(fase3): migrazione soci abbina per tessera normalizzata
-
-   Senza il merge, il pulsante migrazione **non è in produzione**.
-
-## 🎯 Prossimi step Fase 3 (in ordine)
+## 🎯 Prossimi step (in ordine di priorità)
 
 | # | Cosa | Note |
 |---|------|------|
-| 1 | **Ordini** → tabella `public.ordini` | RLS per-socio già nello schema; serve pulsante migrazione + far leggere/scrivere l'app dalla tabella invece che dal blob |
-| 2 | **Messaggi** → tabella `public.messaggi` | RLS `socio_id` del socio o admin |
-| 3 | **Prenotazioni** → tabella `public.prenotazioni` | create dall'admin |
-| 4 | **Anagrafica soci nel blob** | ⚠️ ancora leggibile pubblicamente in `sgas_app_state`: va rimossa dal blob una volta che l'app legge i soci dalla tabella `soci` |
+| 1 | **Rimuovere anagrafica soci dal blob** | `sgas_app_state` contiene ancora nome/cognome/cellulare/telegram — leggibili via anon key. Rimuovere una volta che l'app legge i soci dalla tabella `soci` |
+| 2 | **Prenotazioni** → tabella `public.prenotazioni` | Migrare `S.prenotazioni` / `S.ordiniPrenotazione`; stesso pattern ordini/messaggi |
+| 3 | **Sync eliminazione ordini** | `eliminaOrdine()` rimuove solo dal blob; aggiungere DELETE su Supabase |
+| 4 | **Moiraghi (SGAS-00015)** | `user_id = NULL` — non ha ancora fatto login OTP. Quando lo farà, aggiungere a `admins` |
+| 5 | **Fix socio_id in ordini** | Attualmente salva il blobId (`smq...`); idealmente usare il DB id per JOIN corretti |
+
+---
 
 ## 🔑 Promemoria tecnici
 
-- Le scritture su tabelle con RLS richiedono **sessione OTP attiva + `user_id` in `admins`** → usare il client `getAuthSb()`, non `getSupabase()`.
-- Tessere in formati misti (`SGAS 0016` / `SGAS-00016`) → usare sempre `normTessera()` (esiste lato client in `public/index.html` e nelle Netlify Functions `auth-request-code.js` / `auth-verify-code.js`).
-- Moiraghi (SGAS-00015) non ha ancora fatto login → `user_id` NULL, non ancora admin attivo. Farà login OTP → `user_id` si popola da solo, poi va aggiunto a `admins`.
-- Gli id soci nel DB avevano casing misto (`s0001` / `S0015`); la migrazione li gestisce via tessera normalizzata.
+- Scritture su tabelle con RLS → usare `getAuthSb()` (sessione OTP), mai `getSupabase()` (anon).
+- `normTessera(s)` → strip spazi/trattini/zeri iniziali, uppercase. Es: `'SGAS 0016'` → `'SGAS16'`. Usarla sempre per matching.
+- `_buildSocioIdMap(sb)` → risolve blobId → DB uuid via tessera (necessario per FK messaggi/ordini).
+- Tessere miste: `SGAS 0016` / `SGAS-00016` / `s0016` — gestite tutte da `normTessera()`.
+- Doppio write: non-blocking, failure → solo `console.warn`.
 
 ## 🗂 Riferimenti rapidi
 
 - App: `public/index.html` (single-page, ~27k righe)
-  - `migrateSociToSupabase()` + `normTessera()` — nuove funzioni Fase 3
+  - `normTessera()`, `_buildSocioIdMap()`
+  - `migrateSociToSupabase()`, `migrateOrdiniToSupabase()`, `migrateMessaggiToSupabase()`
+  - `_syncOrderToSupabase()`, `_syncMessaggioToSupabase()`
+  - `loadOrdiniFromSupabase()`, `loadMessaggiFromSupabase()`
   - `syncToSupabase()` / `loadFromSupabase()` — sync blob ↔ `config`
   - `getAuthSb()` — client Supabase con sessione OTP (per scritture RLS)
 - Schema DB: `supabase/schema.sql`
