@@ -21958,6 +21958,9 @@ function syncToSupabase(){
         delete payloadObj.config.supabaseUrl;
         delete payloadObj.config.supabaseKey;
       }
+      // Anagrafica soci: vive solo nella tabella `soci` (RLS), non va mai
+      // pubblicata nel blob `config` (lettura pubblica via anon key).
+      delete payloadObj.soci;
       // Rimuovi immagini base64 da fornitori e prodotti per ridurre il payload
       if(Array.isArray(payloadObj.fornitori)){
         payloadObj.fornitori = payloadObj.fornitori.map(f=>{
@@ -22014,6 +22017,9 @@ async function loadFromSupabase(){
     if(_prevConf.adminEmail3)    S.config.adminEmail3    = _prevConf.adminEmail3;
     // Ripristina immagini fornitori/prodotti da localStorage (non sincronizzate su Supabase)
     const _prevState=(()=>{try{return JSON.parse(localStorage.getItem('sgas_state')||'{}')}catch(e){return {};}})();
+    // L'anagrafica soci non è più nel blob remoto: ripristina quella locale
+    // (verrà comunque aggiornata da loadSociFromSupabase() quando disponibile una sessione OTP).
+    S.soci = Array.isArray(_prevState.soci) ? _prevState.soci : (S.soci || DEFAULT_SOCI);
     if(Array.isArray(_prevState.fornitori) && Array.isArray(S.fornitori)){
       const _imgMap={};
       _prevState.fornitori.forEach(f=>{if(f.id&&(f.logo||f.banner)) _imgMap[f.id]={logo:f.logo||null,banner:f.banner||null};});
@@ -22618,48 +22624,47 @@ function recStep(step, data){
   if(first) setTimeout(()=>first.focus(),60);
 }
 
-function recVerifyStep1(){
+async function _recVerify(step, data){
+  try{
+    const res=await fetch('/.netlify/functions/auth-recover-tessera',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({step, tessera:data.tessera, cellulare:data.cellulare, nome:data.nome})
+    });
+    return await res.json();
+  }catch(e){ return {ok:false, error:'Connessione non riuscita'}; }
+}
+
+async function recVerifyStep1(){
   const tess=(document.getElementById('rec-step1').value||'').trim().toUpperCase();
   if(!tess){document.getElementById('rec-err').innerHTML='<div class="alert alert-info">Inserisci il numero tessera.</div>';return;}
-  const found=S.soci.find(s=>s.tessera.toUpperCase()===tess);
-  if(!found){
-    document.getElementById('rec-err').innerHTML='<div class="alert alert-info">❌ Tessera non trovata. Verifica il numero o contatta l\'admin.</div>';
+  const r=await _recVerify(1,{tessera:tess});
+  if(!r.ok){
+    document.getElementById('rec-err').innerHTML='<div class="alert alert-info">❌ '+escHtml(r.error||'Tessera non trovata.')+'</div>';
     return;
   }
   recStep(2,{tessera:tess});
 }
 
-function recVerifyStep2(){
+async function recVerifyStep2(){
   const data=_recData;
   const tel=(document.getElementById('rec-step2').value||'').trim().replace(/\s/g,'');
   if(!tel){document.getElementById('rec-err').innerHTML='<div class="alert alert-info">Inserisci il numero di cellulare.</div>';return;}
-  const tel_norm2=tel.replace(/[\s\-]/g,'');
-  const found=S.soci.find(s=>{
-    const stored=(s.cellulare||s.telefono||'').replace(/[\s\-]/g,'');
-    return s.tessera.toUpperCase()===data.tessera && stored===tel_norm2;
-  });
-  if(!found){
-    document.getElementById('rec-err').innerHTML='<div class="alert alert-info">❌ Numero di cellulare non corrispondente.</div>';
+  const r=await _recVerify(2,{tessera:data.tessera, cellulare:tel});
+  if(!r.ok){
+    document.getElementById('rec-err').innerHTML='<div class="alert alert-info">❌ '+escHtml(r.error||'Numero non corrispondente.')+'</div>';
     return;
   }
   recStep(3,{tessera:data.tessera, telefono:tel});
 }
 
-function recVerifyStep3(){
+async function recVerifyStep3(){
   const data=_recData;
   const nome=(document.getElementById('rec-step3').value||'').trim().toLowerCase();
   if(!nome){document.getElementById('rec-err').innerHTML='<div class="alert alert-info">Inserisci nome e cognome.</div>';return;}
   const tel3=(data.telefono||data.cellulare||'').replace(/[\s\-]/g,'');
-  const found=S.soci.find(s=>{
-    const stored3=(s.cellulare||s.telefono||'').replace(/[\s\-]/g,'');
-    const nomeCompleto=((s.nome||'')+' '+(s.cognome||'')).trim().toLowerCase();
-    const soloNome=(s.nome||'').toLowerCase();
-    return s.tessera.toUpperCase()===data.tessera &&
-      stored3===tel3 &&
-      (soloNome===nome || nomeCompleto===nome);
-  });
-  if(!found){
-    document.getElementById('rec-err').innerHTML='<div class="alert alert-info">❌ Nome e cognome non corrispondenti.</div>';
+  const r=await _recVerify(3,{tessera:data.tessera, cellulare:tel3, nome});
+  if(!r.ok){
+    document.getElementById('rec-err').innerHTML='<div class="alert alert-info">❌ '+escHtml(r.error||'Nome e cognome non corrispondenti.')+'</div>';
     return;
   }
   // All 3 checks passed — show credentials
@@ -22674,15 +22679,15 @@ function recVerifyStep3(){
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:center;">'
     +'<div>'
     +'<div style="font-size:.72rem;font-weight:700;color:var(--text-light);text-transform:uppercase;margin-bottom:4px;">Tessera</div>'
-    +'<div style="font-family:\'DM Serif Display\',serif;font-size:1.5rem;color:var(--green);font-weight:800;">'+escHtml(found.tessera)+'</div>'
+    +'<div style="font-family:\'DM Serif Display\',serif;font-size:1.5rem;color:var(--green);font-weight:800;">'+escHtml(r.tessera)+'</div>'
     +'</div>'
     +'<div>'
     +'<div style="font-size:.72rem;font-weight:700;color:var(--text-light);text-transform:uppercase;margin-bottom:4px;">Cellulare</div>'
-    +'<div style="font-family:\'DM Serif Display\',serif;font-size:1.5rem;color:var(--green);font-weight:800;">'+escHtml(found.cellulare||found.telefono||'—')+'</div>'
+    +'<div style="font-family:\'DM Serif Display\',serif;font-size:1.5rem;color:var(--green);font-weight:800;">'+escHtml(r.cellulare||'—')+'</div>'
     +'</div>'
     +'</div>'
     +'</div>'
-    +'<button class="btn btn-primary btn-block" onclick="prefillLogin(\''+found.tessera+'\',\''+(found.cellulare||found.telefono||'')+'\')">↩ Accedi ora</button>'
+    +'<button class="btn btn-primary btn-block" onclick="prefillLogin(\''+r.tessera+'\',\''+(r.cellulare||'')+'\')">↩ Accedi ora</button>'
     +'<div style="text-align:center;margin-top:12px;">'
     +'<button onclick="showLoginView()" style="background:none;border:none;color:var(--text-light);font-size:.8rem;cursor:pointer;">← Torna al login</button>'
     +'</div>';
@@ -22860,6 +22865,26 @@ function getAuthSb(){
 
 let _otpTessera = '';
 
+// Converte una riga snake_case della tabella `soci` nel formato camelCase usato dall'app.
+function _socioRowToBlob(row){
+  return {
+    id: row.id, tessera: row.tessera||'', nome: row.nome||'', cognome: row.cognome||'',
+    cellulare: row.cellulare||'', telefono: row.cellulare||'',
+    telegram: row.telegram||'', telegramChatId: row.telegram_chat_id||'',
+    emissione: '', scadenza: ''
+  };
+}
+
+// Recupera dalla tabella Supabase la riga del socio loggato (RLS: solo la propria).
+async function _fetchOwnSocioFromSupabase(sb){
+  if(!sb) return null;
+  try{
+    const { data, error } = await sb.from('soci').select('*').limit(1);
+    if(error || !Array.isArray(data) || !data[0]) return null;
+    return _socioRowToBlob(data[0]);
+  }catch(e){ console.warn('_fetchOwnSocioFromSupabase error:',e); return null; }
+}
+
 // Passo 1: richiedi il codice OTP (inviato sul Telegram del socio)
 async function socioRequestCode(){
   const tess=document.getElementById('l-tessera').value.trim().toUpperCase();
@@ -22906,10 +22931,9 @@ async function socioVerifyCode(){
         if(error) console.warn('verifyOtp:',error.message);
       }catch(e){ console.warn('verifyOtp ex:',e); }
     }
-    // Completa il login: l'app continua a usare i dati locali finché non
-    // migriamo le query a Supabase (Fase 3).
-    const socio=(S.soci||[]).find(s=>(s.tessera||'').toUpperCase()===_otpTessera);
-    if(!socio){toast('❌ Socio non trovato nei dati locali');return;}
+    // Carica i dati del socio dalla tabella Supabase (RLS: vede solo la propria riga).
+    const socio = await _fetchOwnSocioFromSupabase(sb) || (S.soci||[]).find(s=>(s.tessera||'').toUpperCase()===_otpTessera);
+    if(!socio){toast('❌ Socio non trovato');return;}
     socioResetLogin();
     _enterSocio(socio);
   }catch(e){toast('❌ Connessione non riuscita');}
@@ -24292,6 +24316,10 @@ function isTesseraUsata(tess, excludeId){
 }
 
 function renderSoci(){
+  loadSociFromSupabase().then(()=>_renderSociTable());
+  _renderSociTable();
+}
+function _renderSociTable(){
   const rows=S.soci.map(s=>`<tr>
     <td><strong>${escHtml(s.tessera)}</strong></td>
     <td>${escHtml(s.nome||'—')} ${escHtml(s.cognome||'')}</td>
@@ -24361,13 +24389,16 @@ function saveSocio(editId){
   const sca=document.getElementById('m-sca').value;
   if(!tess||!tel){toast('Tessera e cellulare obbligatori');return;}
   if(isTesseraUsata(tess, editId||null)){toast('❌ Numero tessera già in uso!');return;}
+  let saved;
   if(editId){
-    const s=S.soci.find(x=>x.id===editId);
-    if(s){s.tessera=tess;s.nome=nome;s.cognome=cognome;s.cellulare=tel;s.telefono=tel;s.telegram=telegram;s.telegramChatId=telegramChatId;s.emissione=emi;s.scadenza=sca;}
+    saved=S.soci.find(x=>x.id===editId);
+    if(saved){saved.tessera=tess;saved.nome=nome;saved.cognome=cognome;saved.cellulare=tel;saved.telefono=tel;saved.telegram=telegram;saved.telegramChatId=telegramChatId;saved.emissione=emi;saved.scadenza=sca;}
   } else {
-    S.soci.push({id:'s'+uid(),tessera:tess,nome,cognome,cellulare:tel,telefono:tel,telegram,telegramChatId,emissione:emi,scadenza:sca});
+    saved={id:'s'+uid(),tessera:tess,nome,cognome,cellulare:tel,telefono:tel,telegram,telegramChatId,emissione:emi,scadenza:sca};
+    S.soci.push(saved);
   }
   saveState(); closeModal(); renderSoci(); toast('✅ Socio salvato');
+  if(saved) _syncSocioToSupabase(saved).catch(e=>console.warn('Sync socio a Supabase fallito:', e));
 }
 
 function deleteSocio(id){
@@ -24375,6 +24406,7 @@ function deleteSocio(id){
   if(!confirm('Eliminare questo socio?')) return;
   S.soci=S.soci.filter(s=>s.id!==id);
   saveState(); renderSoci(); toast('Socio eliminato');
+  _deleteSocioFromSupabase(id).catch(e=>console.warn('Eliminazione socio su Supabase fallita:', e));
 }
 
 function showTesseraDigitale(id){
@@ -25966,7 +25998,52 @@ async function _syncMessaggioToSupabase(msg){
   }catch(e){ console.warn('Sync messaggio exception:', e.message); }
 }
 
+// Scrive un socio creato/modificato dall'admin su Supabase (upsert su id).
+async function _syncSocioToSupabase(socio){
+  const sb = getAuthSb();
+  if(!sb) return;
+  try{
+    const { error } = await sb.from('soci').upsert([{
+      id:               socio.id,
+      tessera:          socio.tessera || '',
+      nome:             socio.nome || '',
+      cognome:          socio.cognome || '',
+      cellulare:        socio.cellulare || socio.telefono || '',
+      telegram:         socio.telegram || '',
+      telegram_chat_id: (socio.telegramChatId || '').trim() || null
+    }], { onConflict:'id' });
+    if(error) console.warn('Sync socio fallito:', error.message);
+  }catch(e){ console.warn('Sync socio exception:', e.message); }
+}
+
+// Elimina un socio da Supabase quando viene eliminato dall'admin.
+async function _deleteSocioFromSupabase(id){
+  const sb = getAuthSb();
+  if(!sb) return;
+  try{
+    const { error } = await sb.from('soci').delete().eq('id', id);
+    if(error) console.warn('Eliminazione socio fallita:', error.message);
+  }catch(e){ console.warn('Eliminazione socio exception:', e.message); }
+}
+
 // ══ LETTURA DA SUPABASE (Step 3 Fase 3) ══
+
+// Legge l'anagrafica soci da Supabase e popola S.soci (in memoria, mai
+// persistita nel blob pubblico). RLS: il socio vede solo la propria riga,
+// l'admin le vede tutte.
+async function loadSociFromSupabase(){
+  const sb = getAuthSb();
+  if(!sb) return false;
+  let session;
+  try{ session = (await sb.auth.getSession()).data.session; }catch(e){}
+  if(!session) return false;
+  try{
+    const { data, error } = await sb.from('soci').select('*').order('tessera');
+    if(error || !data || !data.length) return false;
+    S.soci = data.map(_socioRowToBlob);
+    return true;
+  }catch(e){ console.warn('loadSociFromSupabase error:', e); return false; }
+}
 
 // Legge gli ordini da Supabase e popola S.ordini.
 // Usa la sessione OTP (getAuthSb): RLS filtra automaticamente per ruolo
@@ -25979,6 +26056,7 @@ async function loadOrdiniFromSupabase(){
   let session;
   try{ session = (await sb.auth.getSession()).data.session; }catch(e){}
   if(!session) return false;
+  await loadSociFromSupabase();
   try{
     const { data, error } = await sb.from('ordini')
       .select('*')
@@ -26014,6 +26092,7 @@ async function loadMessaggiFromSupabase(){
   let session;
   try{ session = (await sb.auth.getSession()).data.session; }catch(e){}
   if(!session) return false;
+  await loadSociFromSupabase();
   try{
     const { data, error } = await sb.from('messaggi')
       .select('*')
@@ -26383,7 +26462,8 @@ function esportaAppNetlify(){
   const newVer = String(parseInt(curVer||'3',10)+1);
   const stateToEmbed = {
     config:    {...S.config, setupDone:true},
-    soci:      S.soci      || [],
+    // Anagrafica soci NON incorporata: vive solo nella tabella Supabase `soci`
+    // (RLS), non deve mai finire in un file servito pubblicamente.
     fornitori: S.fornitori || [],
     prodotti:  S.prodotti  || [],
     categorie: S.categorie || [],
@@ -26420,7 +26500,6 @@ try{
       _cur.fornitori=_emb.fornitori;
       _cur.prodotti=_emb.prodotti;
       _cur.categorie=_emb.categorie;
-      if(!_cur.soci||!_cur.soci.length) _cur.soci=_emb.soci||[];
       if(!_cur.raccolte) _cur.raccolte=_emb.raccolte||[];
       if(!_cur.ordini)   _cur.ordini=_emb.ordini||[];
       if(!_cur.messaggi) _cur.messaggi=_emb.messaggi||[];

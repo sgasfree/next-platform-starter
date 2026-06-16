@@ -57,15 +57,26 @@
 
 ---
 
+### Fase 3 — Rimozione anagrafica soci dal blob pubblico (16/06/2026)
+
+- `syncToSupabase()` non include più `S.soci` nel payload scritto su `config` (`sgas_app_state`).
+- `loadFromSupabase()` ripristina `S.soci` da localStorage (il remoto non lo contiene più).
+- `esportaAppNetlify()` (vecchio export manuale per Netlify) non incorpora più `S.soci` nel file HTML scaricato.
+- **Flusso "Recupera credenziali"** (`recVerifyStep1/2/3`) non fa più matching client-side su `S.soci`: usa la nuova Netlify Function `auth-recover-tessera.js` (service-role key, nessun elenco soci esposto al client).
+- **Login OTP socio** (`socioVerifyCode`): dopo `verifyOtp`, carica la propria riga da Supabase (`_fetchOwnSocioFromSupabase`, RLS self-select) invece che dal blob; fallback al locale se non disponibile.
+- **Admin "Gestione Soci"**: `renderSoci()` ricarica l'elenco completo da Supabase (`loadSociFromSupabase()`, RLS admin-all) prima di renderizzare la tabella.
+- **Doppio write soci**: `saveSocio()` / `deleteSocio()` propagano su Supabase (`_syncSocioToSupabase`, `_deleteSocioFromSupabase`) — i nuovi soci creati da admin sono salvati con lo stesso id sia in locale che su Supabase.
+- `loadOrdiniFromSupabase()` / `loadMessaggiFromSupabase()` richiamano `loadSociFromSupabase()` prima di costruire i campi denormalizzati (nomi soci in ordini/messaggi), così restano corretti senza il blob.
+- ⚠️ Non testato in produzione: verificare login OTP, "Gestione Soci" (crea/modifica/elimina) e "Recupera credenziali" da browser reale dopo il merge.
+
 ## 🎯 Prossimi step (in ordine di priorità)
 
 | # | Cosa | Note |
 |---|------|------|
-| 1 | **Rimuovere anagrafica soci dal blob** | `sgas_app_state` contiene ancora nome/cognome/cellulare/telegram — leggibili via anon key. Rimuovere una volta che l'app legge i soci dalla tabella `soci` |
-| 2 | **Prenotazioni** → tabella `public.prenotazioni` | Migrare `S.prenotazioni` / `S.ordiniPrenotazione`; stesso pattern ordini/messaggi |
-| 3 | **Sync eliminazione ordini** | `eliminaOrdine()` rimuove solo dal blob; aggiungere DELETE su Supabase |
-| 4 | **Moiraghi (SGAS-00015)** | `user_id = NULL` — non ha ancora fatto login OTP. Quando lo farà, aggiungere a `admins` |
-| 5 | **Fix socio_id in ordini** | Attualmente salva il blobId (`smq...`); idealmente usare il DB id per JOIN corretti |
+| 1 | **Prenotazioni** → tabella `public.prenotazioni` | Migrare `S.prenotazioni` / `S.ordiniPrenotazione`; stesso pattern ordini/messaggi |
+| 2 | **Sync eliminazione ordini** | `eliminaOrdine()` rimuove solo dal blob; aggiungere DELETE su Supabase |
+| 3 | **Moiraghi (SGAS-00015)** | `user_id = NULL` — non ha ancora fatto login OTP. Quando lo farà, aggiungere a `admins` |
+| 4 | **Fix socio_id in ordini** | Attualmente salva il blobId (`smq...`); idealmente usare il DB id per JOIN corretti |
 
 ---
 
