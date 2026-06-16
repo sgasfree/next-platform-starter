@@ -38,7 +38,7 @@ export const handler = async (event) => {
   const nome      = String(body.nome || '').trim().toLowerCase();
   if (!tessera || ![1, 2, 3].includes(step)) return json(400, { ok: false, error: 'Richiesta non valida' });
 
-  const res = await sbFetch(SUPA_URL, SUPA_KEY, `/rest/v1/soci?select=tessera,cellulare,telefono,nome,cognome`);
+  const res = await sbFetch(SUPA_URL, SUPA_KEY, `/rest/v1/soci?select=tessera,cellulare,nome,cognome`);
   const soci = await res.json();
   if (!Array.isArray(soci)) return json(500, { ok: false, error: 'Errore di lettura soci' });
 
@@ -46,7 +46,7 @@ export const handler = async (event) => {
   if (!socio) return json(404, { ok: false, error: 'Tessera non trovata. Verifica il numero o contatta l\'admin.' });
 
   if (step >= 2) {
-    const stored = normTel(socio.cellulare || socio.telefono || '');
+    const stored = normTel(socio.cellulare || '');
     if (!cellulare || stored !== cellulare)
       return json(404, { ok: false, error: 'Numero di cellulare non corrispondente.' });
   }
@@ -61,6 +61,6 @@ export const handler = async (event) => {
   return json(200, {
     ok: true,
     tessera: socio.tessera,
-    cellulare: socio.cellulare || socio.telefono || ''
+    cellulare: socio.cellulare || ''
   });
 };
