@@ -136,19 +136,35 @@ create table if not exists public.messaggi (
 );
 create index if not exists messaggi_socio_idx on public.messaggi (socio_id, created_at);
 
--- ── Prenotazioni (per-socio) ─────────────────────────────────────────────────
-create table if not exists public.prenotazioni (
-  id           text primary key,
-  socio_id     text references public.soci(id) on delete cascade,
-  fornitore_id text references public.fornitori(id) on delete set null,
-  titolo       text,
-  items        jsonb default '[]'::jsonb,
-  data_consegna date,
+-- ── Prenotazioni: campagne (gestite dall'admin, lettura pubblica come il
+-- catalogo) + ordini dei soci contro una campagna ────────────────────────────
+-- NB: questa tabella aveva in precedenza una forma diversa (un record per
+-- ordine-socio). Viene ricreata per riflettere il modello reale dell'app:
+-- una campagna (riga in `prenotazioni`) + N ordini dei soci (righe in
+-- `ordini_prenotazione`). La tabella precedente non era ancora usata da
+-- nessuna funzione di sync, quindi il drop è sicuro.
+drop table if exists public.prenotazioni cascade;
+create table public.prenotazioni (
+  id            text primary key,
+  fornitore_id  text references public.fornitori(id) on delete set null,
+  titolo        text not null,
+  items         jsonb not null default '[]'::jsonb,   -- [{nome,prezzo,qtyMin}]
+  data_consegna text,
   nota_consegna text,
-  stato        text default 'richiesta',
-  created_at   timestamptz not null default now()
+  aperta        boolean not null default true,
+  created_at    timestamptz not null default now()
 );
-create index if not exists prenotazioni_socio_idx on public.prenotazioni (socio_id);
+
+create table if not exists public.ordini_prenotazione (
+  id              text primary key,
+  prenotazione_id text references public.prenotazioni(id) on delete cascade,
+  socio_id        text references public.soci(id) on delete cascade,
+  items           jsonb not null default '[]'::jsonb,  -- [{nome,qty,prezzo}]
+  totale          numeric default 0,
+  created_at      timestamptz not null default now()
+);
+create index if not exists ordini_prenotazione_socio_idx on public.ordini_prenotazione (socio_id);
+create index if not exists ordini_prenotazione_pren_idx  on public.ordini_prenotazione (prenotazione_id);
 
 -- ── Config / KV applicativa (impostazioni GAS, ecc.) ─────────────────────────
 create table if not exists public.config (
@@ -182,6 +198,7 @@ alter table public.raccolte      enable row level security;
 alter table public.ordini        enable row level security;
 alter table public.messaggi      enable row level security;
 alter table public.prenotazioni  enable row level security;
+alter table public.ordini_prenotazione enable row level security;
 alter table public.config        enable row level security;
 
 -- Nota: otp_codes NON ha policy → solo service_role (le Netlify Functions) vi
@@ -210,7 +227,7 @@ create policy soci_admin_all on public.soci
 do $$
 declare t text;
 begin
-  foreach t in array array['categorie','fornitori','prodotti','raccolte'] loop
+  foreach t in array array['categorie','fornitori','prodotti','raccolte','prenotazioni'] loop
     execute format('drop policy if exists %I_read on public.%I', t, t);
     execute format('create policy %I_read on public.%I for select using (true)', t, t);
     execute format('drop policy if exists %I_admin on public.%I', t, t);
@@ -244,9 +261,9 @@ create policy messaggi_socio on public.messaggi
     or socio_id in (select id from public.soci where user_id = auth.uid())
   );
 
--- prenotazioni: il socio gestisce le proprie; admin tutto
-drop policy if exists prenotazioni_socio on public.prenotazioni;
-create policy prenotazioni_socio on public.prenotazioni
+-- ordini_prenotazione: il socio gestisce i propri; admin tutto
+drop policy if exists ordini_prenotazione_socio on public.ordini_prenotazione;
+create policy ordini_prenotazione_socio on public.ordini_prenotazione
   for all
   using (
     public.is_admin()
@@ -276,4 +293,5 @@ do $$
 begin
   begin execute 'alter publication supabase_realtime add table public.ordini';   exception when others then null; end;
   begin execute 'alter publication supabase_realtime add table public.messaggi';  exception when others then null; end;
+  begin execute 'alter publication supabase_realtime add table public.ordini_prenotazione'; exception when others then null; end;
 end $$;
