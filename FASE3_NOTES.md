@@ -69,14 +69,21 @@
 - `loadOrdiniFromSupabase()` / `loadMessaggiFromSupabase()` richiamano `loadSociFromSupabase()` prima di costruire i campi denormalizzati (nomi soci in ordini/messaggi), così restano corretti senza il blob.
 - ⚠️ Non testato in produzione: verificare login OTP, "Gestione Soci" (crea/modifica/elimina) e "Recupera credenziali" da browser reale dopo il merge.
 
+### Fase 3 — Prenotazioni su Supabase + sync eliminazione ordini (16/06/2026)
+
+- Schema: `public.prenotazioni` ridisegnata come tabella "campagna" (admin-managed, lettura pubblica come il catalogo: `fornitore_id, titolo, items, data_consegna, nota_consegna, aperta`). Nuova tabella `public.ordini_prenotazione` per gli ordini dei soci contro una campagna (`prenotazione_id, socio_id, items, totale`), RLS: socio vede/scrive solo i propri, admin tutto.
+- `migratePrenotazioniToSupabase()`: migrazione one-shot di `S.prenotazioni` → `prenotazioni` e `S.ordiniPrenotazione` → `ordini_prenotazione` (bottone in Settings).
+- Doppio write: `_syncPrenotazioneToSupabase()` / `_deletePrenotazioneFromSupabase()` (admin: salva/toggle/elimina campagna), `_syncOrdinePrenotazioneToSupabase()` / `_deleteOrdinePrenotazioneFromSupabase()` (socio: invia/cancella prenotazione).
+- Lettura: `loadPrenotazioniFromSupabase()` popola `S.prenotazioni`/`S.ordiniPrenotazione`; `renderPrenotazioni()` (admin) e `renderPrenotazioniSocio()` (socio) refactorate nel pattern shell + inner (mostrano subito i dati locali, poi aggiornano da Supabase).
+- `eliminaOrdine()` ora propaga anche il DELETE su Supabase (`_deleteOrdineFromSupabase()`), non solo sul blob.
+- ⚠️ Lo schema SQL va ri-eseguito su Supabase (drop/recreate di `prenotazioni`, che non era ancora usata da nessuna funzione di sync — drop sicuro). Non testato in produzione: verificare migrazione, creazione campagna, prenotazione socio, e eliminazione ordine da browser reale dopo il merge.
+
 ## 🎯 Prossimi step (in ordine di priorità)
 
 | # | Cosa | Note |
 |---|------|------|
-| 1 | **Prenotazioni** → tabella `public.prenotazioni` | Migrare `S.prenotazioni` / `S.ordiniPrenotazione`; stesso pattern ordini/messaggi |
-| 2 | **Sync eliminazione ordini** | `eliminaOrdine()` rimuove solo dal blob; aggiungere DELETE su Supabase |
-| 3 | **Moiraghi (SGAS-00015)** | `user_id = NULL` — non ha ancora fatto login OTP. Quando lo farà, aggiungere a `admins` |
-| 4 | **Fix socio_id in ordini** | Attualmente salva il blobId (`smq...`); idealmente usare il DB id per JOIN corretti |
+| 1 | **Moiraghi (SGAS-00015)** | `user_id = NULL` — non ha ancora fatto login OTP. Quando lo farà, aggiungere a `admins` |
+| 2 | **Fix socio_id in ordini** | Attualmente salva il blobId (`smq...`); idealmente usare il DB id per JOIN corretti |
 
 ---
 
