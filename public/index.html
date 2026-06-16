@@ -22875,11 +22875,15 @@ function _socioRowToBlob(row){
   };
 }
 
-// Recupera dalla tabella Supabase la riga del socio loggato (RLS: solo la propria).
-async function _fetchOwnSocioFromSupabase(sb){
-  if(!sb) return null;
+// Recupera dalla tabella Supabase la riga del socio loggato, filtrando per
+// l'id restituito da auth-verify-code.js. Necessario perché la RLS
+// soci_self_select lascia passare TUTTE le righe quando il socio è anche
+// admin (is_admin()=true): senza filtro esplicito, .limit(1) prenderebbe
+// una riga arbitraria invece della propria.
+async function _fetchOwnSocioFromSupabase(sb, socioId){
+  if(!sb || !socioId) return null;
   try{
-    const { data, error } = await sb.from('soci').select('*').limit(1);
+    const { data, error } = await sb.from('soci').select('*').eq('id', socioId).limit(1);
     if(error || !Array.isArray(data) || !data[0]) return null;
     return _socioRowToBlob(data[0]);
   }catch(e){ console.warn('_fetchOwnSocioFromSupabase error:',e); return null; }
@@ -22931,8 +22935,10 @@ async function socioVerifyCode(){
         if(error) console.warn('verifyOtp:',error.message);
       }catch(e){ console.warn('verifyOtp ex:',e); }
     }
-    // Carica i dati del socio dalla tabella Supabase (RLS: vede solo la propria riga).
-    const socio = await _fetchOwnSocioFromSupabase(sb) || (S.soci||[]).find(s=>(s.tessera||'').toUpperCase()===_otpTessera);
+    // Carica i dati del socio dalla tabella Supabase, filtrando per l'id
+    // restituito dal server (evita di prendere una riga arbitraria quando
+    // il socio è anche admin, vedi _fetchOwnSocioFromSupabase).
+    const socio = await _fetchOwnSocioFromSupabase(sb, data.socioId) || (S.soci||[]).find(s=>(s.tessera||'').toUpperCase()===_otpTessera);
     if(!socio){toast('❌ Socio non trovato');return;}
     socioResetLogin();
     _enterSocio(socio);
@@ -25994,6 +26000,21 @@ async function migratePrenotazioniToSupabase(){
 
 // ══ DOPPIO WRITE: Sync real-time a Supabase ══
 
+// Avviso visibile quando una scrittura/eliminazione su Supabase fallisce per
+// mancanza di permessi (tipicamente: l'admin non ha fatto login OTP, quindi
+// non ha una sessione Supabase Auth e la RLS rifiuta l'operazione). Senza
+// questo avviso l'azione sembra riuscita (il blob locale è aggiornato) ma il
+// dato non viene salvato su Supabase: un load successivo da un'altra sessione
+// lo sovrascrive, facendolo sembrare "perso" anche in locale.
+function _warnSyncFail(label, err){
+  const msg = (err && err.message) || String(err || '');
+  if(/row-level security|permission|policy|JWT/i.test(msg)){
+    toast('🔒 '+label+': non salvato su Supabase — fai login OTP come admin (tessera admin)');
+  } else if(msg){
+    console.warn(label+':', msg);
+  }
+}
+
 // Helper: costruisce la mappa blobId→dbId leggendo soci dal DB e dal blob locale.
 // Usa la tessera normalizzata come chiave di join.
 async function _buildSocioIdMap(sb){
@@ -26028,8 +26049,8 @@ async function _syncOrderToSupabase(ord){
   };
   try{
     const { error } = await sb.from('ordini').upsert([row], { onConflict:'id' });
-    if(error) console.warn('Sync ordine fallito:', error.message);
-  }catch(e){ console.warn('Sync ordine exception:', e.message); }
+    if(error) _warnSyncFail('Sync ordine', error);
+  }catch(e){ _warnSyncFail('Sync ordine', e); }
 }
 
 // Elimina un ordine da Supabase quando viene eliminato dall'admin.
@@ -26038,8 +26059,8 @@ async function _deleteOrdineFromSupabase(id){
   if(!sb) return;
   try{
     const { error } = await sb.from('ordini').delete().eq('id', id);
-    if(error) console.warn('Eliminazione ordine fallita:', error.message);
-  }catch(e){ console.warn('Eliminazione ordine exception:', e.message); }
+    if(error) _warnSyncFail('Eliminazione ordine', error);
+  }catch(e){ _warnSyncFail('Eliminazione ordine', e); }
 }
 
 // Scrive un singolo messaggio su Supabase (insert, non upsert: gli id sono uuid autogenerati).
@@ -26056,8 +26077,8 @@ async function _syncMessaggioToSupabase(msg){
   };
   try{
     const { error } = await sb.from('messaggi').insert([row]);
-    if(error) console.warn('Sync messaggio fallito:', error.message);
-  }catch(e){ console.warn('Sync messaggio exception:', e.message); }
+    if(error) _warnSyncFail('Sync messaggio', error);
+  }catch(e){ _warnSyncFail('Sync messaggio', e); }
 }
 
 // Scrive un socio creato/modificato dall'admin su Supabase (upsert su id).
@@ -26074,8 +26095,8 @@ async function _syncSocioToSupabase(socio){
       telegram:         socio.telegram || '',
       telegram_chat_id: (socio.telegramChatId || '').trim() || null
     }], { onConflict:'id' });
-    if(error) console.warn('Sync socio fallito:', error.message);
-  }catch(e){ console.warn('Sync socio exception:', e.message); }
+    if(error) _warnSyncFail('Sync socio', error);
+  }catch(e){ _warnSyncFail('Sync socio', e); }
 }
 
 // Elimina un socio da Supabase quando viene eliminato dall'admin.
@@ -26084,8 +26105,8 @@ async function _deleteSocioFromSupabase(id){
   if(!sb) return;
   try{
     const { error } = await sb.from('soci').delete().eq('id', id);
-    if(error) console.warn('Eliminazione socio fallita:', error.message);
-  }catch(e){ console.warn('Eliminazione socio exception:', e.message); }
+    if(error) _warnSyncFail('Eliminazione socio', error);
+  }catch(e){ _warnSyncFail('Eliminazione socio', e); }
 }
 
 // Scrive una campagna prenotazione (creata/modificata dall'admin) su Supabase (upsert su id).
@@ -26103,8 +26124,8 @@ async function _syncPrenotazioneToSupabase(p){
       aperta:        p.aperta !== false,
       created_at:    p.dataCreazione || new Date().toISOString()
     }], { onConflict:'id' });
-    if(error) console.warn('Sync prenotazione fallito:', error.message);
-  }catch(e){ console.warn('Sync prenotazione exception:', e.message); }
+    if(error) _warnSyncFail('Sync prenotazione', error);
+  }catch(e){ _warnSyncFail('Sync prenotazione', e); }
 }
 
 // Elimina una campagna prenotazione (e i relativi ordini, via FK cascade) da Supabase.
@@ -26113,8 +26134,8 @@ async function _deletePrenotazioneFromSupabase(id){
   if(!sb) return;
   try{
     const { error } = await sb.from('prenotazioni').delete().eq('id', id);
-    if(error) console.warn('Eliminazione prenotazione fallita:', error.message);
-  }catch(e){ console.warn('Eliminazione prenotazione exception:', e.message); }
+    if(error) _warnSyncFail('Eliminazione prenotazione', error);
+  }catch(e){ _warnSyncFail('Eliminazione prenotazione', e); }
 }
 
 // Scrive l'ordine di un socio contro una campagna prenotazione su Supabase (upsert su id).
@@ -26131,8 +26152,8 @@ async function _syncOrdinePrenotazioneToSupabase(o){
       totale:          typeof o.totale === 'number' ? o.totale : 0,
       created_at:      o.data || new Date().toISOString()
     }], { onConflict:'id' });
-    if(error) console.warn('Sync ordine prenotazione fallito:', error.message);
-  }catch(e){ console.warn('Sync ordine prenotazione exception:', e.message); }
+    if(error) _warnSyncFail('Sync ordine prenotazione', error);
+  }catch(e){ _warnSyncFail('Sync ordine prenotazione', e); }
 }
 
 // Elimina un ordine prenotazione da Supabase quando il socio lo cancella.
@@ -26141,8 +26162,8 @@ async function _deleteOrdinePrenotazioneFromSupabase(id){
   if(!sb) return;
   try{
     const { error } = await sb.from('ordini_prenotazione').delete().eq('id', id);
-    if(error) console.warn('Eliminazione ordine prenotazione fallita:', error.message);
-  }catch(e){ console.warn('Eliminazione ordine prenotazione exception:', e.message); }
+    if(error) _warnSyncFail('Eliminazione ordine prenotazione', error);
+  }catch(e){ _warnSyncFail('Eliminazione ordine prenotazione', e); }
 }
 
 // ══ LETTURA DA SUPABASE (Step 3 Fase 3) ══
