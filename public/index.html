@@ -25876,9 +25876,10 @@ async function migrateOrdiniToSupabase(){
   const ordini = Array.isArray(S.ordini) ? S.ordini : [];
   if(ordini.length === 0){ toast('⚠️ Nessun ordine da migrare'); return; }
   if(!confirm(`Migrare ${ordini.length} ordini nella tabella Supabase?\n\nGli ordini esistenti verranno aggiornati, i nuovi aggiunti.`)) return;
+  const dbIdBySocioId = await _buildSocioIdMap(sb);
   const rows = ordini.map(o => ({
     id:          o.id,
-    socio_id:    o.socioId   || null,
+    socio_id:    dbIdBySocioId[o.socioId] || o.socioId || null,
     raccolta_id: o.raccoltaId || null,
     items:       Array.isArray(o.items) ? o.items : [],
     totale:      typeof o.totale === 'number' ? o.totale : 0,

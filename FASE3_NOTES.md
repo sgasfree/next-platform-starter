@@ -78,12 +78,15 @@
 - `eliminaOrdine()` ora propaga anche il DELETE su Supabase (`_deleteOrdineFromSupabase()`), non solo sul blob.
 - ⚠️ Lo schema SQL va ri-eseguito su Supabase (drop/recreate di `prenotazioni`, che non era ancora usata da nessuna funzione di sync — drop sicuro). Non testato in produzione: verificare migrazione, creazione campagna, prenotazione socio, e eliminazione ordine da browser reale dopo il merge.
 
+### Fase 3 — Fix socio_id in migrazione ordini (16/06/2026)
+
+- `migrateOrdiniToSupabase()` scriveva `socio_id` con il blobId raw (`o.socioId`), a differenza di `migrateMessaggiToSupabase()`, `migratePrenotazioniToSupabase()` e `_syncOrderToSupabase()` che già risolvono blobId→DB id tramite `_buildSocioIdMap()`. Corretto: ora usa la stessa mappa, così gli ordini migrati in blocco puntano all'id corretto in `soci` anche quando il socio esisteva già su Supabase con un id diverso dal blobId (abbinamento per tessera).
+
 ## 🎯 Prossimi step (in ordine di priorità)
 
 | # | Cosa | Note |
 |---|------|------|
 | 1 | **Moiraghi (SGAS-00015)** | `user_id = NULL` — non ha ancora fatto login OTP. Quando lo farà, aggiungere a `admins` |
-| 2 | **Fix socio_id in ordini** | Attualmente salva il blobId (`smq...`); idealmente usare il DB id per JOIN corretti |
 
 ---
 
