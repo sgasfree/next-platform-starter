@@ -68,7 +68,7 @@ create table if not exists public.categorie (
 create table if not exists public.fornitori (
   id              text primary key,
   nome            text not null,
-  categoria       text references public.categorie(id) on delete set null,
+  categoria       text,  -- era references categorie(id): rimosso FK (catalogo vive nel blob)
   emoji           text,
   zona            text,
   descrizione     text,
@@ -88,7 +88,7 @@ create table if not exists public.fornitori (
 
 create table if not exists public.prodotti (
   id           text primary key,
-  fornitore_id text references public.fornitori(id) on delete cascade,
+  fornitore_id text,  -- era references fornitori(id): rimosso FK (catalogo vive nel blob)
   nome         text not null,
   prezzo       numeric default 0,
   unita        text,
@@ -116,7 +116,7 @@ create table if not exists public.raccolte (
 create table if not exists public.ordini (
   id          text primary key,
   socio_id    text references public.soci(id) on delete cascade,
-  raccolta_id text references public.raccolte(id) on delete set null,
+  raccolta_id text,  -- era references raccolte(id): rimosso FK (catalogo vive nel blob)
   items       jsonb not null default '[]'::jsonb,
   totale      numeric default 0,
   stato       text default 'inviato',
@@ -146,7 +146,7 @@ create index if not exists messaggi_socio_idx on public.messaggi (socio_id, crea
 drop table if exists public.prenotazioni cascade;
 create table public.prenotazioni (
   id            text primary key,
-  fornitore_id  text references public.fornitori(id) on delete set null,
+  fornitore_id  text,  -- era references fornitori(id): rimosso FK (catalogo vive nel blob)
   titolo        text not null,
   items         jsonb not null default '[]'::jsonb,   -- [{nome,prezzo,qtyMin}]
   data_consegna text,
@@ -284,6 +284,20 @@ create policy config_read on public.config
 drop policy if exists config_admin on public.config;
 create policy config_admin on public.config
   for all using (public.is_admin()) with check (public.is_admin());
+
+-- ============================================================================
+-- DROP FK verso tabelle catalogo (catalogo vive nel blob, non in Supabase)
+-- Eseguire una volta su DB esistente per rimuovere i constraint già creati.
+-- Su un DB fresco questo blocco non fa nulla (i constraint non esistono più
+-- nella CREATE TABLE sopra).
+-- ============================================================================
+do $$
+begin
+  begin execute 'alter table public.fornitori drop constraint if exists fornitori_categoria_fkey';        exception when others then null; end;
+  begin execute 'alter table public.prodotti  drop constraint if exists prodotti_fornitore_id_fkey';      exception when others then null; end;
+  begin execute 'alter table public.ordini    drop constraint if exists ordini_raccolta_id_fkey';         exception when others then null; end;
+  begin execute 'alter table public.prenotazioni drop constraint if exists prenotazioni_fornitore_id_fkey'; exception when others then null; end;
+end $$;
 
 -- ============================================================================
 -- REALTIME (opzionale): notifica live di nuovi ordini/messaggi
