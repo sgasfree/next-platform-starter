@@ -27286,17 +27286,25 @@ function salvaPrenotazione(editId){
     saved={id:'pren'+uid(),titolo,fornitorId,dataConsegna,notaConsegna,prodotti,aperta:true,dataCreazione:new Date().toISOString().slice(0,10)};
     S.prenotazioni.unshift(saved);
   }
-  saveState(); closeModal(); renderPrenotazioni(); toast('✅ Prenotazione salvata');
+  saveState(); closeModal(); _renderPrenotazioniTable(); toast('✅ Prenotazione salvata');
   updatePrenotazioniBadge();
-  if(saved) _syncPrenotazioneToSupabase(saved).catch(e=>console.warn('Sync prenotazione a Supabase fallito:', e));
+  if(saved){
+    _syncPrenotazioneToSupabase(saved)
+      .then(()=>loadPrenotazioniFromSupabase())
+      .then(ok=>{ if(ok) _renderPrenotazioniTable(); })
+      .catch(e=>console.warn('Sync prenotazione a Supabase fallito:', e));
+  }
 }
 
 function togglePrenotazione(id){
   initPrenotazioni();
   const p=S.prenotazioni.find(x=>x.id===id);
   if(p){
-    p.aperta=!p.aperta; saveState(); renderPrenotazioni(); toast(p.aperta?'🔓 Prenotazione riaperta':'🔒 Prenotazione chiusa');
-    _syncPrenotazioneToSupabase(p).catch(e=>console.warn('Sync prenotazione a Supabase fallito:', e));
+    p.aperta=!p.aperta; saveState(); _renderPrenotazioniTable(); toast(p.aperta?'🔓 Prenotazione riaperta':'🔒 Prenotazione chiusa');
+    _syncPrenotazioneToSupabase(p)
+      .then(()=>loadPrenotazioniFromSupabase())
+      .then(ok=>{ if(ok) _renderPrenotazioniTable(); })
+      .catch(e=>console.warn('Sync prenotazione a Supabase fallito:', e));
   }
 }
 
@@ -27305,8 +27313,11 @@ function eliminaPrenotazione(id){
   initPrenotazioni();
   S.prenotazioni=S.prenotazioni.filter(p=>p.id!==id);
   S.ordiniPrenotazione=S.ordiniPrenotazione.filter(o=>o.prenotazioneId!==id);
-  saveState(); renderPrenotazioni(); toast('Prenotazione eliminata');
-  _deletePrenotazioneFromSupabase(id).catch(e=>console.warn('Eliminazione prenotazione su Supabase fallita:', e));
+  saveState(); _renderPrenotazioniTable(); toast('Prenotazione eliminata');
+  _deletePrenotazioneFromSupabase(id)
+    .then(()=>loadPrenotazioniFromSupabase())
+    .then(ok=>{ if(ok) _renderPrenotazioniTable(); })
+    .catch(e=>console.warn('Eliminazione prenotazione su Supabase fallita:', e));
 }
 
 function viewOrdiniPrenotazione(prenId){
@@ -27477,18 +27488,24 @@ function inviaOrdinePrenotazione(prenId){
   };
   S.ordiniPrenotazione.push(ordine);
   saveState();
-  renderPrenotazioniSocio();
+  _renderPrenotazioniSocioInner();
   toast('✅ Prenotazione inviata!');
   updatePrenotazioniBadge();
-  _syncOrdinePrenotazioneToSupabase(ordine).catch(e=>console.warn('Sync ordine prenotazione a Supabase fallito:', e));
+  _syncOrdinePrenotazioneToSupabase(ordine)
+    .then(()=>loadPrenotazioniFromSupabase())
+    .then(ok=>{ if(ok) _renderPrenotazioniSocioInner(); })
+    .catch(e=>console.warn('Sync ordine prenotazione a Supabase fallito:', e));
 }
 
 function cancellaOrdinePrenotazione(ordineId, prenId){
   if(!confirm('Cancellare questa prenotazione?')) return;
   initPrenotazioni();
   S.ordiniPrenotazione=S.ordiniPrenotazione.filter(o=>o.id!==ordineId);
-  saveState(); renderPrenotazioniSocio(); toast('Prenotazione cancellata');
-  _deleteOrdinePrenotazioneFromSupabase(ordineId).catch(e=>console.warn('Eliminazione ordine prenotazione su Supabase fallita:', e));
+  saveState(); _renderPrenotazioniSocioInner(); toast('Prenotazione cancellata');
+  _deleteOrdinePrenotazioneFromSupabase(ordineId)
+    .then(()=>loadPrenotazioniFromSupabase())
+    .then(ok=>{ if(ok) _renderPrenotazioniSocioInner(); })
+    .catch(e=>console.warn('Eliminazione ordine prenotazione su Supabase fallita:', e));
 }
 
 function updatePrenotazioniBadge(){
