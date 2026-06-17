@@ -22871,7 +22871,7 @@ function _socioRowToBlob(row){
     id: row.id, tessera: row.tessera||'', nome: row.nome||'', cognome: row.cognome||'',
     cellulare: row.cellulare||'', telefono: row.cellulare||'',
     telegram: row.telegram||'', telegramChatId: row.telegram_chat_id||'',
-    emissione: '', scadenza: ''
+    emissione: row.emissione || '', scadenza: row.scadenza || ''
   };
 }
 
@@ -25842,6 +25842,8 @@ async function migrateSociToSupabase(){
     cellulare:        s.cellulare || s.telefono || '',
     telegram:         s.telegram || '',
     telegram_chat_id: (s.telegramChatId || '').trim() || null,
+    emissione:        s.emissione || null,
+    scadenza:         s.scadenza  || null,
     attivo:           s.attivo === false ? false : true
   }));
   toast(`☁️ Migrazione di ${rows.length} soci in corso...`);
@@ -26097,7 +26099,9 @@ async function _syncSocioToSupabase(socio){
       cognome:          socio.cognome || '',
       cellulare:        socio.cellulare || socio.telefono || '',
       telegram:         socio.telegram || '',
-      telegram_chat_id: (socio.telegramChatId || '').trim() || null
+      telegram_chat_id: (socio.telegramChatId || '').trim() || null,
+      emissione:        socio.emissione || null,
+      scadenza:         socio.scadenza  || null
     }], { onConflict:'id' });
     if(error) _warnSyncFail('Sync socio', error);
   }catch(e){ _warnSyncFail('Sync socio', e); }
