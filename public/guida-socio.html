@@ -171,8 +171,12 @@
 <!-- ══════════════════════════════════════════════════════ -->
 <section class="sec" id="login">
   <div class="sec-title">🔑 Come fare il login</div>
-  <div class="sec-sub">Niente password — bastano tessera e cellulare</div>
+  <div class="sec-sub">Niente password — tessera, cellulare e un codice via Telegram</div>
 
+  <div class="alert info" style="margin-bottom:16px;">📱 Per ricevere il codice OTP devi avere <strong>Telegram</strong> installato e aver comunicato il tuo numero al GAS. Il bot <strong>@infoSgas_bot</strong> ti invierà il codice.</div>
+
+  <!-- Passo 1-3: inserisci dati -->
+  <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Passo 1 — Inserisci tessera e cellulare</div>
   <div class="mock">
     <div class="mock-hero">
       <div class="logo">🛒</div>
@@ -202,8 +206,36 @@
 
   <div class="step"><div class="step-num">3</div><div class="step-body">
     <strong>Premi «Accedi come Socio»</strong>
-    <div class="alert ok">✅ Sei dentro: si apre il catalogo!</div>
+    <p>L'app verifica i tuoi dati e invia un codice OTP a 6 cifre al tuo Telegram tramite il bot <strong>@infoSgas_bot</strong>.</p>
     <div class="alert warn">❌ «Tessera o cellulare non trovati»? Controlla spazi ed errori di battitura, oppure usa il recupero qui sotto.</div>
+  </div></div>
+
+  <!-- Passo 4-5: inserisci il codice OTP -->
+  <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:24px 0 8px;">Passo 2 — Inserisci il codice Telegram</div>
+  <div class="mock">
+    <div class="mock-hero" style="background:linear-gradient(160deg,#0d47a1,#1565c0);">
+      <div class="logo">📱</div>
+      <div class="t1">Codice di accesso</div>
+      <div class="t2">Controlla Telegram — bot @infoSgas_bot</div>
+    </div>
+    <div class="mock-body">
+      <div class="m-label">Codice OTP ricevuto su Telegram</div>
+      <div class="m-field focus" style="font-size:20px;letter-spacing:6px;font-weight:800;justify-content:center;">4 8 3 1 7 2 <span class="tag" style="font-size:11px;letter-spacing:0;">← codice</span></div>
+      <div style="font-size:11px;color:#9e9e9e;text-align:center;margin:-8px 0 12px;">Il codice è valido per 10 minuti</div>
+      <div class="m-btn">✅ Verifica Codice</div>
+      <div class="tag-below" style="margin-top:4px;">↑ poi premi Verifica</div>
+    </div>
+  </div>
+
+  <div class="step"><div class="step-num">4</div><div class="step-body">
+    <strong>Apri Telegram e copia il codice</strong>
+    <p>Il bot <strong>@infoSgas_bot</strong> ti ha inviato un messaggio con un codice a 6 cifre. Il codice è valido per <strong>10 minuti</strong>.</p>
+  </div></div>
+
+  <div class="step"><div class="step-num">5</div><div class="step-body">
+    <strong>Inserisci il codice nell'app e premi «Verifica Codice»</strong>
+    <div class="alert ok">✅ Sei dentro: si apre il catalogo!</div>
+    <div class="alert warn">❌ Codice scaduto o errato? Riparti dal passo 1 per riceverne uno nuovo.</div>
   </div></div>
 
   <div class="gif-card">
@@ -517,7 +549,7 @@
   <table class="tbl">
     <thead><tr><th>Voglio…</th><th>Dove vado</th></tr></thead>
     <tbody>
-      <tr><td>🔑 Entrare</td><td>Login con <strong>Tessera + Cellulare</strong></td></tr>
+      <tr><td>🔑 Entrare</td><td>Login: <strong>Tessera + Cellulare</strong> → codice OTP su <strong>Telegram</strong></td></tr>
       <tr><td>🔓 Recuperare i codici</td><td>«Non ricordo i codici di accesso» sotto il login</td></tr>
       <tr><td>🛒 Vedere raccolte aperte</td><td>Tab <strong>«🛒 Raccolte»</strong> nella barra laterale</td></tr>
       <tr><td>📦 Ordinare</td><td><strong>Raccolte → tocca fornitore → + prodotti → 🛒 → Invia</strong></td></tr>
