@@ -1,6 +1,32 @@
 # 📋 SGAS — Note Fase 3
 
-> Ultimo aggiornamento: 15/06/2026
+> Ultimo aggiornamento: 17/06/2026
+
+---
+
+## 🏁 PUNTO DI RIPRISTINO — 17/06/2026
+
+> Tag git: **`restore-point-2026-06-17`**
+>
+> Stato: **Fase 3 completa — tutte le criticità risolte e testate in produzione.**
+> Il sistema è stabile. La sessione di debug/fix è chiusa.
+
+### Cosa è incluso in questo punto di ripristino
+
+| Area | Stato |
+|------|-------|
+| Login OTP via Telegram | ✅ Testato in produzione (SGAS-00016) |
+| Gestione Soci (crea/modifica/elimina) | ✅ Testato |
+| Emissione/scadenza tessera | ✅ Visibili e sincronizzate |
+| Prenotazioni (admin: crea/toggle/elimina) | ✅ Testato |
+| Prenotazioni (socio: prenota/cancella) | ✅ Testato |
+| Recupero credenziali | ✅ Funzionante (server-side) |
+| Eliminazione ordini (blob + Supabase) | ✅ Testato |
+| Messaggi admin ↔ socio | ✅ Testato multi-device |
+| Guida socio aggiornata | ✅ Sezione login OTP aggiornata |
+| Schema SQL idempotente | ✅ FK catalogo rimossi |
+
+---
 
 ## ✅ Completato
 
@@ -16,99 +42,106 @@
 ### Migrazione soci (Fase 3 — Step 0)
 - `migrateSociToSupabase()` mappa camelCase del blob → snake_case del DB.
 - Abbina i soci esistenti per **tessera normalizzata** (`normTessera()`) → nessun duplicato.
-- ✅ 4 soci presenti nella tabella `soci`.
+- ✅ Soci presenti nella tabella `soci` (incluso SGAS-00017 aggiunto in sessione).
 - Admin registrati nella tabella `admins`.
 
 ### Fase 3 — Step 1: Migrazione one-shot
 
 | Dato | Funzione | Stato |
 |------|----------|-------|
-| Soci | `migrateSociToSupabase()` | ✅ 4 soci migrati |
-| Ordini | `migrateOrdiniToSupabase()` | ✅ funzionante |
+| Soci | `migrateSociToSupabase()` | ✅ funzionante |
+| Ordini | `migrateOrdiniToSupabase()` | ✅ funzionante (usa `_buildSocioIdMap`) |
 | Messaggi | `migrateMessaggiToSupabase()` | ✅ funzionante (usa `_buildSocioIdMap`) |
+| Prenotazioni | `migratePrenotazioniToSupabase()` | ✅ funzionante |
 
-- `_buildSocioIdMap(sb)` risolve blobId → dbId via tessera normalizzata (evita FK violation su messaggi).
-- Colonne aggiunte al volo su DB vecchio: `ordini.created_at`, `ordini.stato`, `ordini.nota`, `messaggi.created_at`, `messaggi.letto`.
+- `_buildSocioIdMap(sb)` risolve blobId → dbId via tessera normalizzata (evita FK violation).
 
 ### Fase 3 — Step 2: Doppio write (non-blocking)
 
 | Evento | Funzione sync | Stato |
 |--------|--------------|-------|
 | Nuovo ordine | `_syncOrderToSupabase(ord)` | ✅ |
+| Elimina ordine | `_deleteOrdineFromSupabase(id)` | ✅ |
 | Messaggio socio→admin | `_syncMessaggioToSupabase(msg)` | ✅ |
 | Messaggio admin→socio | `_syncMessaggioToSupabase(msg)` | ✅ |
+| Prenotazione (admin) | `_syncPrenotazioneToSupabase()` / `_deletePrenotazioneFromSupabase()` | ✅ |
+| Ordine prenotazione (socio) | `_syncOrdinePrenotazioneToSupabase()` / `_deleteOrdinePrenotazioneFromSupabase()` | ✅ |
+| Socio | `_syncSocioToSupabase()` / `_deleteSocioFromSupabase()` | ✅ |
 
-- Chiamate con `.catch(console.warn)` — non bloccano mai l'utente.
-- Il blob rimane sorgente di verità; Supabase riceve la copia in background.
+- Tutte le funzioni sync/delete restituiscono `true/false`.
+- Pattern chiamante: `syncOk ? loadXFromSupabase() : false` — impedisce overwrite locale su sync fallita.
+- `_warnSyncFail(label, err)`: mostra toast visibile su errore (🔒 RLS, ⚠️ FK, ⚠️ generico).
 
 ### Fase 3 — Step 3: Lettura da Supabase (multi-device)
 
-| Vista | Funzione load | Refactor render |
-|-------|--------------|----------------|
-| Ordini (admin) | `loadOrdiniFromSupabase()` | `renderOrdini()` → shell + `_renderOrdiniTable()` |
-| Messaggi (admin) | `loadMessaggiFromSupabase()` | `renderAdminMsgList()` → shell + `_renderAdminMsgListInner()` |
-| Messaggi (socio) | `loadMessaggiFromSupabase()` | `renderMessaggiSocio()` → mostra blob subito, aggiorna da DB |
+| Vista | Funzione load | Stato |
+|-------|--------------|-------|
+| Ordini (admin) | `loadOrdiniFromSupabase()` | ✅ Testato |
+| Messaggi (admin) | `loadMessaggiFromSupabase()` | ✅ Testato |
+| Messaggi (socio) | `loadMessaggiFromSupabase()` | ✅ Testato |
+| Prenotazioni | `loadPrenotazioniFromSupabase()` | ✅ Testato |
+| Soci (admin) | `loadSociFromSupabase()` | ✅ Testato |
 
-- Tutte e tre le viste testate ✅ su **desktop** e ✅ su **mobile** (multi-device verificato).
-- `loadOrdiniFromSupabase()` popola `S.ordini` → tutto il codice esistente continua a funzionare senza modifiche.
+- Pattern shell + inner: mostra subito i dati locali, poi aggiorna da Supabase in background.
+- `blobIdByDbId`: mappa inversa (dbId→blobId) per denormalizzare socioId in ordini/messaggi.
 
-### Logo Telegram
-- Foto profilo 512×512 (`/tmp/logo_sgas2.svg`) + welcome banner 640×360 (`/tmp/welcome_sgas.svg`) generati e consegnati.
+### Fase 3 — Rimozione anagrafica soci dal blob pubblico (16/06/2026)
+- `syncToSupabase()` non include più `S.soci` nel payload pubblico.
+- Recupero credenziali: usa Netlify Function `auth-recover-tessera.js` (service-role, server-side).
+- Login OTP (`socioVerifyCode`): carica propria riga da Supabase filtrando per `socioId` restituito dal server.
+
+### Fase 3 — Fix critici produzione (17/06/2026)
+
+| Bug | Causa | Fix |
+|-----|-------|-----|
+| Profilo socio sbagliato dopo OTP | `.limit(1)` senza filtro + admin RLS restituiva prima riga | `_fetchOwnSocioFromSupabase` ora filtra `.eq('id', socioId)` |
+| Campagna sparita dopo login socio | Race condition: load da Supabase sovrascriveva sync non ancora completata | Sync restituisce `true/false`; load solo se sync OK |
+| FK violation `prenotazioni.fornitore_id` | Catalogo non presente in Supabase | Rimossi tutti i FK verso tabelle catalogo in `schema.sql` |
+| `emissione`/`scadenza` sempre vuote | Colonne mancanti nel DB + hardcoded `''` in `_socioRowToBlob` | Aggiunte colonne a schema; mappate in `_socioRowToBlob`, migrate, sync |
+| Modifica socio non salvava | Race condition: `renderSoci()` lanciava `loadSociFromSupabase()` prima della sync | `saveSocio`/`deleteSocio` fanno `_renderSociTable()` subito + sync-then-reload |
+| Errori sync silenziosi | `console.warn` solo in console, invisibile all'utente | `_warnSyncFail()` mostra toast per ogni tipo di errore |
+
+### Guida Socio aggiornata (17/06/2026)
+- Sezione Login: flusso in 5 passi (tessera + cellulare → premi accedi → ricevi codice Telegram → inserisci codice → accesso).
+- Aggiunto secondo mockup con campo OTP a 6 cifre.
+- Aggiornato riepilogo rapido.
 
 ---
 
-### Fase 3 — Rimozione anagrafica soci dal blob pubblico (16/06/2026)
-
-- `syncToSupabase()` non include più `S.soci` nel payload scritto su `config` (`sgas_app_state`).
-- `loadFromSupabase()` ripristina `S.soci` da localStorage (il remoto non lo contiene più).
-- `esportaAppNetlify()` (vecchio export manuale per Netlify) non incorpora più `S.soci` nel file HTML scaricato.
-- **Flusso "Recupera credenziali"** (`recVerifyStep1/2/3`) non fa più matching client-side su `S.soci`: usa la nuova Netlify Function `auth-recover-tessera.js` (service-role key, nessun elenco soci esposto al client).
-- **Login OTP socio** (`socioVerifyCode`): dopo `verifyOtp`, carica la propria riga da Supabase (`_fetchOwnSocioFromSupabase`, RLS self-select) invece che dal blob; fallback al locale se non disponibile.
-- **Admin "Gestione Soci"**: `renderSoci()` ricarica l'elenco completo da Supabase (`loadSociFromSupabase()`, RLS admin-all) prima di renderizzare la tabella.
-- **Doppio write soci**: `saveSocio()` / `deleteSocio()` propagano su Supabase (`_syncSocioToSupabase`, `_deleteSocioFromSupabase`) — i nuovi soci creati da admin sono salvati con lo stesso id sia in locale che su Supabase.
-- `loadOrdiniFromSupabase()` / `loadMessaggiFromSupabase()` richiamano `loadSociFromSupabase()` prima di costruire i campi denormalizzati (nomi soci in ordini/messaggi), così restano corretti senza il blob.
-- ⚠️ Non testato in produzione: verificare login OTP, "Gestione Soci" (crea/modifica/elimina) e "Recupera credenziali" da browser reale dopo il merge.
-
-### Fase 3 — Prenotazioni su Supabase + sync eliminazione ordini (16/06/2026)
-
-- Schema: `public.prenotazioni` ridisegnata come tabella "campagna" (admin-managed, lettura pubblica come il catalogo: `fornitore_id, titolo, items, data_consegna, nota_consegna, aperta`). Nuova tabella `public.ordini_prenotazione` per gli ordini dei soci contro una campagna (`prenotazione_id, socio_id, items, totale`), RLS: socio vede/scrive solo i propri, admin tutto.
-- `migratePrenotazioniToSupabase()`: migrazione one-shot di `S.prenotazioni` → `prenotazioni` e `S.ordiniPrenotazione` → `ordini_prenotazione` (bottone in Settings).
-- Doppio write: `_syncPrenotazioneToSupabase()` / `_deletePrenotazioneFromSupabase()` (admin: salva/toggle/elimina campagna), `_syncOrdinePrenotazioneToSupabase()` / `_deleteOrdinePrenotazioneFromSupabase()` (socio: invia/cancella prenotazione).
-- Lettura: `loadPrenotazioniFromSupabase()` popola `S.prenotazioni`/`S.ordiniPrenotazione`; `renderPrenotazioni()` (admin) e `renderPrenotazioniSocio()` (socio) refactorate nel pattern shell + inner (mostrano subito i dati locali, poi aggiornano da Supabase).
-- `eliminaOrdine()` ora propaga anche il DELETE su Supabase (`_deleteOrdineFromSupabase()`), non solo sul blob.
-- ⚠️ Lo schema SQL va ri-eseguito su Supabase (drop/recreate di `prenotazioni`, che non era ancora usata da nessuna funzione di sync — drop sicuro). Non testato in produzione: verificare migrazione, creazione campagna, prenotazione socio, e eliminazione ordine da browser reale dopo il merge.
-
-### Fase 3 — Fix socio_id in migrazione ordini (16/06/2026)
-
-- `migrateOrdiniToSupabase()` scriveva `socio_id` con il blobId raw (`o.socioId`), a differenza di `migrateMessaggiToSupabase()`, `migratePrenotazioniToSupabase()` e `_syncOrderToSupabase()` che già risolvono blobId→DB id tramite `_buildSocioIdMap()`. Corretto: ora usa la stessa mappa, così gli ordini migrati in blocco puntano all'id corretto in `soci` anche quando il socio esisteva già su Supabase con un id diverso dal blobId (abbinamento per tessera).
-
-## 🎯 Prossimi step (in ordine di priorità)
+## 🎯 Prossimi step
 
 | # | Cosa | Note |
 |---|------|------|
-| 1 | **Moiraghi (SGAS-00015)** | `user_id = NULL` — non ha ancora fatto login OTP. Quando lo farà, aggiungere a `admins` |
+| 1 | **Moiraghi (SGAS-00015)** | `user_id = NULL` — non ha ancora fatto login OTP. Quando lo farà, aggiungere manualmente a `admins` su Supabase |
+| 2 | **Merge PR branch sviluppo → main** | Dopo review, mergiare `claude/review-sgas-freeconomy-GtDm6` → `main` per deploy Netlify |
 
 ---
 
 ## 🔑 Promemoria tecnici
 
 - Scritture su tabelle con RLS → usare `getAuthSb()` (sessione OTP), mai `getSupabase()` (anon).
-- `normTessera(s)` → strip spazi/trattini/zeri iniziali, uppercase. Es: `'SGAS 0016'` → `'SGAS16'`. Usarla sempre per matching.
-- `_buildSocioIdMap(sb)` → risolve blobId → DB uuid via tessera (necessario per FK messaggi/ordini).
-- Tessere miste: `SGAS 0016` / `SGAS-00016` / `s0016` — gestite tutte da `normTessera()`.
-- Doppio write: non-blocking, failure → solo `console.warn`.
+- `normTessera(s)` → strip spazi/trattini/zeri iniziali, uppercase. Es: `'SGAS 0016'` → `'SGAS16'`.
+- `_buildSocioIdMap(sb)` → risolve blobId → DB id via tessera (necessario per FK messaggi/ordini).
+- `blobIdByDbId` → mappa inversa costruita nelle funzioni `load*` per denormalizzare socioId.
+- Doppio write: non-blocking; tutte le funzioni sync/delete ora restituiscono `true/false`.
+- Pattern caller: `_syncX().then(ok => ok ? loadXFromSupabase() : false).then(ok => { if(ok) _renderX(); })`.
+- `_warnSyncFail(label, err)`: toast 🔒 per RLS/JWT, ⚠️ FK per campagna non sync, ⚠️ generico altrimenti.
 
 ## 🗂 Riferimenti rapidi
 
 - App: `public/index.html` (single-page, ~27k righe)
   - `normTessera()`, `_buildSocioIdMap()`
-  - `migrateSociToSupabase()`, `migrateOrdiniToSupabase()`, `migrateMessaggiToSupabase()`
-  - `_syncOrderToSupabase()`, `_syncMessaggioToSupabase()`
-  - `loadOrdiniFromSupabase()`, `loadMessaggiFromSupabase()`
+  - `_fetchOwnSocioFromSupabase(sb, socioId)` — filtra per id socio (no `.limit(1)` nudo)
+  - `migrateSociToSupabase()`, `migrateOrdiniToSupabase()`, `migrateMessaggiToSupabase()`, `migratePrenotazioniToSupabase()`
+  - `_syncOrderToSupabase()`, `_syncMessaggioToSupabase()`, `_syncSocioToSupabase()`, `_syncPrenotazioneToSupabase()`, `_syncOrdinePrenotazioneToSupabase()`
+  - `loadOrdiniFromSupabase()`, `loadMessaggiFromSupabase()`, `loadSociFromSupabase()`, `loadPrenotazioniFromSupabase()`
   - `syncToSupabase()` / `loadFromSupabase()` — sync blob ↔ `config`
   - `getAuthSb()` — client Supabase con sessione OTP (per scritture RLS)
-- Schema DB: `supabase/schema.sql`
-- Netlify Functions: `netlify/functions/auth-request-code.js`, `auth-verify-code.js`
+  - `_warnSyncFail(label, err)` — toast visibile su errore sync
+- Schema DB: `supabase/schema.sql` (idempotente, FK catalogo rimossi)
+- Guida socio: `public/guida-socio.html`
+- Netlify Functions: `netlify/functions/auth-request-code.js`, `auth-verify-code.js`, `auth-recover-tessera.js`
 - Supabase URL: `https://luhuwhmtaerkwipyilcy.supabase.co`
 - Bot Telegram: `@infoSgas_bot`
 - Branch sviluppo: `claude/review-sgas-freeconomy-GtDm6` · Production branch Netlify: `main`
+- Tag ripristino: `restore-point-2026-06-17`
