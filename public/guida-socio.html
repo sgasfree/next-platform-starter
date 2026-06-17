@@ -239,9 +239,27 @@
     <div class="alert warn">❌ Codice scaduto o errato? Riparti dal passo 1 per riceverne uno nuovo.</div>
   </div></div>
 
-  <div class="gif-card">
-    <h3>🎞️ Il login in azione</h3>
-    <img src="guide/gif-login.gif" alt="GIF login" loading="lazy">
+  <!-- Riepilogo visivo: schermata reale dell'app -->
+  <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:24px 0 8px;">Come appare l'app al primo accesso</div>
+  <div class="mock" style="max-width:300px;">
+    <div style="background:linear-gradient(160deg,#1b5e20,#2e7d32);padding:28px 16px 22px;text-align:center;">
+      <div style="width:72px;height:72px;border-radius:50%;background:#fff;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:36px;box-shadow:0 2px 8px rgba(0,0,0,.2);">🌼</div>
+      <div style="color:#fff;font-weight:800;font-size:20px;letter-spacing:-.3px;">S-GAS <span style="color:#a5d6a7;">Freeconomy</span></div>
+      <div style="color:#a5d6a7;font-size:12px;margin-top:4px;">Produttori etici a KM zero</div>
+    </div>
+    <div style="background:#f1f8e9;padding:14px;margin:12px;">
+      <div style="text-align:center;margin-bottom:10px;">
+        <div style="font-size:22px;">🛒</div>
+        <div style="font-weight:800;color:#1b5e20;font-size:14px;">Area Soci</div>
+        <div style="font-size:11px;color:#757575;margin-top:2px;">Accedi con tessera e cellulare</div>
+      </div>
+      <div class="m-label">Numero Tessera</div>
+      <div class="m-field" style="margin-bottom:10px;font-size:12px;color:#bdbdbd;">es. SGAS 0001</div>
+      <div class="m-label">Cellulare</div>
+      <div class="m-field" style="margin-bottom:10px;font-size:12px;color:#bdbdbd;">es. 3331234567</div>
+      <div style="font-size:10px;color:#757575;text-align:center;margin-bottom:8px;">Prima volta? 👉 <span style="color:#ff6f00;font-weight:700;">@infoSgas_bot</span></div>
+      <div class="m-btn" style="font-size:12px;">📲 Ricevi codice su Telegram</div>
+    </div>
   </div>
 </section>
 
@@ -254,6 +272,8 @@
   <div class="sec-title">🔓 Recuperare le credenziali</div>
   <div class="sec-sub">Non ricordi tessera o cellulare? Tre passi e sei dentro</div>
 
+  <!-- Passo 1 -->
+  <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Passo 1 — Numero Tessera</div>
   <div class="mock">
     <div class="mock-hero">
       <div class="logo">🔑</div>
@@ -261,8 +281,13 @@
       <div class="t2">Passo 1 di 3 — Inserisci il numero tessera</div>
     </div>
     <div class="mock-body">
+      <div style="display:flex;gap:8px;justify-content:center;margin-bottom:14px;">
+        <div style="width:10px;height:10px;border-radius:50%;background:var(--green);"></div>
+        <div style="width:10px;height:10px;border-radius:50%;background:#e0e0e0;"></div>
+        <div style="width:10px;height:10px;border-radius:50%;background:#e0e0e0;"></div>
+      </div>
       <div class="m-label">Numero Tessera</div>
-      <div class="m-field focus">SGAS-00000 <span class="tag">← scrivi qui</span></div>
+      <div class="m-field focus">SGAS-00001 <span class="tag">← scrivi qui</span></div>
       <div class="m-btn">Avanti →</div>
       <div class="tag-below" style="margin-top:4px;">↑ poi premi Avanti</div>
       <div class="m-link">← Torna al login</div>
@@ -271,15 +296,96 @@
 
   <div class="step"><div class="step-num">1</div><div class="step-body">
     <strong>Nel login premi «🔑 Non ricordo i codici di accesso»</strong>
-    <p>Il link è sotto il pulsante verde «Accedi come Socio».</p>
+    <p>Il link è sotto il pulsante «📲 Ricevi codice su Telegram». Inserisci il tuo numero tessera (es. <code>SGAS-00001</code>) e premi <strong>«Avanti →»</strong>.</p>
   </div></div>
+
+  <!-- Passo 2 -->
+  <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:24px 0 8px;">Passo 2 — Numero di Cellulare</div>
+  <div class="mock">
+    <div class="mock-hero" style="background:linear-gradient(160deg,#1565c0,#1976d2);">
+      <div class="logo">📱</div>
+      <div class="t1">Conferma telefono</div>
+      <div class="t2">Passo 2 di 3 — Inserisci il numero di cellulare</div>
+    </div>
+    <div class="mock-body">
+      <div style="display:flex;gap:8px;justify-content:center;margin-bottom:14px;">
+        <div style="width:10px;height:10px;border-radius:50%;background:var(--green);"></div>
+        <div style="width:10px;height:10px;border-radius:50%;background:var(--green);"></div>
+        <div style="width:10px;height:10px;border-radius:50%;background:#e0e0e0;"></div>
+      </div>
+      <div class="m-label">Numero di Cellulare</div>
+      <div class="m-field focus">3331234567 <span class="tag">← il tuo numero</span></div>
+      <div style="display:flex;gap:8px;margin-bottom:4px;">
+        <div class="m-btn light" style="flex:0 0 auto;padding:12px 14px;font-size:12px;">← Indietro</div>
+        <div class="m-btn" style="flex:1;">Avanti →</div>
+      </div>
+      <div class="tag-below" style="margin-top:4px;">↑ poi premi Avanti</div>
+      <div class="m-link">← Torna al login</div>
+    </div>
+  </div>
 
   <div class="step"><div class="step-num">2</div><div class="step-body">
-    <strong>Segui i 3 passi</strong>
-    <p>① Numero tessera → ② Cellulare → ③ Nome e Cognome. Ad ogni passo premi <strong>«Avanti →»</strong>.</p>
+    <strong>Conferma il numero di cellulare</strong>
+    <p>Inserisci il numero comunicato al GAS (senza spazi, es. <code>3331234567</code>) e premi <strong>«Avanti →»</strong>.</p>
   </div></div>
 
+  <!-- Passo 3 -->
+  <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:24px 0 8px;">Passo 3 — Nome e Cognome</div>
+  <div class="mock">
+    <div class="mock-hero" style="background:linear-gradient(160deg,#4a148c,#6a1b9a);">
+      <div class="logo">👤</div>
+      <div class="t1">Conferma identità</div>
+      <div class="t2">Passo 3 di 3 — Inserisci nome e cognome</div>
+    </div>
+    <div class="mock-body">
+      <div style="display:flex;gap:8px;justify-content:center;margin-bottom:14px;">
+        <div style="width:10px;height:10px;border-radius:50%;background:var(--green);"></div>
+        <div style="width:10px;height:10px;border-radius:50%;background:var(--green);"></div>
+        <div style="width:10px;height:10px;border-radius:50%;background:var(--green);"></div>
+      </div>
+      <div class="m-label">Nome e Cognome</div>
+      <div class="m-field focus">Mario Rossi <span class="tag">← scrivi qui</span></div>
+      <div style="display:flex;gap:8px;margin-bottom:4px;">
+        <div class="m-btn light" style="flex:0 0 auto;padding:12px 14px;font-size:12px;">← Indietro</div>
+        <div class="m-btn" style="flex:1;">Verifica ✓</div>
+      </div>
+      <div class="tag-below" style="margin-top:4px;">↑ poi premi Verifica</div>
+      <div class="m-link">← Torna al login</div>
+    </div>
+  </div>
+
   <div class="step"><div class="step-num">3</div><div class="step-body">
+    <strong>Conferma nome e cognome</strong>
+    <p>Scrivi il nome e cognome con cui sei registrato al GAS e premi <strong>«Verifica ✓»</strong>.</p>
+  </div></div>
+
+  <!-- Risultato -->
+  <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:24px 0 8px;">Risultato — Credenziali recuperate</div>
+  <div class="mock">
+    <div class="mock-hero">
+      <div class="logo">✅</div>
+      <div class="t1">Identità verificata!</div>
+      <div class="t2">Ecco le tue credenziali di accesso</div>
+    </div>
+    <div class="mock-body">
+      <div style="background:var(--green-pale);border:1.5px solid #a5d6a7;border-radius:10px;padding:14px;margin-bottom:12px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:center;">
+          <div>
+            <div style="font-size:9px;font-weight:800;color:#757575;text-transform:uppercase;margin-bottom:3px;">Tessera</div>
+            <div style="font-size:18px;font-weight:800;color:var(--green);">SGAS-00001</div>
+          </div>
+          <div>
+            <div style="font-size:9px;font-weight:800;color:#757575;text-transform:uppercase;margin-bottom:3px;">Cellulare</div>
+            <div style="font-size:18px;font-weight:800;color:var(--green);">3331234567</div>
+          </div>
+        </div>
+      </div>
+      <div class="m-btn">↩ Accedi ora</div>
+      <div class="tag-below" style="margin-top:4px;">↑ i campi si compilano da soli!</div>
+    </div>
+  </div>
+
+  <div class="step"><div class="step-num">4</div><div class="step-body">
     <strong>Verifica completata</strong>
     <div class="alert ok">✅ «Identità verificata!» — i tuoi codici appaiono in verde. Premi «↩ Accedi ora»: i campi si compilano da soli.</div>
     <div class="alert warn">❌ Se un passo fallisce, il dato non corrisponde all'archivio. Contatta l'Assistenza Socio.</div>
