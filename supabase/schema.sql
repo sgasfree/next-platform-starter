@@ -37,6 +37,8 @@ create table if not exists public.soci (
   cellulare        text,
   telegram         text,
   telegram_chat_id text,
+  emissione        text,                          -- data emissione tessera (YYYY-MM-DD)
+  scadenza         text,                          -- data scadenza tessera (YYYY-MM-DD)
   attivo           boolean not null default true,
   note             text,
   created_at       timestamptz not null default now()
@@ -284,6 +286,15 @@ create policy config_read on public.config
 drop policy if exists config_admin on public.config;
 create policy config_admin on public.config
   for all using (public.is_admin()) with check (public.is_admin());
+
+-- ============================================================================
+-- ADD COLUMNS: emissione/scadenza su soci (aggiunte dopo la creazione iniziale)
+-- ============================================================================
+do $$
+begin
+  begin execute 'alter table public.soci add column if not exists emissione text'; exception when others then null; end;
+  begin execute 'alter table public.soci add column if not exists scadenza  text'; exception when others then null; end;
+end $$;
 
 -- ============================================================================
 -- DROP FK verso tabelle catalogo (catalogo vive nel blob, non in Supabase)
