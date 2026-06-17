@@ -22332,8 +22332,9 @@ function backToCatalogo(){
   function _updateFab(){
     const fab=document.getElementById('fab-catalogo');
     if(!fab) return;
+    const inSocioView=document.getElementById('view-socio')?.classList.contains('active');
     const inSub=_socioSections.some(s=>{const el=document.getElementById('socio-'+s);return el&&el.style.display!=='none';});
-    fab.style.display=(inSub&&window.scrollY>120)?'inline-flex':'none';
+    fab.style.display=(inSocioView&&inSub&&window.scrollY>120)?'inline-flex':'none';
   }
   window.addEventListener('scroll',_updateFab,{passive:true});
   document.addEventListener('sgas-section-change',_updateFab);
