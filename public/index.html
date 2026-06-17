@@ -26205,17 +26205,28 @@ async function loadOrdiniFromSupabase(){
   try{ session = (await sb.auth.getSession()).data.session; }catch(e){}
   if(!session) return false;
   await loadSociFromSupabase();
+  // Mappa inversa dbId→blobId (necessaria quando il DB id di un socio
+  // differisce dal blobId, es. soci migrati con id pre-esistente diverso).
+  const blobIdByDbId = {};
+  const dbIdByTessera = {};
+  let dbSoci = [];
+  try{ const r = await sb.from('soci').select('id,tessera'); dbSoci = r.data||[]; }catch(e){}
+  dbSoci.forEach(r => { dbIdByTessera[normTessera(r.tessera)] = r.id; });
+  (S.soci||[]).forEach(s => {
+    const dbId = dbIdByTessera[normTessera(s.tessera)];
+    if(dbId) blobIdByDbId[dbId] = s.id;
+  });
   try{
     const { data, error } = await sb.from('ordini')
       .select('*')
       .order('created_at', { ascending: false });
     if(error || !data) return false;
     S.ordini = data.map(o => {
-      // Cerca il socio localmente per ricostruire i campi denormalizzati
-      const socio = (S.soci||[]).find(s => s.id === o.socio_id);
+      const blobSocioId = blobIdByDbId[o.socio_id] || o.socio_id || '';
+      const socio = (S.soci||[]).find(s => s.id === blobSocioId);
       return {
         id:              o.id,
-        socioId:         o.socio_id  || '',
+        socioId:         blobSocioId,
         socioNome:       socio ? (socio.nome||'') : (o.socio_id||''),
         socioCognome:    socio ? (socio.cognome||'') : '',
         socioCellulare:  socio ? (socio.cellulare||socio.telefono||'') : '',
