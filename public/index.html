@@ -24403,16 +24403,22 @@ function saveSocio(editId){
     saved={id:'s'+uid(),tessera:tess,nome,cognome,cellulare:tel,telefono:tel,telegram,telegramChatId,emissione:emi,scadenza:sca};
     S.soci.push(saved);
   }
-  saveState(); closeModal(); renderSoci(); toast('✅ Socio salvato');
-  if(saved) _syncSocioToSupabase(saved).catch(e=>console.warn('Sync socio a Supabase fallito:', e));
+  saveState(); closeModal(); _renderSociTable(); toast('✅ Socio salvato');
+  if(saved) _syncSocioToSupabase(saved)
+    .then(syncOk=>syncOk?loadSociFromSupabase():false)
+    .then(ok=>{ if(ok) _renderSociTable(); })
+    .catch(e=>console.warn('Sync socio a Supabase fallito:', e));
 }
 
 function deleteSocio(id){
   if(!currentUser||currentUser.type!=='admin'){toast('❌ Accesso negato');return;}
   if(!confirm('Eliminare questo socio?')) return;
   S.soci=S.soci.filter(s=>s.id!==id);
-  saveState(); renderSoci(); toast('Socio eliminato');
-  _deleteSocioFromSupabase(id).catch(e=>console.warn('Eliminazione socio su Supabase fallita:', e));
+  saveState(); _renderSociTable(); toast('Socio eliminato');
+  _deleteSocioFromSupabase(id)
+    .then(syncOk=>syncOk?loadSociFromSupabase():false)
+    .then(ok=>{ if(ok) _renderSociTable(); })
+    .catch(e=>console.warn('Eliminazione socio su Supabase fallita:', e));
 }
 
 function showTesseraDigitale(id){
@@ -26103,8 +26109,8 @@ async function _syncSocioToSupabase(socio){
       emissione:        socio.emissione || null,
       scadenza:         socio.scadenza  || null
     }], { onConflict:'id' });
-    if(error) _warnSyncFail('Sync socio', error);
-  }catch(e){ _warnSyncFail('Sync socio', e); }
+    if(error){ _warnSyncFail('Sync socio', error); return false; } return true;
+  }catch(e){ _warnSyncFail('Sync socio', e); return false; }
 }
 
 // Elimina un socio da Supabase quando viene eliminato dall'admin.
@@ -26113,8 +26119,8 @@ async function _deleteSocioFromSupabase(id){
   if(!sb) return;
   try{
     const { error } = await sb.from('soci').delete().eq('id', id);
-    if(error) _warnSyncFail('Eliminazione socio', error);
-  }catch(e){ _warnSyncFail('Eliminazione socio', e); }
+    if(error){ _warnSyncFail('Eliminazione socio', error); return false; } return true;
+  }catch(e){ _warnSyncFail('Eliminazione socio', e); return false; }
 }
 
 // Scrive una campagna prenotazione (creata/modificata dall'admin) su Supabase (upsert su id).
@@ -26205,17 +26211,28 @@ async function loadOrdiniFromSupabase(){
   try{ session = (await sb.auth.getSession()).data.session; }catch(e){}
   if(!session) return false;
   await loadSociFromSupabase();
+  // Mappa inversa dbId→blobId (necessaria quando il DB id di un socio
+  // differisce dal blobId, es. soci migrati con id pre-esistente diverso).
+  const blobIdByDbId = {};
+  const dbIdByTessera = {};
+  let dbSoci = [];
+  try{ const r = await sb.from('soci').select('id,tessera'); dbSoci = r.data||[]; }catch(e){}
+  dbSoci.forEach(r => { dbIdByTessera[normTessera(r.tessera)] = r.id; });
+  (S.soci||[]).forEach(s => {
+    const dbId = dbIdByTessera[normTessera(s.tessera)];
+    if(dbId) blobIdByDbId[dbId] = s.id;
+  });
   try{
     const { data, error } = await sb.from('ordini')
       .select('*')
       .order('created_at', { ascending: false });
     if(error || !data) return false;
     S.ordini = data.map(o => {
-      // Cerca il socio localmente per ricostruire i campi denormalizzati
-      const socio = (S.soci||[]).find(s => s.id === o.socio_id);
+      const blobSocioId = blobIdByDbId[o.socio_id] || o.socio_id || '';
+      const socio = (S.soci||[]).find(s => s.id === blobSocioId);
       return {
         id:              o.id,
-        socioId:         o.socio_id  || '',
+        socioId:         blobSocioId,
         socioNome:       socio ? (socio.nome||'') : (o.socio_id||''),
         socioCognome:    socio ? (socio.cognome||'') : '',
         socioCellulare:  socio ? (socio.cellulare||socio.telefono||'') : '',
