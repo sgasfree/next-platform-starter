@@ -22053,6 +22053,30 @@ async function loadFromSupabase(){
       _prevDeleted.forEach(id=>{if(!S.deletedFornitori.includes(id)) S.deletedFornitori.push(id);});
       S.fornitori=(S.fornitori||[]).filter(f=>!S.deletedFornitori.includes(f.id));
     }
+    // Re-applica migrazione _emb se lo stato remoto è dietro alla versione embedded attuale
+    if(typeof _emb !== 'undefined' && S._embVer !== _emb._embVer){
+      S.categorie = _emb.categorie;
+      if(_emb.fornitori && _emb.fornitori.length){
+        S.fornitori = S.fornitori || [];
+        const _del = new Set(S.deletedFornitori || []);
+        const _norm = n => (n||'').toLowerCase().replace(/[""''"']/g,'"').trim();
+        _emb.fornitori.forEach(ef => {
+          if(_del.has(ef.id)) return;
+          const byId = S.fornitori.findIndex(f => f.id === ef.id);
+          const byNm = S.fornitori.findIndex(f => _norm(f.nome) === _norm(ef.nome));
+          if(byId >= 0){ S.fornitori[byId] = Object.assign({}, ef, {logo: S.fornitori[byId].logo || ef.logo}); }
+          else if(byNm >= 0){ S.fornitori[byNm] = Object.assign({}, ef, {logo: S.fornitori[byNm].logo || ef.logo}); }
+          else { S.fornitori.push(ef); }
+        });
+      }
+      if(_emb.prodotti && _emb.prodotti.length){
+        const _eIds = new Set((S.prodotti || []).map(p => p.id));
+        S.prodotti = S.prodotti || [];
+        _emb.prodotti.forEach(ep => { if(!_eIds.has(ep.id)) S.prodotti.push(ep); });
+      }
+      S._embVer = _emb._embVer;
+      setTimeout(() => syncToSupabase(), 3000);
+    }
     localStorage.setItem('sgas_state', JSON.stringify(S));
     return true;
   }catch(e){ console.warn('Supabase load error:', e); return false; }
