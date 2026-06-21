@@ -12,6 +12,11 @@
   # Disattiva la sola rilevazione "per somiglianza" (flagga la JWT pubblica come
   # falso positivo); lo scan dei valori dei segreti dichiarati resta attivo.
   SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
+  # public/index.html contiene SOLO la anon/public key di Supabase (frontend,
+  # protetta da RLS): lo escludiamo dallo scan dei path. I veri segreti
+  # (SERVICE_ROLE_KEY, TELEGRAM_BOT_TOKEN) NON sono in alcun file — vivono solo
+  # nelle env var di Netlify — quindi restano pienamente protetti.
+  SECRETS_SCAN_OMIT_PATHS = "public/index.html"
 
 [[headers]]
   for = "/*"
