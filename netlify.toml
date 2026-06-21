@@ -16,7 +16,9 @@
   # protetta da RLS): lo escludiamo dallo scan dei path. I veri segreti
   # (SERVICE_ROLE_KEY, TELEGRAM_BOT_TOKEN) NON sono in alcun file — vivono solo
   # nelle env var di Netlify — quindi restano pienamente protetti.
-  SECRETS_SCAN_OMIT_PATHS = "public/index.html"
+  # Path nelle varie forme con cui lo scanner può riferirsi al file (relativo a
+  # repo root e relativo alla publish dir) + glob di sicurezza.
+  SECRETS_SCAN_OMIT_PATHS = "public/index.html,index.html,**/index.html"
 
 [[headers]]
   for = "/*"
