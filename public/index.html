@@ -214,7 +214,8 @@ h1,h2,h3,h4{font-family:var(--font-serif,serif);}
 .topbar .logo span{color:#a5d6a7;}
 .topbar-btn{background:rgba(255,255,255,.15);border:none;color:#fff;padding:7px 14px;border-radius:20px;cursor:pointer;font-family:'Nunito',sans-serif;font-size:.85rem;font-weight:700;transition:.2s;}
 .topbar-btn:hover{background:rgba(255,255,255,.25);}
-.topbar-icon{background:none;border:none;color:#fff;cursor:pointer;font-size:1.3rem;padding:4px 8px;position:relative;}
+.topbar-icon{background:none;border:none;color:#fff;cursor:pointer;font-size:1.3rem;padding:4px 6px;position:relative;display:flex;flex-direction:column;align-items:center;gap:1px;}
+.topbar-icon .ti-label{font-size:.58rem;font-family:'Nunito',sans-serif;font-weight:700;line-height:1;white-space:nowrap;opacity:.9;}
 .badge{position:absolute;top:0;right:0;background:var(--terra);color:#fff;border-radius:50%;width:18px;height:18px;font-size:.65rem;display:flex;align-items:center;justify-content:center;font-weight:800;}
 
 /* ── CONTENT WRAP ── */
@@ -445,7 +446,8 @@ tr:hover td{background:var(--green-pale);}
   .stats-grid{grid-template-columns:repeat(2,1fr);}
   .topbar{padding:8px 10px;gap:4px;}
   .topbar .logo{font-size:1rem;}
-  .topbar-icon{font-size:1.05rem;padding:3px 4px;}
+  .topbar-icon{font-size:1.05rem;padding:3px 3px;}
+  .topbar-icon .ti-label{font-size:.52rem;}
   .topbar-btn{padding:5px 10px;font-size:.75rem;}
   #topbar-logo-wrap{gap:6px !important;}
   #topbar-logo-img{width:30px !important;height:30px !important;}
@@ -20748,18 +20750,27 @@ window.docx = docx;
       <div class="logo"><span id="topbar-gas-name">S-GAS</span></div>
     </div>
     <button class="topbar-icon" onclick="showSocioSection('prenotazioni');renderPrenotazioniSocio()" title="Prenotazioni" style="position:relative;">
-      📅<span class="badge" id="pren-badge-socio" style="display:none;">!</span>
+      <span style="position:relative;display:inline-flex;">📅<span class="badge" id="pren-badge-socio" style="display:none;">!</span></span>
+      <span class="ti-label">Prenota</span>
     </button>
     <button class="topbar-icon" onclick="showSocioSection('messaggi');renderMessaggiSocio()" title="Messaggi" style="position:relative;">
-      💬<span class="badge" id="msg-badge-socio" style="display:none;">0</span>
+      <span style="position:relative;display:inline-flex;">💬<span class="badge" id="msg-badge-socio" style="display:none;">0</span></span>
+      <span class="ti-label">Messaggi</span>
     </button>
-    <button class="topbar-icon" onclick="showSocioSection('profilo');renderProfilo()" title="Profilo">👤</button>
+    <button class="topbar-icon" onclick="showSocioSection('profilo');renderProfilo()" title="Profilo">
+      <span>👤</span>
+      <span class="ti-label">Profilo</span>
+    </button>
     <button class="topbar-icon" onclick="showSocioSection('cart');renderCart()" title="Carrello" style="position:relative;">
-      🛒<span class="badge" id="cart-badge" style="display:none;">0</span>
+      <span style="position:relative;display:inline-flex;">🛒<span class="badge" id="cart-badge" style="display:none;">0</span></span>
+      <span class="ti-label">Carrello</span>
     </button>
     
     <div class="assist-wrap">
-      <button class="topbar-icon" onclick="toggleAssistDropdown(event)" title="Assistenza" style="font-size:1.1rem;">🆘</button>
+      <button class="topbar-icon" onclick="toggleAssistDropdown(event)" title="Assistenza" style="font-size:1.1rem;">
+        <span>🆘</span>
+        <span class="ti-label">Aiuto</span>
+      </button>
       <div class="assist-dropdown" id="assist-dropdown">
         <div class="assist-dropdown-header">Assistenza</div>
         <a class="assist-item" href="#" onclick="window.open('https://t.me/'+TG_ASSIST.app.handle+'?text=Assistenza+App','_blank');return false;">
@@ -20776,8 +20787,14 @@ window.docx = docx;
         </a>
       </div>
     </div>
-    <button class="topbar-icon" onclick="showSocioSection('chisiamo');renderChiSiamo('socio')" title="Chi Siamo">ℹ️</button>
-    <a class="topbar-icon" href="guida-socio.html" title="Guida Socio" style="text-decoration:none;">📖</a>
+    <button class="topbar-icon" onclick="showSocioSection('chisiamo');renderChiSiamo('socio')" title="Chi Siamo">
+      <span>ℹ️</span>
+      <span class="ti-label">Chi Siamo</span>
+    </button>
+    <a class="topbar-icon" href="guida-socio.html" title="Guida Socio" style="text-decoration:none;">
+      <span>📖</span>
+      <span class="ti-label">Guida</span>
+    </a>
     <button class="topbar-btn" id="socio-back-admin-btn" style="display:none;background:var(--terra);" onclick="adminBackToPanel()">🔐 Torna ad Admin</button>
     <button class="topbar-btn" onclick="logout()">Esci</button>
   </div>
