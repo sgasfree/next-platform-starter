@@ -23039,6 +23039,7 @@ function _enterAdminViaOtp(socio){
   const rememberMe = rememberCb ? rememberCb.checked : false;
   if(rememberMe) localStorage.setItem('sgas_remember_pref','1');
   else localStorage.removeItem('sgas_remember_pref');
+  _adminOwnSocio = socio;  // socio Supabase dell'admin (per la Vista Socio)
   currentUser={type:'admin', viaOtp:true, id:socio.id,
                adminEmail:(socio.tessera||'').toLowerCase(),
                nome:socio.nome||'', cognome:socio.cognome||'', _rememberMe:rememberMe};
@@ -23052,15 +23053,27 @@ function _enterAdminViaOtp(socio){
 }
 
 // ── Passaggio Admin ⇄ Vista Socio (solo per admin via OTP) ──────────────────
-// L'admin via OTP ha già la sua identità socio (currentUser.id = id socio):
-// può passare alla vista socio in automatico e tornare al pannello admin.
-// Lo stato è transitorio (non persistito): un reload riporta alla vista admin.
+// L'admin via OTP ha già la sua identità socio: può passare alla vista socio in
+// automatico e tornare al pannello admin. Stato transitorio (non persistito):
+// un reload riporta alla vista admin.
+// NB: l'id su Supabase può differire dall'id nel blob locale; quindi risolviamo
+// il socio (1) dall'oggetto già caricato al login, (2) da Supabase per id,
+// (3) dal blob locale per tessera.
 let _adminSocioBackup = null;
+let _adminOwnSocio = null;
 
-function adminGoToSocioView(){
+async function adminGoToSocioView(){
   if(!currentUser || !currentUser.viaOtp) return;
-  const socio = (S.soci||[]).find(s=>s.id===currentUser.id);
+  let socio = _adminOwnSocio;
+  if(!socio){
+    try{ const sb=getAuthSb(); if(sb) socio = await _fetchOwnSocioFromSupabase(sb, currentUser.id); }catch(e){}
+  }
+  if(!socio){
+    const tess=(currentUser.adminEmail||'').toUpperCase();
+    socio = (S.soci||[]).find(s=>(s.tessera||'').toUpperCase()===tess);
+  }
   if(!socio){ toast('❌ Profilo socio non trovato'); return; }
+  _adminOwnSocio = socio;
   _adminSocioBackup = currentUser;  // conserva l'identità admin
   currentUser = {type:'socio', ...socio, viaOtp:true, _fromAdmin:true,
                  _tok:_adminSocioBackup._tok, _rememberMe:_adminSocioBackup._rememberMe};
