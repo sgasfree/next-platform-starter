@@ -20778,6 +20778,7 @@ window.docx = docx;
     </div>
     <button class="topbar-icon" onclick="showSocioSection('chisiamo');renderChiSiamo('socio')" title="Chi Siamo">ℹ️</button>
     <a class="topbar-icon" href="guida-socio.html" title="Guida Socio" style="text-decoration:none;">📖</a>
+    <button class="topbar-btn" id="socio-back-admin-btn" style="display:none;background:var(--terra);" onclick="adminBackToPanel()">🔐 Torna ad Admin</button>
     <button class="topbar-btn" onclick="logout()">Esci</button>
   </div>
 
@@ -20904,6 +20905,7 @@ window.docx = docx;
         <button class="nav-item active" id="nav-settings" onclick="adminNav('settings')"><span class="nav-icon">⚙️</span>Impostazioni</button>
       </div>
       <div class="sidebar-footer">
+        <button class="btn btn-sm" id="admin-vista-socio-btn" style="display:none;background:rgba(255,255,255,.25);color:#fff;border:none;cursor:pointer;width:100%;margin-bottom:8px;" onclick="adminGoToSocioView()">👤 Vista Socio</button>
         <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:none;cursor:pointer;width:100%;" onclick="logout()">← Esci</button>
       </div>
     </nav>
@@ -23014,11 +23016,13 @@ function _enterSocio(socio){
   if(rememberMe) localStorage.setItem('sgas_remember_pref','1');
   else localStorage.removeItem('sgas_remember_pref');
   currentUser={type:'socio',...socio,_rememberMe:rememberMe};
+  _adminSocioBackup=null;
   saveSession();
   resetInactivityTimer();
   document.getElementById('topbar-gas-name').textContent=S.config.gasName.split(' ')[0]||'S-GAS';
   applyLogo();
   showView('socio');
+  const _bk=document.getElementById('socio-back-admin-btn'); if(_bk) _bk.style.display='none';
   renderCatSidebar();
   setTab('ali');
   showSocioSection('catalogo');
@@ -23045,6 +23049,44 @@ function _enterAdminViaOtp(socio){
   showView('admin');
   adminNav('dashboard');
   toast('✅ Accesso admin effettuato');
+}
+
+// ── Passaggio Admin ⇄ Vista Socio (solo per admin via OTP) ──────────────────
+// L'admin via OTP ha già la sua identità socio (currentUser.id = id socio):
+// può passare alla vista socio in automatico e tornare al pannello admin.
+// Lo stato è transitorio (non persistito): un reload riporta alla vista admin.
+let _adminSocioBackup = null;
+
+function adminGoToSocioView(){
+  if(!currentUser || !currentUser.viaOtp) return;
+  const socio = (S.soci||[]).find(s=>s.id===currentUser.id);
+  if(!socio){ toast('❌ Profilo socio non trovato'); return; }
+  _adminSocioBackup = currentUser;  // conserva l'identità admin
+  currentUser = {type:'socio', ...socio, viaOtp:true, _fromAdmin:true,
+                 _tok:_adminSocioBackup._tok, _rememberMe:_adminSocioBackup._rememberMe};
+  resetInactivityTimer();
+  document.getElementById('topbar-gas-name').textContent=S.config.gasName.split(' ')[0]||'S-GAS';
+  applyLogo();
+  showView('socio');
+  const back=document.getElementById('socio-back-admin-btn'); if(back) back.style.display='';
+  renderCatSidebar();
+  setTab('ali');
+  showSocioSection('catalogo');
+  renderFornitori();
+  updateCartBadge();
+  updateMsgBadges();
+  updateNewsBadge();
+  toast('👤 Vista socio');
+}
+
+function adminBackToPanel(){
+  if(_adminSocioBackup){ currentUser=_adminSocioBackup; _adminSocioBackup=null; }
+  const back=document.getElementById('socio-back-admin-btn'); if(back) back.style.display='none';
+  resetInactivityTimer();
+  updateSidebarName();
+  applyLogo();
+  showView('admin');
+  adminNav('dashboard');
 }
 
 // Metodo legacy (tessera+cellulare senza codice) — mantenuto come riserva
@@ -23964,6 +24006,10 @@ function renderProfilo(){
 
 // ════════════════════ ADMIN NAV ════════════════════
 function adminNav(sec){
+  // Il pulsante "Vista Socio" è visibile solo per gli admin via OTP (che hanno
+  // un'identità socio collegata alla loro tessera).
+  const _vs=document.getElementById('admin-vista-socio-btn');
+  if(_vs) _vs.style.display = (currentUser && currentUser.viaOtp) ? '' : 'none';
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   const el=document.getElementById('nav-'+sec);
   if(el) el.classList.add('active');

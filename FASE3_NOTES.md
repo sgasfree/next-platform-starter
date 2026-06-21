@@ -128,6 +128,11 @@ Frontend: `auth-verify-code` restituisce `isAdmin:true` per queste tessere →
 `socioVerifyCode()` chiama `_enterAdminViaOtp()` (vista admin). La sessione si
 ripristina via `restoreSession()` (ramo `ses.viaOtp`).
 
+**Vista Socio per admin**: dal pannello admin il pulsante "👤 Vista Socio"
+(`adminGoToSocioView()`) apre la vista socio con la tessera dell'admin in
+automatico; "🔐 Torna ad Admin" (`adminBackToPanel()`) rientra nel pannello.
+Stato transitorio (non persistito): un reload riporta alla vista admin.
+
 ---
 
 ## 🔑 Promemoria tecnici
