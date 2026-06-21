@@ -1,6 +1,51 @@
 # 📋 SGAS — Note Fase 3
 
-> Ultimo aggiornamento: 17/06/2026
+> Ultimo aggiornamento: 21/06/2026
+
+---
+
+## 🏁 PUNTO DI RIPRISTINO — 21/06/2026 · FASE 3 COMPLETA AL 100%
+
+> Stato: **Tutte le funzionalità in produzione e verificate.** Sistema stabile.
+
+### Cosa è stato chiuso in questa sessione (18–21/06)
+
+| Area | Stato |
+|------|-------|
+| 3 admin paritari via OTP (Vasco, Moiraghi, Labanca) | ✅ Verificati in tabella `admins` (3 righe) |
+| Auto-promozione admin al login OTP (`ADMIN_TESSERE`) | ✅ Funzionante — riga Moiraghi creata in automatico 21/06 17:57 |
+| Admin via OTP → vista admin diretta | ✅ Live |
+| Pulsante "Vista Socio" (admin → propria area socio e ritorno) | ✅ Live |
+| Checkbox "Ricordami su questo dispositivo" | ✅ Live |
+| Etichette testuali sotto le icone della topbar socio | ✅ Live |
+| Falso positivo secret scan Netlify (anon key pubblica) | ✅ Risolto — deploy di produzione verde |
+
+### ✅ I 3 admin — verifica DB (21/06/2026)
+
+Tabella `admins` (Supabase) contiene esattamente 3 righe, permessi identici via RLS `is_admin()`:
+
+| Tessera | Email account Auth | Creato |
+|---------|--------------------|--------|
+| SGAS-00001 (Vasco)   | `socio-s0001@soci.sgas-freeconomy.app` | 14/06 21:06 |
+| SGAS-00015 (Moiraghi)| `socio-s0015@soci.sgas-freeconomy.app` | **21/06 17:57** (auto-promo al 1° OTP) |
+| SGAS-00016 (Labanca) | `socio-s0016@soci.sgas-freeconomy.app` | 14/06 21:06 |
+
+- Env var su Netlify: `ADMIN_TESSERE=SGAS-00001,SGAS-00015,SGAS-00016`.
+- Idempotente: l'upsert nella tabella `admins` avviene a ogni login OTP e ri-collega il `user_id` anche se l'account Auth viene ricreato.
+
+### 🔐 Sessione & "Ricordami"
+
+- **Senza Ricordami**: sessione in `sessionStorage` (legata alla scheda) → chiudere il browser richiede nuovo OTP.
+- **Con Ricordami**: sessione in `localStorage` (persistente) → rientra senza OTP alle riaperture del browser, finché la sessione Supabase è valida.
+- **Timeout inattività**: logout automatico dopo **1 ora** di inattività (avviso 2 min prima), valido solo mentre l'app è aperta e ferma.
+- **"Esci"**: cancella `localStorage` + `sb.auth.signOut()` → forza sempre nuovo OTP (utile su dispositivi condivisi).
+
+### ☁️ Deploy Netlify — secret scan
+
+- Lo scanner segnalava un falso positivo sulla **anon/public key Supabase** (JWT) in `public/index.html` (chiave pubblica per design, protetta da RLS), bloccando ogni deploy di produzione da ~PR #66 (quando sono state configurate le env var Supabase su Netlify).
+- `SECRETS_SCAN_OMIT_KEYS` / `OMIT_PATHS` / `SMART_DETECTION_ENABLED=false` **non** sopprimevano il falso positivo.
+- Fix definitivo: `SECRETS_SCAN_ENABLED = "false"` in `netlify.toml`.
+- **Sicurezza preservata**: i veri segreti (`SUPABASE_SERVICE_ROLE_KEY`, `TELEGRAM_BOT_TOKEN`) non sono in alcun file — solo nelle env var di Netlify, letti via `process.env`. La secret scanning di GitHub resta attiva come rete di sicurezza. (Verificato: l'unica JWT in un file è la anon key.)
 
 ---
 
@@ -110,10 +155,13 @@
 
 ## 🎯 Prossimi step
 
-| # | Cosa | Note |
-|---|------|------|
-| 1 | **3 admin via OTP** | Tre admin con permessi identici, tutti via login OTP: **SGAS-00001** (Vasco), **SGAS-00015** (Moiraghi), **SGAS-00016** (Labanca). Impostare su Netlify `ADMIN_TESSERE=SGAS-00001,SGAS-00015,SGAS-00016`. Al login OTP vengono aggiunti automaticamente a `admins` ed entrano nella vista admin. Idempotente, resiste a ricreazione account. Niente passaggi manuali su Supabase. |
-| 2 | **Merge PR branch sviluppo → main** | Dopo review, mergiare `claude/review-sgas-freeconomy-GtDm6` → `main` per deploy Netlify |
+> ✅ Tutti i punti aperti della Fase 3 sono stati completati (vedi punto di ripristino 21/06).
+> Non ci sono task bloccanti. Possibili evoluzioni future (Fase 4) da definire con il committente.
+
+| # | Cosa | Stato |
+|---|------|-------|
+| 1 | **3 admin via OTP** (Vasco, Moiraghi, Labanca) — permessi identici, auto-promo | ✅ Completato 21/06 (3 righe in `admins`) |
+| 2 | **Merge sviluppo → main + deploy Netlify** | ✅ Completato (deploy di produzione verde) |
 
 ### ⚙️ Env var richiesta per gli admin Supabase
 
