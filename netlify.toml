@@ -5,7 +5,13 @@
 
 [build.environment]
   NETLIFY_NEXT_PLUGIN_SKIP = "true"
-  SECRETS_SCAN_OMIT_KEYS = "SUPABASE_URL"
+  # La anon/public key di Supabase è volutamente nel frontend (protetta da RLS):
+  # la escludiamo dallo scan. NON escludiamo SUPABASE_SERVICE_ROLE_KEY né
+  # TELEGRAM_BOT_TOKEN, che restano protetti dallo scan dei valori dichiarati.
+  SECRETS_SCAN_OMIT_KEYS = "SUPABASE_URL,SUPABASE_ANON_KEY,NEXT_PUBLIC_SUPABASE_ANON_KEY"
+  # Disattiva la sola rilevazione "per somiglianza" (flagga la JWT pubblica come
+  # falso positivo); lo scan dei valori dei segreti dichiarati resta attivo.
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
 
 [[headers]]
   for = "/*"
