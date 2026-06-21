@@ -112,8 +112,15 @@
 
 | # | Cosa | Note |
 |---|------|------|
-| 1 | **Moiraghi (SGAS-00015)** | `user_id = NULL` — non ha ancora fatto login OTP. Quando lo farà, aggiungere manualmente a `admins` su Supabase |
+| 1 | **Moiraghi (SGAS-00015) → admin** | Auto-promozione attiva via env `ADMIN_TESSERE`. Impostare su Netlify `ADMIN_TESSERE=SGAS-00015`: al primo login OTP il `user_id` viene aggiunto automaticamente a `admins` (idempotente, resiste a ricreazione account). Niente più passaggi manuali su Supabase. |
 | 2 | **Merge PR branch sviluppo → main** | Dopo review, mergiare `claude/review-sgas-freeconomy-GtDm6` → `main` per deploy Netlify |
+
+### ⚙️ Env var richiesta per gli admin Supabase
+
+`ADMIN_TESSERE` — lista di tessere (separate da virgole) che al login OTP vengono
+inserite automaticamente nella tabella `admins`. Confronto via `normTessera`
+(ignora spazi/trattini/zeri iniziali). Esempio: `ADMIN_TESSERE=SGAS-00015,SGAS-00001`.
+Da impostare in **Netlify → Site settings → Environment variables**.
 
 ---
 
