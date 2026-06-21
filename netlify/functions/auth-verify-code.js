@@ -21,6 +21,14 @@ const normTessera = s => String(s || '').toUpperCase()
   .replace(/[^A-Z0-9]/g, '')
   .replace(/([A-Z])0+(\d)/g, '$1$2');
 
+// Tessere che devono diventare admin Supabase (tabella `admins`) automaticamente
+// al login OTP. Configurabile via env ADMIN_TESSERE (lista separata da virgole),
+// es. "SGAS-00015,SGAS-00001". Confronto tramite normTessera (ignora zeri/trattini).
+const adminTessere = (process.env.ADMIN_TESSERE || '')
+  .split(',')
+  .map(t => normTessera(t))
+  .filter(Boolean);
+
 // Email sintetica stabile per l'account Auth del socio (mai usata per ricevere mail).
 const socioEmail = id => `socio-${String(id).toLowerCase()}@soci.sgas-freeconomy.app`;
 
@@ -132,6 +140,22 @@ export const handler = async (event) => {
   if (userId && userId !== socio.user_id) {
     await sbFetch(SUPA_URL, SUPA_KEY, `/rest/v1/soci?id=eq.${encodeURIComponent(socio.id)}`,
       { method: 'PATCH', prefer: 'return=minimal', body: JSON.stringify({ user_id: userId }) });
+  }
+
+  // ── 7. Auto-promozione admin ──────────────────────────────────────────────
+  // Se la tessera è in ADMIN_TESSERE, garantisci la riga nella tabella `admins`
+  // a OGNI login. È idempotente (upsert su PK user_id) e resiste alla
+  // ricreazione dell'account Auth: il nuovo user_id viene ri-collegato qui.
+  if (userId && adminTessere.includes(normTessera(socio.tessera))) {
+    let isAdmin = false;
+    try {
+      const admRes = await sbFetch(SUPA_URL, SUPA_KEY, '/rest/v1/admins',
+        { method: 'POST',
+          prefer: 'resolution=merge-duplicates,return=minimal',
+          body: JSON.stringify({ user_id: userId, email }) });
+      isAdmin = admRes.ok;
+    } catch (e) { /* non bloccare il login se l'upsert fallisce */ }
+    return json(200, { ok: true, token_hash: tokenHash, socioId: socio.id, isAdmin });
   }
 
   return json(200, { ok: true, token_hash: tokenHash, socioId: socio.id });

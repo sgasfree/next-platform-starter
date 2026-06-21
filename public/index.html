@@ -22223,7 +22223,7 @@ function saveSession(){
       const tok = currentUser._tok || (crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now());
       currentUser._tok = tok;
       if(!currentUser._rememberMe) sessionStorage.setItem('sgas_live_tok', tok);
-      localStorage.setItem('sgas_usr_tok',JSON.stringify({type:currentUser.type, adminEmail:currentUser.adminEmail||'', socioId:currentUser.id||'', _tok:tok, rememberMe:!!currentUser._rememberMe}));
+      localStorage.setItem('sgas_usr_tok',JSON.stringify({type:currentUser.type, viaOtp:!!currentUser.viaOtp, adminEmail:currentUser.adminEmail||'', socioId:currentUser.id||'', _tok:tok, rememberMe:!!currentUser._rememberMe}));
     } else {
       sessionStorage.removeItem('sgas_live_tok');
       localStorage.removeItem('sgas_usr_tok');
@@ -22239,6 +22239,21 @@ function restoreSession(){
     const _onAdmin = window.location.hash==='#admin' || window.location.pathname==='/admin';
     // Su /admin non ripristinare mai sessioni socio
     if(_onAdmin && ses.type==='socio') return false;
+    if(ses.type==='admin' && ses.viaOtp){
+      // Admin via OTP: validato come un socio (token in sessionStorage, salvo
+      // "Ricordami"). La sessione Supabase si auto-ripristina dal suo storage.
+      if(!ses.rememberMe){
+        const lt = sessionStorage.getItem('sgas_live_tok');
+        if(!(ses._tok && lt && ses._tok===lt)){ localStorage.removeItem('sgas_usr_tok'); return false; }
+      }
+      currentUser={type:'admin', viaOtp:true, id:ses.socioId, adminEmail:ses.adminEmail, _tok:ses._tok, _rememberMe:!!ses.rememberMe};
+      resetInactivityTimer();
+      updateSidebarName();
+      applyLogo();
+      showView('admin');
+      adminNav('dashboard');
+      return true;
+    }
     if(ses.type==='admin'){
       const ok1=ses.adminEmail===S.config.adminEmail.toLowerCase();
       const ok2=S.config.adminEmail2 && ses.adminEmail===S.config.adminEmail2.toLowerCase();
@@ -22975,7 +22990,10 @@ async function socioVerifyCode(){
     const socio = await _fetchOwnSocioFromSupabase(sb, data.socioId) || (S.soci||[]).find(s=>(s.tessera||'').toUpperCase()===_otpTessera);
     if(!socio){toast('❌ Socio non trovato');return;}
     socioResetLogin();
-    _enterSocio(socio);
+    // Se il server segnala che la tessera è admin (ADMIN_TESSERE), entra nella
+    // vista admin con permessi Supabase completi; altrimenti vista socio.
+    if(data.isAdmin) _enterAdminViaOtp(socio);
+    else _enterSocio(socio);
   }catch(e){toast('❌ Connessione non riuscita');}
   finally{btn.disabled=false;btn.textContent=_t;}
 }
@@ -23008,6 +23026,25 @@ function _enterSocio(socio){
   updateCartBadge();
   updateMsgBadges();
   updateNewsBadge();
+}
+
+// Login admin via OTP (tessera in ADMIN_TESSERE): entra nella vista admin
+// mantenendo la sessione Supabase OTP (abilita le scritture RLS via is_admin()).
+function _enterAdminViaOtp(socio){
+  const rememberCb = document.getElementById('l-remember');
+  const rememberMe = rememberCb ? rememberCb.checked : false;
+  if(rememberMe) localStorage.setItem('sgas_remember_pref','1');
+  else localStorage.removeItem('sgas_remember_pref');
+  currentUser={type:'admin', viaOtp:true, id:socio.id,
+               adminEmail:(socio.tessera||'').toLowerCase(),
+               nome:socio.nome||'', cognome:socio.cognome||'', _rememberMe:rememberMe};
+  saveSession();
+  resetInactivityTimer();
+  updateSidebarName();
+  applyLogo();
+  showView('admin');
+  adminNav('dashboard');
+  toast('✅ Accesso admin effettuato');
 }
 
 // Metodo legacy (tessera+cellulare senza codice) — mantenuto come riserva
@@ -23100,14 +23137,19 @@ async function loginAdmin(){
 function logout(){
   stopInactivityTimer();
   const wasAdmin = currentUser && currentUser.type === 'admin';
+  const wasViaOtp = currentUser && currentUser.viaOtp;
   currentUser=null;
   saveSession();
   S.cart={raccoltaId:'',items:[]};
   saveState();
-  if(wasAdmin){
+  // Chiudi anche la sessione Supabase OTP (revoca i permessi RLS).
+  try{ const sb=getAuthSb(); if(sb) sb.auth.signOut(); }catch(e){}
+  if(wasAdmin && !wasViaOtp){
+    // Admin classico (email+password) → form admin
     window.location.hash='#admin'; showLoginView();
   } else {
-    showLoginView();
+    // Socio e admin-via-OTP usano lo stesso form di login su "/"
+    window.location.hash=''; showLoginView();
   }
 }
 

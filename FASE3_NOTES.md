@@ -112,8 +112,21 @@
 
 | # | Cosa | Note |
 |---|------|------|
-| 1 | **Moiraghi (SGAS-00015)** | `user_id = NULL` — non ha ancora fatto login OTP. Quando lo farà, aggiungere manualmente a `admins` su Supabase |
+| 1 | **3 admin via OTP** | Tre admin con permessi identici, tutti via login OTP: **SGAS-00001** (Vasco), **SGAS-00015** (Moiraghi), **SGAS-00016** (Labanca). Impostare su Netlify `ADMIN_TESSERE=SGAS-00001,SGAS-00015,SGAS-00016`. Al login OTP vengono aggiunti automaticamente a `admins` ed entrano nella vista admin. Idempotente, resiste a ricreazione account. Niente passaggi manuali su Supabase. |
 | 2 | **Merge PR branch sviluppo → main** | Dopo review, mergiare `claude/review-sgas-freeconomy-GtDm6` → `main` per deploy Netlify |
+
+### ⚙️ Env var richiesta per gli admin Supabase
+
+`ADMIN_TESSERE` — lista di tessere (separate da virgole) che al login OTP vengono
+inserite automaticamente nella tabella `admins` **e** fanno entrare l'utente nella
+vista admin (i tre admin hanno così permessi identici, UI + scritture Supabase).
+Confronto via `normTessera` (ignora spazi/trattini/zeri iniziali).
+Valore attuale: `ADMIN_TESSERE=SGAS-00001,SGAS-00015,SGAS-00016`.
+Da impostare in **Netlify → Site settings → Environment variables**.
+
+Frontend: `auth-verify-code` restituisce `isAdmin:true` per queste tessere →
+`socioVerifyCode()` chiama `_enterAdminViaOtp()` (vista admin). La sessione si
+ripristina via `restoreSession()` (ramo `ses.viaOtp`).
 
 ---
 
