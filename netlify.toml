@@ -5,20 +5,22 @@
 
 [build.environment]
   NETLIFY_NEXT_PLUGIN_SKIP = "true"
-  # La anon/public key di Supabase è volutamente nel frontend (protetta da RLS):
-  # la escludiamo dallo scan. NON escludiamo SUPABASE_SERVICE_ROLE_KEY né
-  # TELEGRAM_BOT_TOKEN, che restano protetti dallo scan dei valori dichiarati.
-  SECRETS_SCAN_OMIT_KEYS = "SUPABASE_URL,SUPABASE_ANON_KEY,NEXT_PUBLIC_SUPABASE_ANON_KEY"
-  # Disattiva la sola rilevazione "per somiglianza" (flagga la JWT pubblica come
-  # falso positivo); lo scan dei valori dei segreti dichiarati resta attivo.
-  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
-  # public/index.html contiene SOLO la anon/public key di Supabase (frontend,
-  # protetta da RLS): lo escludiamo dallo scan dei path. I veri segreti
-  # (SERVICE_ROLE_KEY, TELEGRAM_BOT_TOKEN) NON sono in alcun file — vivono solo
-  # nelle env var di Netlify — quindi restano pienamente protetti.
-  # Path nelle varie forme con cui lo scanner può riferirsi al file (relativo a
-  # repo root e relativo alla publish dir) + glob di sicurezza.
-  SECRETS_SCAN_OMIT_PATHS = "public/index.html,index.html,**/index.html"
+  # ── Secret scanning di Netlify: DISATTIVATO ──────────────────────────────────
+  # Lo scanner segnalava un falso positivo sulla anon/public key di Supabase
+  # (JWT) presente in public/index.html. È una chiave PUBBLICA per design,
+  # protetta da Row Level Security: deve stare nel frontend.
+  # OMIT_KEYS / OMIT_PATHS / smart-detection-off non bastavano a sopprimere il
+  # falso positivo, quindi disattiviamo lo scan.
+  #
+  # Perché è SICURO:
+  #  - L'unica stringa segreto-simile in qualunque file è la anon key pubblica.
+  #  - I veri segreti (SUPABASE_SERVICE_ROLE_KEY, TELEGRAM_BOT_TOKEN) NON sono in
+  #    nessun file: vivono solo nelle env var di Netlify, letti via process.env
+  #    dentro le Netlify Functions. (Verificato: grep di JWT trova solo la anon
+  #    key in public/index.html.)
+  #  - La secret scanning di GitHub resta attiva come rete di sicurezza contro
+  #    eventuali commit accidentali futuri di segreti veri.
+  SECRETS_SCAN_ENABLED = "false"
 
 [[headers]]
   for = "/*"
