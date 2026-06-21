@@ -20656,6 +20656,10 @@ window.docx = docx;
         <div id="login-socio-step1">
           <div class="field"><label>Numero Tessera</label><input id="l-tessera" type="text" placeholder="es. SGAS 0001"></div>
           <div class="field"><label>Cellulare</label><input id="l-phone" type="tel" placeholder="es. 3331234567"></div>
+          <div style="display:flex;align-items:center;gap:8px;margin:4px 0 14px;">
+            <input type="checkbox" id="l-remember" style="width:16px;height:16px;accent-color:var(--green);cursor:pointer;flex-shrink:0;">
+            <label for="l-remember" style="font-size:.85rem;color:var(--text-mid);cursor:pointer;margin:0;line-height:1.2;">Ricordami su questo dispositivo</label>
+          </div>
           <div style="text-align:center;margin-bottom:10px;font-size:.85rem;color:var(--text-mid);">
             Prima volta? Avvia il bot Telegram 👉
             <a href="https://t.me/infoSgas_bot" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600;">@infoSgas_bot</a>
@@ -22218,8 +22222,8 @@ function saveSession(){
     if(currentUser){
       const tok = currentUser._tok || (crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now());
       currentUser._tok = tok;
-      sessionStorage.setItem('sgas_live_tok', tok);
-      localStorage.setItem('sgas_usr_tok',JSON.stringify({type:currentUser.type, adminEmail:currentUser.adminEmail||'', socioId:currentUser.id||'', _tok:tok}));
+      if(!currentUser._rememberMe) sessionStorage.setItem('sgas_live_tok', tok);
+      localStorage.setItem('sgas_usr_tok',JSON.stringify({type:currentUser.type, adminEmail:currentUser.adminEmail||'', socioId:currentUser.id||'', _tok:tok, rememberMe:!!currentUser._rememberMe}));
     } else {
       sessionStorage.removeItem('sgas_live_tok');
       localStorage.removeItem('sgas_usr_tok');
@@ -22252,9 +22256,11 @@ function restoreSession(){
         return true;
       }
     } else if(ses.type==='socio'){
-      const liveTok2 = sessionStorage.getItem('sgas_live_tok');
-      const tokOk2 = ses._tok && liveTok2 && ses._tok === liveTok2;
-      if(!tokOk2){ localStorage.removeItem('sgas_usr_tok'); return false; }
+      if(!ses.rememberMe){
+        const liveTok2 = sessionStorage.getItem('sgas_live_tok');
+        const tokOk2 = ses._tok && liveTok2 && ses._tok === liveTok2;
+        if(!tokOk2){ localStorage.removeItem('sgas_usr_tok'); return false; }
+      }
       const socio=S.soci.find(s=>s.id===ses.socioId);
       if(socio){
         currentUser={type:'socio',...socio};
@@ -22543,6 +22549,8 @@ function showLoginView(){
   document.getElementById('login-gas-name').innerHTML=gasNameHtml();
   document.getElementById('topbar-gas-name').textContent=S.config.gasName.split(' ')[0]||'S-GAS';
   showView('login');
+  const rememberCb = document.getElementById('l-remember');
+  if(rememberCb) rememberCb.checked = !!localStorage.getItem('sgas_remember_pref');
 
   // Rileva se siamo su /admin (Netlify) o ?admin (test locale)
   const isAdmin = window.location.hash==='#admin' || window.location.pathname==='/admin';
@@ -22983,7 +22991,11 @@ function socioResetLogin(){
 
 // Logica post-login condivisa (usata sia dall'OTP che dal metodo legacy)
 function _enterSocio(socio){
-  currentUser={type:'socio',...socio};
+  const rememberCb = document.getElementById('l-remember');
+  const rememberMe = rememberCb ? rememberCb.checked : false;
+  if(rememberMe) localStorage.setItem('sgas_remember_pref','1');
+  else localStorage.removeItem('sgas_remember_pref');
+  currentUser={type:'socio',...socio,_rememberMe:rememberMe};
   saveSession();
   resetInactivityTimer();
   document.getElementById('topbar-gas-name').textContent=S.config.gasName.split(' ')[0]||'S-GAS';
