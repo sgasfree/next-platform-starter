@@ -40,10 +40,10 @@ export function StoredBlobsList({ lastMutationTime }) {
                                             onSelect(keyName);
                                         }}
                                         className={
-                                            'inline-flex items-center justify-center w-full px-4 py-1.5 rounded-sm text-neutral-900 ' +
+                                            'inline-flex items-center justify-center w-full px-4 py-3 min-h-11 rounded-sm text-neutral-900 touch-manipulation ' +
                                             (isSelected
                                                 ? 'bg-neutral-200'
-                                                : 'cursor-pointer transition hover:bg-neutral-200')
+                                                : 'cursor-pointer transition hover:bg-neutral-200 active:bg-neutral-300')
                                         }
                                     >
                                         {keyName}

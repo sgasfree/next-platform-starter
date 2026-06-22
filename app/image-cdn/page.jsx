@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import { ImageWithSizeOverlay } from './image-with-size-overlay';
+import { DiffFigure } from './diff-figure';
 import { ContextAlert } from 'components/context-alert';
 import { Markdown } from 'components/markdown';
 import { getNetlifyContext } from 'utils';
@@ -92,10 +93,7 @@ export default function Page() {
             <section>
                 <h2 className="mb-6">Original vs. optimized image: can you tell the difference?</h2>
                 <Markdown content={originalVsCdnSnippet} className="mb-8" />
-                <figure
-                    className="relative grid w-full overflow-hidden border-2 border-white rounded-lg select-none diff aspect-3/2"
-                    tabIndex="0"
-                >
+                <DiffFigure>
                     <div className="relative col-start-1 row-start-1 overflow-hidden border-r-2 z-1 border-r-white diff-item-1">
                         <div>
                             <ImageWithSizeOverlay src="/images/corgi.jpg" />
@@ -110,8 +108,7 @@ export default function Page() {
                             />
                         </div>
                     </div>
-                    <div className="relative h-2 col-start-1 row-start-1 overflow-hidden opacity-0 resize-x diff-resizer z-1 min-w-4 cursor-ew-resize top-1/2"></div>
-                </figure>
+                </DiffFigure>
             </section>
         </div>
     );
