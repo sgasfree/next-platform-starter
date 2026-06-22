@@ -78,8 +78,9 @@
   /* nav bar app simulata */
   .m-nav { background:var(--green-dark); display:flex; align-items:center; gap:10px; padding:8px 12px; }
   .m-nav .brand { color:#fff; font-weight:800; font-size:13px; margin-right:auto; display:flex; align-items:center; gap:5px; }
-  .m-nav .ico { position:relative; font-size:16px; }
-  .m-nav .badge { position:absolute; top:-5px; right:-7px; background:#e53935; color:#fff; border-radius:50%;
+  .m-nav .ico { font-size:16px; display:inline-flex; flex-direction:column; align-items:center; gap:1px; }
+  .m-nav .ico-lbl { font-size:7px; font-weight:700; color:#fff; opacity:.85; line-height:1; white-space:nowrap; }
+  .m-nav .badge { position:absolute; top:-5px; right:-5px; background:#e53935; color:#fff; border-radius:50%;
                   min-width:14px; height:14px; font-size:9px; font-weight:800; display:flex; align-items:center; justify-content:center; padding:0 3px; }
   .m-nav .esci { background:rgba(255,255,255,.2); color:#fff; border-radius:12px; font-size:11px; padding:3px 10px; font-weight:700; }
 
@@ -175,7 +176,7 @@
 
   <div class="alert info" style="margin-bottom:16px;">📱 Per ricevere il codice OTP devi avere <strong>Telegram</strong> installato e aver comunicato il tuo numero al GAS. Il bot <strong>@infoSgas_bot</strong> ti invierà il codice.</div>
 
-  <!-- Passo 1-3: inserisci dati -->
+  <!-- Passo 1-4: inserisci dati + Ricordami -->
   <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Passo 1 — Inserisci tessera e cellulare</div>
   <div class="mock">
     <div class="mock-hero">
@@ -188,6 +189,11 @@
       <div class="m-field focus">SGAS-00001 <span class="tag">← Tessera socio</span></div>
       <div class="m-label">Cellulare</div>
       <div class="m-field">es. 3331234567 <span class="tag">← Cellulare</span></div>
+      <div style="display:flex;align-items:center;gap:8px;margin:4px 0 12px;">
+        <input type="checkbox" style="width:14px;height:14px;accent-color:var(--green);flex-shrink:0;cursor:pointer;">
+        <span style="font-size:11px;color:#616161;line-height:1.2;">Ricordami su questo dispositivo</span>
+        <span class="tag-inline" style="font-size:10px;margin-left:auto;">← opzionale</span>
+      </div>
       <div style="font-size:10px;color:#757575;text-align:center;margin:-6px 0 10px;">Prima volta? Avvia il bot Telegram 👉 <span style="color:#ff6f00;font-weight:700;">@infoSgas_bot</span></div>
       <div class="m-btn">📲 Ricevi codice su Telegram</div>
       <div class="tag-below" style="margin-top:4px;">↑ clikka per ricevere il codice</div>
@@ -206,12 +212,18 @@
   </div></div>
 
   <div class="step"><div class="step-num">3</div><div class="step-body">
+    <strong>Spunta «Ricordami su questo dispositivo» (opzionale)</strong>
+    <p>Se usi il tuo smartphone personale, spunta questa casella: la sessione rimane attiva anche dopo aver chiuso il browser — non dovrai fare il login ogni volta.</p>
+    <div class="alert info">🔒 Non spuntare «Ricordami» su dispositivi condivisi o pubblici.</div>
+  </div></div>
+
+  <div class="step"><div class="step-num">4</div><div class="step-body">
     <strong>Premi «📲 Ricevi codice su Telegram»</strong>
     <p>L'app verifica i tuoi dati e invia un codice OTP a 6 cifre al tuo Telegram tramite il bot <strong>@infoSgas_bot</strong>.</p>
     <div class="alert warn">❌ «Tessera o cellulare non trovati»? Controlla spazi ed errori di battitura, oppure usa il recupero qui sotto.</div>
   </div></div>
 
-  <!-- Passo 4-5: inserisci il codice OTP -->
+  <!-- Passo 5-6: inserisci il codice OTP -->
   <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:24px 0 8px;">Passo 2 — Inserisci il codice Telegram</div>
   <div class="mock">
     <div class="mock-hero" style="background:linear-gradient(160deg,#0d47a1,#1565c0);">
@@ -228,12 +240,12 @@
     </div>
   </div>
 
-  <div class="step"><div class="step-num">4</div><div class="step-body">
+  <div class="step"><div class="step-num">5</div><div class="step-body">
     <strong>Apri Telegram e copia il codice</strong>
     <p>Il bot <strong>@infoSgas_bot</strong> ti ha inviato un messaggio con un codice a 6 cifre. Il codice è valido per <strong>10 minuti</strong>.</p>
   </div></div>
 
-  <div class="step"><div class="step-num">5</div><div class="step-body">
+  <div class="step"><div class="step-num">6</div><div class="step-body">
     <strong>Inserisci il codice nell'app e premi «✅ Accedi»</strong>
     <div class="alert ok">✅ Sei dentro: si apre il catalogo!</div>
     <div class="alert warn">❌ Codice scaduto o errato? Riparti dal passo 1 per riceverne uno nuovo.</div>
@@ -404,7 +416,10 @@
   <div class="mock" style="max-width:330px;">
     <div class="m-nav">
       <span class="brand">🌼 S-GAS</span>
-      <span class="ico">📅</span><span class="ico">💬</span><span class="ico">👤</span><span class="ico">🛒</span>
+      <span class="ico">📅<span class="ico-lbl">Prenota</span></span>
+      <span class="ico">💬<span class="ico-lbl">Messaggi</span></span>
+      <span class="ico">👤<span class="ico-lbl">Profilo</span></span>
+      <span class="ico">🛒<span class="ico-lbl">Carrello</span></span>
       <span class="esci">Esci</span>
     </div>
     <div class="m-split">
@@ -461,8 +476,9 @@
   <div class="mock" style="max-width:330px;">
     <div class="m-nav">
       <span class="brand">🌼 S-GAS</span>
-      <span class="ico">💬</span><span class="ico">👤</span>
-      <span class="ico">🛒<span class="badge">2</span></span>
+      <span class="ico">💬<span class="ico-lbl">Messaggi</span></span>
+      <span class="ico">👤<span class="ico-lbl">Profilo</span></span>
+      <span class="ico"><span style="position:relative;display:inline-flex;">🛒<span class="badge">2</span></span><span class="ico-lbl">Carrello</span></span>
       <span style="color:var(--red);font-weight:900;font-size:10px;">← carrello</span>
       <span class="esci">Esci</span>
     </div>
@@ -527,9 +543,10 @@
   <div class="mock" style="max-width:330px;">
     <div class="m-nav">
       <span class="brand">🌼 S-GAS</span>
-      <span class="ico">💬<span class="badge">1</span></span>
+      <span class="ico"><span style="position:relative;display:inline-flex;">💬<span class="badge">1</span></span><span class="ico-lbl">Messaggi</span></span>
       <span style="color:var(--red);font-weight:900;font-size:10px;">← clikka qui</span>
-      <span class="ico">👤</span><span class="ico">🛒</span>
+      <span class="ico">👤<span class="ico-lbl">Profilo</span></span>
+      <span class="ico">🛒<span class="ico-lbl">Carrello</span></span>
       <span class="esci">Esci</span>
     </div>
     <div class="mock-body" style="padding:12px;">
@@ -571,9 +588,10 @@
   <div class="mock" style="max-width:330px;">
     <div class="m-nav">
       <span class="brand">🌼 S-GAS</span>
-      <span class="ico">📅<span class="badge">1</span></span>
+      <span class="ico"><span style="position:relative;display:inline-flex;">📅<span class="badge">1</span></span><span class="ico-lbl">Prenota</span></span>
       <span style="color:var(--red);font-weight:900;font-size:10px;">← clikka qui</span>
-      <span class="ico">💬</span><span class="ico">🛒</span>
+      <span class="ico">💬<span class="ico-lbl">Messaggi</span></span>
+      <span class="ico">🛒<span class="ico-lbl">Carrello</span></span>
       <span class="esci">Esci</span>
     </div>
     <div class="mock-body" style="padding:12px;">
@@ -657,6 +675,7 @@
     <thead><tr><th>Voglio…</th><th>Dove vado</th></tr></thead>
     <tbody>
       <tr><td>🔑 Entrare</td><td>Login: <strong>Tessera + Cellulare</strong> → codice OTP su <strong>Telegram</strong></td></tr>
+      <tr><td>💾 Restare connesso</td><td>Spunta «Ricordami su questo dispositivo» prima di premere «Ricevi codice»</td></tr>
       <tr><td>🔓 Recuperare i codici</td><td>«Non ricordo i codici di accesso» sotto il login</td></tr>
       <tr><td>🛒 Vedere raccolte aperte</td><td>Tab <strong>«🛒 Raccolte»</strong> nella barra laterale</td></tr>
       <tr><td>📦 Ordinare</td><td><strong>Raccolte → tocca fornitore → + prodotti → 🛒 → Invia</strong></td></tr>
