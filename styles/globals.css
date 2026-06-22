@@ -63,9 +63,15 @@
         padding: var(--btn-py, 0.875rem) var(--btn-px, 1.25rem);
         font-size: var(--btn-font-size, 0.875rem);
         border-radius: var(--btn-border-radius, 0.25rem);
+        min-height: 2.75rem;
+        touch-action: manipulation;
 
         &:hover {
             @apply bg-primary/85;
+        }
+
+        &:focus-visible {
+            @apply outline-2 outline-offset-2 outline-primary;
         }
 
         &:disabled {
@@ -81,6 +87,19 @@
 
     .input {
         @apply px-4 py-3 text-sm border rounded-sm border-neutral-300 text-neutral-900 focus:border-primary focus:outline-3 focus:outline-primary/30;
+        min-height: 2.75rem;
+        touch-action: manipulation;
+    }
+
+    @media (pointer: coarse) {
+        .btn {
+            --btn-py: 0.875rem;
+            min-height: 2.75rem;
+        }
+
+        .input {
+            @apply py-3.5 text-base;
+        }
     }
 
     .diff {

@@ -37,9 +37,9 @@ export function FeedbackForm() {
             <Card title="Leave Feedback">
                 <form name="feedback" onSubmit={handleFormSubmit} className="flex flex-col gap-3 align-center">
                     <input type="hidden" name="form-name" value="feedback" />
-                    <input name="name" type="text" placeholder="Name" required className="input" />
-                    <input name="email" type="email" placeholder="Email (optional)" className="input" />
-                    <input name="message" type="text" placeholder="Message" required className="input" />
+                    <input name="name" type="text" inputMode="text" autoComplete="name" placeholder="Name" required className="input" />
+                    <input name="email" type="email" inputMode="email" autoComplete="email" placeholder="Email (optional)" className="input" />
+                    <input name="message" type="text" inputMode="text" placeholder="Message" required className="input" />
                     <button className="btn" type="submit" disabled={status === 'pending'}>
                         Submit
                     </button>
