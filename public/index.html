@@ -58,7 +58,7 @@ try{
         (_cur.prodotti=_cur.prodotti||[]);
         _emb.prodotti.forEach(function(ep){if(!_existingPIds.has(ep.id))_cur.prodotti.push(ep);});
       }
-      // Soci, raccolte, ordini, messaggi: MAI sovrascritti da aggiornamento app
+      // Tesserati, raccolte, ordini, messaggi: MAI sovrascritti da aggiornamento app
       if(!_cur.soci) _cur.soci=_emb.soci||[];
       if(!_cur.raccolte) _cur.raccolte=[];
       if(!_cur.ordini) _cur.ordini=[];
@@ -20635,10 +20635,10 @@ window.docx = docx;
     </div>
     <div class="login-card">
 
-      <!-- ── Banner Socio (visibile solo su /) ── -->
+      <!-- ── Banner Tesserato (visibile solo su /) ── -->
       <div id="login-banner-socio" style="margin-bottom: 20px; background: var(--green-pale); border-radius: 14px; padding: 14px 16px; text-align: center; display: none;">
         <div style="font-size:1.6rem;margin-bottom:4px;">🛒</div>
-        <div style="font-weight:800;color:var(--green-dark);font-size:1rem;">Area Soci</div>
+        <div style="font-weight:800;color:var(--green-dark);font-size:1rem;">Area Tesserati</div>
         <div style="font-size:.78rem;color:var(--text-mid);margin-top:3px;">Accedi con tessera e cellulare</div>
       </div>
 
@@ -20648,11 +20648,11 @@ window.docx = docx;
         <div style="font-weight:800;color:#e65100;font-size:1rem;">Area Admin</div>
         <div style="font-size:.78rem;color:#bf360c;margin-top:3px;">Accesso riservato agli amministratori</div>
         <div style="margin-top:10px;padding-top:10px;border-top:1px solid #ffcc80;">
-          <a href="/" onclick="window.location.hash='';showLoginView();return false;" style="font-size:.75rem;color:var(--text-light);text-decoration:none;">← Torna all'App Soci</a>
+          <a href="/" onclick="window.location.hash='';showLoginView();return false;" style="font-size:.75rem;color:var(--text-light);text-decoration:none;">← Torna all'App Tesserati</a>
         </div>
       </div>
 
-      <!-- Socio form -->
+      <!-- Tesserato form -->
       <div id="login-socio-form" style="display: none;">
         <!-- Passo 1: tessera + cellulare → ricevi codice -->
         <div id="login-socio-step1">
@@ -20781,9 +20781,9 @@ window.docx = docx;
           <span class="assist-ico">📦</span>
           <div><div>Assistenza Ordine</div><div class="assist-tg">Spedizioni, pagamenti</div></div>
         </a>
-        <a class="assist-item" href="#" onclick="window.open('https://t.me/'+TG_ASSIST.socio.handle+'?text=Assistenza+Socio','_blank');return false;">
+        <a class="assist-item" href="#" onclick="window.open('https://t.me/'+TG_ASSIST.socio.handle+'?text=Assistenza+Tesserato','_blank');return false;">
           <span class="assist-ico">🪪</span>
-          <div><div>Assistenza Socio</div><div class="assist-tg">Tessera, iscrizione</div></div>
+          <div><div>Assistenza Tesserato</div><div class="assist-tg">Tessera, iscrizione</div></div>
         </a>
       </div>
     </div>
@@ -20791,7 +20791,7 @@ window.docx = docx;
       <span>ℹ️</span>
       <span class="ti-label">Chi Siamo</span>
     </button>
-    <a class="topbar-icon" href="guida-socio.html" title="Guida Socio" style="text-decoration:none;">
+    <a class="topbar-icon" href="guida-socio.html" title="Guida Tesserato" style="text-decoration:none;">
       <span>📖</span>
       <span class="ti-label">Guida</span>
     </a>
@@ -20870,7 +20870,7 @@ window.docx = docx;
       <div style="font-size:1.4rem;flex-shrink:0;">👀</div>
       <div>
         <div style="font-weight:800;color:var(--green-dark);font-size:.88rem;">Modalità Vetrina</div>
-        <div style="font-size:.78rem;color:var(--text-mid);margin-top:2px;">Stai esplorando come ospite. Per ordinare, <a href="https://t.me/frenkenergy" target="_blank" style="color:var(--green);font-weight:700;">contatta l'assistenza</a> per diventare socio.</div>
+        <div style="font-size:.78rem;color:var(--text-mid);margin-top:2px;">Stai esplorando come ospite. Per ordinare, <a href="https://t.me/frenkenergy" target="_blank" style="color:var(--green);font-weight:700;">contatta l'assistenza</a> per diventare tesserato.</div>
       </div>
     </div>
     <div style="margin-bottom:10px;">
@@ -20912,7 +20912,7 @@ window.docx = docx;
       <div class="sidebar-nav">
         <button class="nav-item" id="nav-dashboard" onclick="adminNav('dashboard')"><span class="nav-icon">📊</span>Dashboard</button>
         <button class="nav-item" id="nav-chisiamo" onclick="adminNav('chisiamo')"><span class="nav-icon">ℹ️</span>Chi Siamo</button>
-        <button class="nav-item" id="nav-soci" onclick="adminNav('soci')"><span class="nav-icon">👥</span>Soci</button>
+        <button class="nav-item" id="nav-soci" onclick="adminNav('soci')"><span class="nav-icon">👥</span>Tesserati</button>
         <button class="nav-item" id="nav-fornitori" onclick="adminNav('fornitori')"><span class="nav-icon">🏪</span>Fornitori</button>
         <button class="nav-item" id="nav-prodotti" onclick="adminNav('prodotti')"><span class="nav-icon">📦</span>Prodotti</button>
         <button class="nav-item" id="nav-raccolte" onclick="adminNav('raccolte')"><span class="nav-icon">📋</span>Raccolte</button>
@@ -20922,7 +20922,7 @@ window.docx = docx;
         <button class="nav-item active" id="nav-settings" onclick="adminNav('settings')"><span class="nav-icon">⚙️</span>Impostazioni</button>
       </div>
       <div class="sidebar-footer">
-        <button class="btn btn-sm" id="admin-vista-socio-btn" style="display:none;background:rgba(255,255,255,.25);color:#fff;border:none;cursor:pointer;width:100%;margin-bottom:8px;" onclick="adminGoToSocioView()">👤 Vista Socio</button>
+        <button class="btn btn-sm" id="admin-vista-socio-btn" style="display:none;background:rgba(255,255,255,.25);color:#fff;border:none;cursor:pointer;width:100%;margin-bottom:8px;" onclick="adminGoToSocioView()">👤 Vista Tesserato</button>
         <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:none;cursor:pointer;width:100%;" onclick="logout()">← Esci</button>
       </div>
     </nav>
@@ -21013,14 +21013,14 @@ window.docx = docx;
     <div class="card" style="margin-bottom:16px;">
       <h3 style="font-family:var(--font-serif,serif);margin-bottom:8px;">📲 Telegram — Notifiche Ordini</h3>
       <p style="font-size:.82rem;color:var(--text-light);margin-bottom:12px;">
-        Ricevi un messaggio Telegram ad ogni nuovo ordine (admin) e invia una conferma automatica al socio (se ha il suo Chat ID nel profilo).
+        Ricevi un messaggio Telegram ad ogni nuovo ordine (admin) e invia una conferma automatica al tesserato (se ha il suo Chat ID nel profilo).
       </p>
       <div class="alert alert-info" style="font-size:.8rem;margin-bottom:14px;line-height:1.6;">
         <b>Come configurare in 3 minuti:</b><br>
         1️⃣ Apri Telegram → cerca <b>@BotFather</b> → scrivi <code>/newbot</code> → scegli nome e username → copia il <b>Bot Token</b><br>
         2️⃣ Avvia il tuo bot (cerca il suo username e clicca Start)<br>
         3️⃣ Visita <code>https://api.telegram.org/bot<b>TOKEN</b>/getUpdates</code> dopo aver scritto al bot → copia il campo <b>"id"</b> dentro "chat" → è il tuo <b>Chat ID admin</b><br>
-        4️⃣ Ogni socio può ottenere il proprio Chat ID scrivendo a <b>@userinfobot</b> su Telegram
+        4️⃣ Ogni tesserato può ottenere il proprio Chat ID scrivendo a <b>@userinfobot</b> su Telegram
       </div>
       <div class="alert alert-info" style="font-size:.8rem;margin-bottom:10px;">🔒 Il Bot Token è protetto su Netlify (variabile d'ambiente <code>TELEGRAM_BOT_TOKEN</code>) — non va inserito qui.</div>
       <div class="field"><label>💬 Chat ID Admin 1 (per ricevere ordini)</label><input id="s-tgadmin" type="text" value="${S.config.tgAdminChatId||''}" placeholder="es. 123456789"></div>
@@ -21115,7 +21115,7 @@ function promptPushPermission(){ /* OneSignal rimosso */ }
 const TG_ASSIST = {
   app:    { label:'App',    icon:'🛠️', handle:'Frenkenergy', desc:'Bug, errori, accesso' },
   ordine: { label:'Ordine', icon:'📦', handle:'MO_VLAD',     desc:'Spedizioni, pagamenti' },
-  socio:  { label:'Socio',  icon:'', handle:'vascos65',    desc:'Tessera, iscrizione' }
+  socio:  { label:'Tesserato',  icon:'', handle:'vascos65',    desc:'Tessera, iscrizione' }
 };
 
 const DEFAULT_CATEGORIE = [
@@ -22518,9 +22518,9 @@ function openFornitoreOspite(id){
   html+='<div style="text-align:center;margin-top:16px;padding:20px;background:var(--green-pale);border-radius:14px;border:1.5px solid var(--green-light);">'
     +'<div style="margin-bottom:8px;">'+ctaLogo+'</div>'
     +'<div style="font-weight:800;color:var(--green-dark);margin-bottom:6px;">Vuoi ordinare questi prodotti?</div>'
-    +'<div style="font-size:.82rem;color:var(--text-mid);margin-bottom:12px;">Contatta l\'assistenza per diventare socio del GAS e accedere agli ordini.</div>'
+    +'<div style="font-size:.82rem;color:var(--text-mid);margin-bottom:12px;">Contatta l\'assistenza per diventare tesserato del GAS e accedere agli ordini.</div>'
     +'<a href="https://t.me/frenkenergy" target="_blank" class="btn btn-primary" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="white"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.17 13.667l-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.978.892z"/></svg> Contatta Assistenza</a>'
-    +'<div style="margin-top:10px;"><button class="btn btn-secondary" onclick="showLoginView()" style="font-size:.82rem;">🔑 Sei già socio? Accedi</button></div>'
+    +'<div style="margin-top:10px;"><button class="btn btn-secondary" onclick="showLoginView()" style="font-size:.82rem;">🔑 Sei già tesserato? Accedi</button></div>'
     +'</div>';
 
   document.getElementById('ospite-forn-detail').innerHTML=html;
@@ -22618,7 +22618,7 @@ function showRecovery(tipo){
   }
 }
 
-// ── 3-STEP RECOVERY per Socio ──
+// ── 3-STEP RECOVERY per Tesserato ──
 // Usiamo una variabile globale per evitare il problema delle doppie virgolette
 // di JSON.stringify() dentro attributi HTML onclick=""
 let _recData = {};
@@ -22995,7 +22995,7 @@ async function socioVerifyCode(){
     // restituito dal server (evita di prendere una riga arbitraria quando
     // il socio è anche admin, vedi _fetchOwnSocioFromSupabase).
     const socio = await _fetchOwnSocioFromSupabase(sb, data.socioId) || (S.soci||[]).find(s=>(s.tessera||'').toUpperCase()===_otpTessera);
-    if(!socio){toast('❌ Socio non trovato');return;}
+    if(!socio){toast('❌ Tesserato non trovato');return;}
     socioResetLogin();
     // Se il server segnala che la tessera è admin (ADMIN_TESSERE), entra nella
     // vista admin con permessi Supabase completi; altrimenti vista socio.
@@ -23044,7 +23044,7 @@ function _enterAdminViaOtp(socio){
   const rememberMe = rememberCb ? rememberCb.checked : false;
   if(rememberMe) localStorage.setItem('sgas_remember_pref','1');
   else localStorage.removeItem('sgas_remember_pref');
-  _adminOwnSocio = socio;  // socio Supabase dell'admin (per la Vista Socio)
+  _adminOwnSocio = socio;  // socio Supabase dell'admin (per la Vista Tesserato)
   currentUser={type:'admin', viaOtp:true, id:socio.id,
                adminEmail:(socio.tessera||'').toLowerCase(),
                nome:socio.nome||'', cognome:socio.cognome||'', _rememberMe:rememberMe};
@@ -23057,7 +23057,7 @@ function _enterAdminViaOtp(socio){
   toast('✅ Accesso admin effettuato');
 }
 
-// ── Passaggio Admin ⇄ Vista Socio (solo per admin via OTP) ──────────────────
+// ── Passaggio Admin ⇄ Vista Tesserato (solo per admin via OTP) ──────────────────
 // L'admin via OTP ha già la sua identità socio: può passare alla vista socio in
 // automatico e tornare al pannello admin. Stato transitorio (non persistito):
 // un reload riporta alla vista admin.
@@ -23077,7 +23077,7 @@ async function adminGoToSocioView(){
     const tess=(currentUser.adminEmail||'').toUpperCase();
     socio = (S.soci||[]).find(s=>(s.tessera||'').toUpperCase()===tess);
   }
-  if(!socio){ toast('❌ Profilo socio non trovato'); return; }
+  if(!socio){ toast('❌ Profilo tesserato non trovato'); return; }
   _adminOwnSocio = socio;
   _adminSocioBackup = currentUser;  // conserva l'identità admin
   currentUser = {type:'socio', ...socio, viaOtp:true, _fromAdmin:true,
@@ -23208,7 +23208,7 @@ function logout(){
     // Admin classico (email+password) → form admin
     window.location.hash='#admin'; showLoginView();
   } else {
-    // Socio e admin-via-OTP usano lo stesso form di login su "/"
+    // Tesserato e admin-via-OTP usano lo stesso form di login su "/"
     window.location.hash=''; showLoginView();
   }
 }
@@ -23837,7 +23837,7 @@ function exportOrderWord(ord){
   children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:40},
     children:[new TextRun({text:'Raccolta: '+(racc?racc.nome:ord.raccoltaId),size:22,font:'Arial'})]}));
   children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:40},
-    children:[new TextRun({text:'Socio: '+ord.socioNome+' '+ord.socioCognome+(tessera?' — Tessera: '+tessera:''),size:22,font:'Arial'})]}));
+    children:[new TextRun({text:'Tesserato: '+ord.socioNome+' '+ord.socioCognome+(tessera?' — Tessera: '+tessera:''),size:22,font:'Arial'})]}));
   children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:280},
     children:[new TextRun({text:'Cellulare: '+(ord.socioCellulare||'—'),size:22,font:'Arial'})]}));
   children.push(mainTable);
@@ -24024,19 +24024,19 @@ function renderProfilo(){
 
 // ════════════════════ ADMIN NAV ════════════════════
 function adminNav(sec){
-  // Il pulsante "Vista Socio" è visibile solo per gli admin via OTP (che hanno
+  // Il pulsante "Vista Tesserato" è visibile solo per gli admin via OTP (che hanno
   // un'identità socio collegata alla loro tessera).
   const _vs=document.getElementById('admin-vista-socio-btn');
   if(_vs) _vs.style.display = (currentUser && currentUser.viaOtp) ? '' : 'none';
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   const el=document.getElementById('nav-'+sec);
   if(el) el.classList.add('active');
-  const titles={dashboard:'Dashboard',soci:'Gestione Soci',fornitori:'Gestione Fornitori',prodotti:'Gestione Prodotti',raccolte:'Raccolte Ordini',ordini:'Ordini Ricevuti',prenotazioni:'Prenotazioni',news:'News & Comunicazioni',messaggi:'Messaggi',settings:'Impostazioni',chisiamo:'Chi Siamo'};
+  const titles={dashboard:'Dashboard',soci:'Gestione Tesserati',fornitori:'Gestione Fornitori',prodotti:'Gestione Prodotti',raccolte:'Raccolte Ordini',ordini:'Ordini Ricevuti',prenotazioni:'Prenotazioni',news:'News & Comunicazioni',messaggi:'Messaggi',settings:'Impostazioni',chisiamo:'Chi Siamo'};
   document.getElementById('admin-section-title').textContent=titles[sec]||sec;
   document.getElementById('admin-mobile-title').textContent=titles[sec]||sec;
   const acts=document.getElementById('admin-header-actions');
   acts.innerHTML='';
-  if(sec==='soci') acts.innerHTML=`<button class="btn btn-primary btn-sm" onclick="modalNewSocio()">+ Nuovo Socio</button>`;
+  if(sec==='soci') acts.innerHTML=`<button class="btn btn-primary btn-sm" onclick="modalNewSocio()">+ Nuovo Tesserato</button>`;
   if(sec==='fornitori') acts.innerHTML=`<button class="btn btn-primary btn-sm" onclick="modalNewFornitore()">+ Nuovo Fornitore</button>`;
   if(sec==='prodotti') acts.innerHTML=`<button class="btn btn-primary btn-sm" onclick="modalNewProdotto()">+ Nuovo Prodotto</button>`;
   if(sec==='raccolte') acts.innerHTML=`<button class="btn btn-primary btn-sm" onclick="modalNewRaccolta()">+ Nuova Raccolta</button>`;
@@ -24205,7 +24205,7 @@ function renderDashboard(){
 
   document.getElementById('admin-panel-content').innerHTML=`
     <div class="stats-grid">
-      <div class="stat-card"><div class="stat-num">${S.soci.length}</div><div class="stat-lbl">Soci</div></div>
+      <div class="stat-card"><div class="stat-num">${S.soci.length}</div><div class="stat-lbl">Tesserati</div></div>
       <div class="stat-card"><div class="stat-num">${S.fornitori.filter(f=>f.attivo!==false).length}</div><div class="stat-lbl">Fornitori attivi</div></div>
       <div class="stat-card"><div class="stat-num">${S.prodotti.length}</div><div class="stat-lbl">Prodotti</div></div>
       <div class="stat-card"><div class="stat-num">${opens}</div><div class="stat-lbl">Raccolte aperte</div></div>
@@ -24258,7 +24258,7 @@ function renderDashboard(){
 
       <!-- Attività soci -->
       <div class="chart-card">
-        <h4>👥 Ordini per Socio</h4>
+        <h4>👥 Ordini per Tesserato</h4>
         <div class="chart-sub">Numero di ordini effettuati</div>
         <div class="chart-wrap">
           <canvas id="ch-soci" style="max-width:200px;max-height:200px;"></canvas>
@@ -24308,10 +24308,10 @@ function renderDashboard(){
         </div>
         <div class="chart-legend" id="leg-forn-period"></div>
       </div>
-      <!-- Soci per periodo -->
+      <!-- Tesserati per periodo -->
       <div class="chart-card">
-        <h4>👥 Soci nel periodo</h4>
-        <div class="chart-sub" id="soci-period-sub">Fatturato per socio nel periodo selezionato</div>
+        <h4>👥 Tesserati nel periodo</h4>
+        <div class="chart-sub" id="soci-period-sub">Fatturato per tesserato nel periodo selezionato</div>
         <div class="chart-wrap">
           <canvas id="ch-soci-period" style="max-width:200px;max-height:200px;"></canvas>
           <div class="chart-center-label" id="ch-soci-period-center">
@@ -24355,7 +24355,7 @@ function renderDashboard(){
     buildDonut('ch-racc', ordRaccSorted.map(x=>x[0]), ordRaccSorted.map(x=>x[1]), `${S.raccolte.length}`, 'raccolte');
     buildLegend('leg-racc', ordRaccSorted.map(x=>x[0]), ordRaccSorted.map(x=>x[1]), CHART_PALETTE);
 
-    // Soci (ordini = conteggio non €)
+    // Tesserati (ordini = conteggio non €)
     buildDonut('ch-soci', socioSorted.map(x=>x[0]), socioSorted.map(x=>x[1]), `${S.ordini.length}`, 'ordini');
     buildLegend('leg-soci', socioSorted.map(x=>x[0]), socioSorted.map(x=>x[1]), CHART_PALETTE, false);
 
@@ -24423,7 +24423,7 @@ function renderPeriodCharts(){
     if(leg) leg.innerHTML='<div style="font-size:.82rem;color:var(--text-light);text-align:center;padding:20px;">Nessun ordine nel periodo</div>';
   }
 
-  // ── Soci per periodo ──
+  // ── Tesserati per periodo ──
   const fatSociP={};
   filtered.forEach(o=>{
     const key=o.socioNome||o.socioId||'?';
@@ -24484,18 +24484,18 @@ function _renderSociTable(){
   </tr>`).join('');
   document.getElementById('admin-panel-content').innerHTML=`
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
-      <h3 style="font-family:var(--font-serif,serif);font-size:1.1rem;margin:0;">👥 Soci</h3>
-      <button class="btn btn-primary btn-sm" onclick="modalNewSocio()">➕ Nuovo Socio</button>
+      <h3 style="font-family:var(--font-serif,serif);font-size:1.1rem;margin:0;">👥 Tesserati</h3>
+      <button class="btn btn-primary btn-sm" onclick="modalNewSocio()">➕ Nuovo Tesserato</button>
     </div>
     <div class="tbl-wrap"><table>
     <thead><tr><th>Tessera</th><th>Nome e Cognome</th><th>Cellulare</th><th>Telegram</th><th>Scadenza</th><th>Azioni</th></tr></thead>
-    <tbody>${rows||'<tr><td colspan="6" style="text-align:center;color:var(--text-light);">Nessun socio</td></tr>'}</tbody>
+    <tbody>${rows||'<tr><td colspan="6" style="text-align:center;color:var(--text-light);">Nessun tesserato</td></tr>'}</tbody>
   </table></div>`;
 }
 
 function modalNewSocio(){
   const nextNum = nextTesseraNumber();
-  openModal(`<h3>➕ Nuovo Socio</h3>
+  openModal(`<h3>➕ Nuovo Tesserato</h3>
     <div class="field"><label>Numero Tessera <span style="font-size:.72rem;color:var(--green);font-weight:700;">(auto-generato)</span></label><input id="m-tess" type="text" value="${nextNum}"></div>
     <div class="field"><label>Nome</label><input id="m-nome" type="text" placeholder="Mario"></div>
     <div class="field"><label>Cognome</label><input id="m-cognome" type="text" placeholder="Rossi"></div>
@@ -24512,7 +24512,7 @@ function modalNewSocio(){
 
 function modalEditSocio(id){
   const s=S.soci.find(x=>x.id===id);if(!s)return;
-  openModal(`<h3>✏️ Modifica Socio</h3>
+  openModal(`<h3>✏️ Modifica Tesserato</h3>
     <input type="hidden" id="m-id" value="${s.id}">
     <div class="field"><label>Numero Tessera</label><input id="m-tess" type="text" value="${escHtml(s.tessera)}"></div>
     <div class="field"><label>Nome</label><input id="m-nome" type="text" value="${escHtml(s.nome||'')}"></div>
@@ -24547,7 +24547,7 @@ function saveSocio(editId){
     saved={id:'s'+uid(),tessera:tess,nome,cognome,cellulare:tel,telefono:tel,telegram,telegramChatId,emissione:emi,scadenza:sca};
     S.soci.push(saved);
   }
-  saveState(); closeModal(); _renderSociTable(); toast('✅ Socio salvato');
+  saveState(); closeModal(); _renderSociTable(); toast('✅ Tesserato salvato');
   if(saved) _syncSocioToSupabase(saved)
     .then(syncOk=>syncOk?loadSociFromSupabase():false)
     .then(ok=>{ if(ok) _renderSociTable(); })
@@ -24556,9 +24556,9 @@ function saveSocio(editId){
 
 function deleteSocio(id){
   if(!currentUser||currentUser.type!=='admin'){toast('❌ Accesso negato');return;}
-  if(!confirm('Eliminare questo socio?')) return;
+  if(!confirm('Eliminare questo tesserato?')) return;
   S.soci=S.soci.filter(s=>s.id!==id);
-  saveState(); _renderSociTable(); toast('Socio eliminato');
+  saveState(); _renderSociTable(); toast('Tesserato eliminato');
   _deleteSocioFromSupabase(id)
     .then(syncOk=>syncOk?loadSociFromSupabase():false)
     .then(ok=>{ if(ok) _renderSociTable(); })
@@ -25326,7 +25326,7 @@ function _renderOrdiniTable(){
       <button class="btn btn-sm btn-secondary" onclick="renderOrdini()">🔄 Aggiorna</button>
     </div>
     <div class="tbl-wrap"><table>
-    <thead><tr><th>ID</th><th>Socio</th><th>Raccolta</th><th>Data</th><th>Articoli</th><th>Totale</th><th></th></tr></thead>
+    <thead><tr><th>ID</th><th>Tesserato</th><th>Raccolta</th><th>Data</th><th>Articoli</th><th>Totale</th><th></th></tr></thead>
     <tbody>${rows||'<tr><td colspan="7" style="text-align:center;color:var(--text-light);">Nessun ordine ricevuto</td></tr>'}</tbody>
   </table></div>`;
 }
@@ -25425,7 +25425,7 @@ function exportSingleOrderWord(oid){
   children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:40},
     children:[new TextRun({text:'ID: '+o.id,bold:true,size:22,font:'Arial'})]}));
   children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:20},
-    children:[new TextRun({text:'Socio: '+socioNomeCompleto,bold:true,size:22,font:'Arial'})]}));
+    children:[new TextRun({text:'Tesserato: '+socioNomeCompleto,bold:true,size:22,font:'Arial'})]}));
   children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:40},
     children:[new TextRun({text:'Tessera: '+socioTessera,size:20,font:'Arial',color:'2E7D32'})]}));
   children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:40},
@@ -25514,7 +25514,7 @@ function reportFornitori(raccoltaId){
     +'<div class="chart-wrap"><canvas id="rpt-forn-'+rId+'" style="max-width:200px;max-height:200px;"></canvas>'
     +'<div class="chart-center-label" id="rpt-forn-'+rId+'-center"><div class="big">€'+totaleRaccolta.toFixed(0)+'</div><div class="small">totale</div></div></div>'
     +'<div class="chart-legend" id="rpt-forn-leg-'+rId+'"></div></div>'
-    +'<div class="chart-card"><h4>👥 Spesa per Socio</h4><div class="chart-sub">Chi ha speso di più</div>'
+    +'<div class="chart-card"><h4>👥 Spesa per Tesserato</h4><div class="chart-sub">Chi ha speso di più</div>'
     +'<div class="chart-wrap"><canvas id="rpt-socio-'+rId+'" style="max-width:200px;max-height:200px;"></canvas>'
     +'<div class="chart-center-label" id="rpt-socio-'+rId+'-center"><div class="big">'+Object.keys(bySocio).length+'</div><div class="small">soci</div></div></div>'
     +'<div class="chart-legend" id="rpt-socio-leg-'+rId+'"></div></div>'
@@ -25587,7 +25587,7 @@ function exportFornCSV(raccoltaId, fornId){
   const racc = S.raccolte.find(r=>r.id===raccoltaId);
   const forn = S.fornitori.find(f=>f.id===fornId);
   const ordini = S.ordini.filter(o=>o.raccoltaId===raccoltaId);
-  const rows = [['Codice','Prodotto','Unità','Socio','Cognome','Cellulare','Telegram','Qty','Prezzo unit.','Totale riga']];
+  const rows = [['Codice','Prodotto','Unità','Tesserato','Cognome','Cellulare','Telegram','Qty','Prezzo unit.','Totale riga']];
   let totale = 0;
   ordini.forEach(o=>{
     const socioNome = o.socioNome || o.socioId;
@@ -25826,7 +25826,7 @@ function exportReportWord(raccoltaId){
 function exportReportCSV(raccoltaId){
   const racc = S.raccolte.find(r=>r.id===raccoltaId);
   const ordini = S.ordini.filter(o=>o.raccoltaId===raccoltaId);
-  const rows = [['Fornitore','Prodotto','Unità','Socio','Cognome','Cellulare','Telegram','Qty','Prezzo unit.','Totale riga']];
+  const rows = [['Fornitore','Prodotto','Unità','Tesserato','Cognome','Cellulare','Telegram','Qty','Prezzo unit.','Totale riga']];
   let totale = 0;
   // raggruppa per fornitore
   const fornIds = [...new Set(ordini.flatMap(o=>o.items.map(i=>{const p=S.prodotti.find(x=>x.id===i.prodottoId);return p?p.fornitorId:null;}).filter(Boolean)))];
@@ -25967,7 +25967,7 @@ async function migrateSociToSupabase(){
   let session = null;
   try{ session = (await sb.auth.getSession()).data.session; }catch(e){}
   if(!session){
-    toast('🔒 Per migrare devi prima fare il login come socio via Telegram (OTP) con una tessera admin.');
+    toast('🔒 Per migrare devi prima fare il login come tesserato via Telegram (OTP) con una tessera admin.');
     return;
   }
   const soci = Array.isArray(S.soci) ? S.soci : [];
@@ -26023,7 +26023,7 @@ async function _requireAdminSb(){
   let session = null;
   try{ session = (await sb.auth.getSession()).data.session; }catch(e){}
   if(!session){
-    toast('🔒 Fai prima il login come socio via Telegram (OTP) con una tessera admin.');
+    toast('🔒 Fai prima il login come tesserato via Telegram (OTP) con una tessera admin.');
     return null;
   }
   return sb;
@@ -26727,7 +26727,7 @@ function testEmailJS(){
       subject:    '🧪 Test Email — S-GAS Freeconomy',
       message:    'Questo è un messaggio di test inviato da S-GAS Freeconomy.\nSe hai ricevuto questa email, la configurazione EmailJS funziona correttamente!\n\nData: '+new Date().toLocaleString('it-IT'),
       order_id:   'TEST-001',
-      socio_nome: 'Socio di Test',
+      socio_nome: 'Tesserato di Test',
       raccolta:   'Test Raccolta',
       totale:     '€0.00',
       items:      'Prodotto di test x1 = €0.00'
@@ -27382,7 +27382,7 @@ if(_isAdminPath){
 setTimeout(()=>{ initSupabase(); }, 800);
 
 // ════════════════════════════════════════════════════════
-// PRENOTAZIONI — Admin + Socio
+// PRENOTAZIONI — Admin + Tesserato
 // ════════════════════════════════════════════════════════
 
 // ── Data helpers ──────────────────────────────────────
@@ -27587,7 +27587,7 @@ function viewOrdiniPrenotazione(prenId){
     html+='<h4 style="margin-bottom:10px;">Dettaglio per socio</h4>';
     ordini.forEach(o=>{
       const soc=S.soci?S.soci.find(s=>s.id===o.socioId):null;
-      const nome=soc?soc.nome+' '+soc.cognome:'Socio #'+o.socioId;
+      const nome=soc?soc.nome+' '+soc.cognome:'Tesserato #'+o.socioId;
       html+=`<div style="background:var(--bg-card);border-radius:8px;padding:12px;margin-bottom:8px;">
         <strong>${escHtml(nome)}</strong> <span style="font-size:.8rem;color:var(--text-light);">${escHtml(o.data)}</span>
         <div style="margin-top:6px;font-size:.85rem;">`;
