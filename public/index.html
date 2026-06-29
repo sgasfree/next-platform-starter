@@ -25356,7 +25356,7 @@ function exportSingleOrderWord(oid){
   const gasName = S.config.gasName||'S-GAS';
   const bdr = {style:BorderStyle.SINGLE,size:1,color:'999999'};
   const bdrs = {top:bdr,bottom:bdr,left:bdr,right:bdr};
-  const colW = [2200,1500,800,800,1400,1400];
+  const colW = [1000,2100,1626,800,700,1300,1500];
   function mkCell(txt,bold,right,shade,w){
     return new TableCell({borders:bdrs,width:{size:w,type:WidthType.DXA},
       shading:shade?{fill:'D5E8D4',type:ShadingType.CLEAR}:undefined,
@@ -25370,35 +25370,38 @@ function exportSingleOrderWord(oid){
   const rows2 = o.items.map(i=>{
     const p = S.prodotti.find(x=>x.id===i.prodottoId);
     const f = p?S.fornitori.find(x=>x.id===p.fornitorId):null;
+    const codice = p?p.codice||'':'';
     const nome = p?p.nome:i.prodottoId;
     const forn = f?f.nome:'—';
     const unita = p?p.unita||'':'';
     const prezzo = p?p.prezzo:0;
     const tot = prezzo*i.qty;
-    return {nome,forn,unita,qty:i.qty,prezzo,tot};
+    return {codice,nome,forn,unita,qty:i.qty,prezzo,tot};
   });
   const totale = rows2.reduce((a,r)=>a+r.tot,0);
   const headerRow = new TableRow({tableHeader:true,children:[
-    mkCell('Prodotto',true,false,true,colW[0]),
-    mkCell('Fornitore',true,false,true,colW[1]),
-    mkCell('Unità',true,false,true,colW[2]),
-    mkCell('Q.tà',true,true,true,colW[3]),
-    mkCell('Prezzo',true,true,true,colW[4]),
-    mkCell('Totale',true,true,true,colW[5])
+    mkCell('Codice',true,false,true,colW[0]),
+    mkCell('Prodotto',true,false,true,colW[1]),
+    mkCell('Fornitore',true,false,true,colW[2]),
+    mkCell('Unità',true,false,true,colW[3]),
+    mkCell('Q.tà',true,true,true,colW[4]),
+    mkCell('Prezzo',true,true,true,colW[5]),
+    mkCell('Totale',true,true,true,colW[6])
   ]});
   const dataRows = rows2.map(r=>new TableRow({children:[
-    mkCell(r.nome,false,false,false,colW[0]),
-    mkCell(r.forn,false,false,false,colW[1]),
-    mkCell(r.unita,false,false,false,colW[2]),
-    mkCell(r.qty,false,true,false,colW[3]),
-    mkCell('€ '+r.prezzo.toFixed(2),false,true,false,colW[4]),
-    mkCell('€ '+r.tot.toFixed(2),false,true,false,colW[5])
+    mkCell(r.codice,false,false,false,colW[0]),
+    mkCell(r.nome,false,false,false,colW[1]),
+    mkCell(r.forn,false,false,false,colW[2]),
+    mkCell(r.unita,false,false,false,colW[3]),
+    mkCell(r.qty,false,true,false,colW[4]),
+    mkCell('€ '+r.prezzo.toFixed(2),false,true,false,colW[5]),
+    mkCell('€ '+r.tot.toFixed(2),false,true,false,colW[6])
   ]}));
   const totalRow = new TableRow({children:[
-    new TableCell({borders:bdrs,width:{size:colW[0]+colW[1]+colW[2]+colW[3]+colW[4],type:WidthType.DXA},columnSpan:5,
+    new TableCell({borders:bdrs,width:{size:colW[0]+colW[1]+colW[2]+colW[3]+colW[4]+colW[5],type:WidthType.DXA},columnSpan:6,
       margins:{top:80,bottom:80,left:120,right:120},shading:{fill:'A8D5A2',type:ShadingType.CLEAR},
       children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[new TextRun({text:'TOTALE',bold:true,size:22,font:'Arial'})]})]}),
-    new TableCell({borders:bdrs,width:{size:colW[5],type:WidthType.DXA},
+    new TableCell({borders:bdrs,width:{size:colW[6],type:WidthType.DXA},
       margins:{top:80,bottom:80,left:120,right:120},shading:{fill:'A8D5A2',type:ShadingType.CLEAR},
       children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[new TextRun({text:'€ '+totale.toFixed(2),bold:true,size:22,font:'Arial'})]})]}),
   ]});
