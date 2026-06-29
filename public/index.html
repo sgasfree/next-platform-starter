@@ -21989,7 +21989,7 @@ function syncToSupabase(){
         { chiave:'sgas_app_state', valore:payload, updated_at: new Date().toISOString() },
         { onConflict:'chiave' }
       );
-    }catch(e){ console.warn('Supabase sync error:', e); }
+    }catch(e){ console.warn('Supabase sync error:', e); toast('⚠️ Salvataggio cloud fallito — dati salvati solo in locale. Riprova tra poco.'); }
   }, 1500);
 }
 
@@ -22007,7 +22007,7 @@ async function loadFromSupabase(){
     if(localRaw){
       try{
         const local = JSON.parse(localRaw);
-        if(local._savedAt && remote._savedAt && local._savedAt > remote._savedAt) return false;
+        if(local._savedAt && remote._savedAt && local._savedAt >= remote._savedAt) return false;
       }catch(e){}
     }
     S = remote;
@@ -26857,15 +26857,49 @@ try{
   if(_raw){
     var _cur=JSON.parse(_raw);
     if(_cur._embVer!==_emb._embVer){
-      // Versione aggiornata: sovrascrivi config, fornitori, prodotti, categorie
-      // Preserva soci, raccolte, ordini, messaggi dell'utente
+      var _savedToken=_cur.config&&_cur.config.tgBotToken;
+      var _savedSupa=_cur.config&&{url:_cur.config.supabaseUrl,key:_cur.config.supabaseKey,paused:_cur.config.supabasePaused};
+      var _savedPass=_cur.config&&_cur.config.adminPassword;
+      var _savedPass2=_cur.config&&_cur.config.adminPassword2;
+      var _savedPass3=_cur.config&&_cur.config.adminPassword3;
       _cur.config=Object.assign({},_emb.config);
-      _cur.fornitori=_emb.fornitori;
-      _cur.prodotti=_emb.prodotti;
+      if(_savedToken) _cur.config.tgBotToken=_savedToken;
+      if(_savedPass) _cur.config.adminPassword=_savedPass;
+      if(_savedPass2) _cur.config.adminPassword2=_savedPass2;
+      if(_savedPass3) _cur.config.adminPassword3=_savedPass3;
+      if(_savedSupa&&_savedSupa.url){_cur.config.supabaseUrl=_savedSupa.url;_cur.config.supabaseKey=_savedSupa.key;_cur.config.supabasePaused=_savedSupa.paused;}
       _cur.categorie=_emb.categorie;
+      if(_emb.fornitori&&_emb.fornitori.length){
+        _cur.fornitori=_cur.fornitori||[];
+        var _idRemap={};
+        var normName=function(n){return (n||'').toLowerCase().replace(/[""''"']/g,'"').trim();};
+        var _deleted=new Set(_cur.deletedFornitori||[]);
+        _emb.fornitori.forEach(function(ef){
+          if(_deleted.has(ef.id)) return;
+          var byId=_cur.fornitori.findIndex(function(f){return f.id===ef.id;});
+          var byName=_cur.fornitori.findIndex(function(f){return normName(f.nome)===normName(ef.nome);});
+          if(byId>=0){
+            _cur.fornitori[byId]=Object.assign({},ef,{logo:_cur.fornitori[byId].logo||ef.logo});
+          } else if(byName>=0){
+            var oldId=_cur.fornitori[byName].id;
+            if(oldId!==ef.id) _idRemap[oldId]=ef.id;
+            _cur.fornitori[byName]=Object.assign({},ef,{logo:_cur.fornitori[byName].logo||ef.logo});
+          } else {
+            _cur.fornitori.push(ef);
+          }
+        });
+        if(Object.keys(_idRemap).length&&_cur.prodotti){
+          _cur.prodotti.forEach(function(p){if(p.fornitorId&&_idRemap[p.fornitorId]) p.fornitorId=_idRemap[p.fornitorId];});
+        }
+      }
+      if(_emb.prodotti&&_emb.prodotti.length){
+        var _existingPIds=new Set((_cur.prodotti||[]).map(function(p){return p.id;}));
+        _cur.prodotti=_cur.prodotti||[];
+        _emb.prodotti.forEach(function(ep){if(!_existingPIds.has(ep.id))_cur.prodotti.push(ep);});
+      }
       if(!_cur.raccolte) _cur.raccolte=_emb.raccolte||[];
-      if(!_cur.ordini)   _cur.ordini=_emb.ordini||[];
-      if(!_cur.messaggi) _cur.messaggi=_emb.messaggi||[];
+      if(!_cur.ordini)   _cur.ordini=[];
+      if(!_cur.messaggi) _cur.messaggi=[];
       _cur._embVer=_emb._embVer;
     }
     localStorage.setItem("sgas_state",JSON.stringify(_cur));
