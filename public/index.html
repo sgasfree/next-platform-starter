@@ -75,7 +75,7 @@ try{
       });
       var _seen={};
       _cur.fornitori=_cur.fornitori.filter(function(f){
-        var k=(f.nome||"").toLowerCase().trim();
+        var k=(f.nome||"").toLowerCase().replace(/[“”‘’"']/g,'"').replace(/\s+/g,' ').trim();
         if(_seen[k])return false;
         _seen[k]=true;return true;
       });
@@ -87,7 +87,7 @@ try{
       if(_emb.fornitori) _emb.fornitori.forEach(function(ef){_embFornMap[ef.id]=ef;});
       // mappa nome-normalizzato → id per i fornitori correnti (fallback per match per nome)
       var _fornByNome={};
-      _cur.fornitori.forEach(function(f){ if(f.nome) _fornByNome[(f.nome||'').toLowerCase().trim()]=f.id; });
+      _cur.fornitori.forEach(function(f){ if(f.nome) _fornByNome[(f.nome||'').toLowerCase().replace(/[“”‘’"']/g,'"').replace(/\s+/g,' ').trim()]=f.id; });
       _cur.prodotti.forEach(function(p){
         if(p.fornitorId&&!_fornIds2.has(p.fornitorId)){
           // 1° tentativo: cerca il fornitore tramite ID nel dato embedded
@@ -98,7 +98,7 @@ try{
           // 2° tentativo: cerca fornitore embedded per quell'ID e prova a matchare per nome
           var eforn=_embFornMap[p.fornitorId];
           if(eforn&&eforn.nome){
-            var matchId=_fornByNome[(eforn.nome||'').toLowerCase().trim()];
+            var matchId=_fornByNome[(eforn.nome||'').toLowerCase().replace(/[“”‘’"']/g,'"').replace(/\s+/g,' ').trim()];
             if(matchId){ p.fornitorId=matchId; return; }
           }
           // 3° tentativo: se esiste solo un fornitore, assegna a quello
@@ -21850,6 +21850,10 @@ function migrateState() {
   try { localStorage.setItem('sgas_state', JSON.stringify(S)); } catch(e) {}
 }
 
+// Normalizza il nome di un fornitore per il confronto/dedup: minuscolo,
+// virgolette dritte/curve unificate, spazi multipli collassati.
+function _normNome(n){ return (n||'').toLowerCase().replace(/[“”‘’"']/g,'"').replace(/\s+/g,' ').trim(); }
+
 function loadState(){
   const raw = localStorage.getItem('sgas_state');
   if(raw){try{S=JSON.parse(raw);}catch(e){S={}}}
@@ -21862,18 +21866,34 @@ function loadState(){
   else {
     const existingFIds = new Set(S.fornitori.map(f=>f.id));
     const existingFNameToId = {};
-    S.fornitori.forEach(f=>{ existingFNameToId[(f.nome||'').toLowerCase().trim()]=f.id; });
+    S.fornitori.forEach(f=>{ existingFNameToId[_normNome(f.nome)]=f.id; });
     DEFAULT_FORNITORI.forEach(f=>{
-      const key = (f.nome||'').toLowerCase().trim();
+      const key = _normNome(f.nome);
       if(!existingFIds.has(f.id)){
         if(!(key in existingFNameToId)){
           S.fornitori.push(f);
+          existingFIds.add(f.id);
+          existingFNameToId[key]=f.id;
         } else {
           // Same name, different ID: remap default products to the existing supplier's ID
           defaultIdRemap[f.id] = existingFNameToId[key];
         }
       }
     });
+    // Dedup finale: rimuovi fornitori doppi per id e per nome normalizzato
+    const _seenId={}, _seenNm={};
+    S.fornitori = S.fornitori.filter(f=>{
+      if(!f.id || _seenId[f.id]) return false;
+      _seenId[f.id]=true;
+      const k=_normNome(f.nome);
+      if(k && _seenNm[k]){ defaultIdRemap[f.id]=_seenNm[k]; return false; }
+      if(k) _seenNm[k]=f.id;
+      return true;
+    });
+    // Riassegna i prodotti che puntano a fornitori rimossi nel dedup
+    if(Object.keys(defaultIdRemap).length && Array.isArray(S.prodotti)){
+      S.prodotti.forEach(p=>{ if(p.fornitorId && defaultIdRemap[p.fornitorId]) p.fornitorId=defaultIdRemap[p.fornitorId]; });
+    }
   }
   if(!S.prodotti) S.prodotti=DEFAULT_PRODOTTI;
   else {
@@ -22044,7 +22064,7 @@ async function loadFromSupabase(){
     }
     if(!S.cart) S.cart = {raccoltaId:'', items:[]};
     // Deduplicazione dopo caricamento Supabase
-    if(S.fornitori){ const _seenId={}; const _seenNm={}; S.fornitori=S.fornitori.filter(f=>{ if(!f.id)return false; if(_seenId[f.id])return false; _seenId[f.id]=true; const k=(f.nome||'').toLowerCase().trim(); if(_seenNm[k])return false; _seenNm[k]=true; return true; }); }
+    if(S.fornitori){ const _fornBefore=S.fornitori.length; const _seenId={}; const _seenNm={}; const _dedupRemap={}; S.fornitori=S.fornitori.filter(f=>{ if(!f.id)return false; if(_seenId[f.id])return false; _seenId[f.id]=true; const k=_normNome(f.nome); if(k&&_seenNm[k]){ _dedupRemap[f.id]=_seenNm[k]; return false; } if(k)_seenNm[k]=f.id; return true; }); if(Array.isArray(S.prodotti)&&Object.keys(_dedupRemap).length){ S.prodotti.forEach(p=>{ if(p.fornitorId&&_dedupRemap[p.fornitorId]) p.fornitorId=_dedupRemap[p.fornitorId]; }); } if(S.fornitori.length<_fornBefore){ setTimeout(()=>syncToSupabase(),2000); } }
     if(S.prodotti){ const _seenP={}; S.prodotti=S.prodotti.filter(p=>{ const k=(p.nome||'').toLowerCase().trim()+'_'+(p.fornitorId||''); if(_seenP[k])return false; _seenP[k]=true; return true; }); }
     // Ripara prodotti orfani: prova a trovare il fornitore corretto per nome
     if(S.fornitori && S.prodotti && typeof DEFAULT_FORNITORI !== 'undefined'){
@@ -22053,7 +22073,7 @@ async function loadFromSupabase(){
         if(p.fornitorId && _sfIds.has(p.fornitorId)) return; // ok
         const df=DEFAULT_FORNITORI.find(x=>x.id===p.fornitorId);
         if(!df) return;
-        const match=S.fornitori.find(f=>(f.nome||'').toLowerCase().trim()===(df.nome||'').toLowerCase().trim());
+        const match=S.fornitori.find(f=>_normNome(f.nome)===_normNome(df.nome));
         if(match) p.fornitorId=match.id;
       });
     }
@@ -26943,7 +26963,7 @@ function restoreData(ev){
         const _sid={};
         S.fornitori=S.fornitori.filter(x=>{if(!x.id||_sid[x.id])return false;_sid[x.id]=true;return true;});
         const _sname={};
-        S.fornitori=S.fornitori.filter(x=>{const k=(x.nome||'').toLowerCase().trim();if(_sname[k])return false;_sname[k]=true;return true;});
+        S.fornitori=S.fornitori.filter(x=>{const k=_normNome(x.nome);if(_sname[k])return false;_sname[k]=true;return true;});
         // Rimuovi prodotti orfani (collegati a fornitori rimossi dalla dedup)
         const _validF=new Set(S.fornitori.map(x=>x.id));
         if(S.prodotti) S.prodotti=S.prodotti.filter(p=>_validF.has(p.fornitorId));
