@@ -115,8 +115,10 @@ try{
         _seenPId[p.id]=true;return true;
       });
       var _seenP={};
+      var _pnorm=function(s){return (s||"").toLowerCase().replace(/[“”‘’"']/g,'"').replace(/\s+/g,' ').trim();};
       _cur.prodotti=_cur.prodotti.filter(function(p){
-        var k=(p.nome||"").toLowerCase().trim()+"_"+(p.fornitorId||"");
+        // include unità e codice: le varianti (taglie/prezzi diversi) restano
+        var k=_pnorm(p.nome)+"|"+(p.fornitorId||"")+"|"+_pnorm(p.unita)+"|"+_pnorm(p.codice);
         if(_seenP[k])return false;
         _seenP[k]=true;return true;
       });
@@ -21853,6 +21855,9 @@ function migrateState() {
 // Normalizza il nome di un fornitore per il confronto/dedup: minuscolo,
 // virgolette dritte/curve unificate, spazi multipli collassati.
 function _normNome(n){ return (n||'').toLowerCase().replace(/[“”‘’"']/g,'"').replace(/\s+/g,' ').trim(); }
+// Chiave identità prodotto per il dedup: include unità e codice, così le
+// varianti dello stesso prodotto (taglie/prezzi diversi) NON vengono unite.
+function _prodKey(p){ return _normNome(p&&p.nome)+'|'+((p&&p.fornitorId)||'')+'|'+_normNome(p&&p.unita)+'|'+_normNome(p&&p.codice); }
 
 function loadState(){
   const raw = localStorage.getItem('sgas_state');
@@ -22065,7 +22070,7 @@ async function loadFromSupabase(){
     if(!S.cart) S.cart = {raccoltaId:'', items:[]};
     // Deduplicazione dopo caricamento Supabase
     if(S.fornitori){ const _fornBefore=S.fornitori.length; const _seenId={}; const _seenNm={}; const _dedupRemap={}; S.fornitori=S.fornitori.filter(f=>{ if(!f.id)return false; if(_seenId[f.id])return false; _seenId[f.id]=true; const k=_normNome(f.nome); if(k&&_seenNm[k]){ _dedupRemap[f.id]=_seenNm[k]; return false; } if(k)_seenNm[k]=f.id; return true; }); if(Array.isArray(S.prodotti)&&Object.keys(_dedupRemap).length){ S.prodotti.forEach(p=>{ if(p.fornitorId&&_dedupRemap[p.fornitorId]) p.fornitorId=_dedupRemap[p.fornitorId]; }); } if(S.fornitori.length<_fornBefore){ setTimeout(()=>syncToSupabase(),2000); } }
-    if(S.prodotti){ const _seenP={}; S.prodotti=S.prodotti.filter(p=>{ const k=(p.nome||'').toLowerCase().trim()+'_'+(p.fornitorId||''); if(_seenP[k])return false; _seenP[k]=true; return true; }); }
+    if(S.prodotti){ const _seenP={}; S.prodotti=S.prodotti.filter(p=>{ const k=_prodKey(p); if(_seenP[k])return false; _seenP[k]=true; return true; }); }
     // Ripara prodotti orfani: prova a trovare il fornitore corretto per nome
     if(S.fornitori && S.prodotti && typeof DEFAULT_FORNITORI !== 'undefined'){
       const _sfIds=new Set(S.fornitori.map(f=>f.id));
