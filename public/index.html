@@ -25561,16 +25561,16 @@ function reportFornitori(raccoltaId){
   setTimeout(()=>{
     // Torta fornitori
     buildDonut('rpt-forn-'+rId,
-      Object.keys(byForn),
+      Object.values(byForn).map(f=>f.nome),
       Object.values(byForn).map(f=>f.totale),
       '€'+totaleRaccolta.toFixed(0), 'totale'
     );
-    buildLegend('rpt-forn-leg-'+rId, Object.keys(byForn), Object.values(byForn).map(f=>f.totale), CHART_PALETTE);
+    buildLegend('rpt-forn-leg-'+rId, Object.values(byForn).map(f=>f.nome), Object.values(byForn).map(f=>f.totale), CHART_PALETTE);
     // Torta soci
     buildDonut('rpt-socio-'+rId,
       socioSorted.map(x=>x[0]),
       socioSorted.map(x=>x[1]),
-      String(Object.keys(bySocio).length), 'soci'
+      String(Object.keys(bySocio).length), 'tesserati'
     );
     buildLegend('rpt-socio-leg-'+rId, socioSorted.map(x=>x[0]), socioSorted.map(x=>x[1]), CHART_PALETTE);
     // Torta prodotti (qty, non currency)
