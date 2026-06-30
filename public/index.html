@@ -25612,22 +25612,39 @@ function exportFornCSV(raccoltaId, fornId){
   const racc = S.raccolte.find(r=>r.id===raccoltaId);
   const forn = S.fornitori.find(f=>f.id===fornId);
   const ordini = S.ordini.filter(o=>o.raccoltaId===raccoltaId);
-  const rows = [['Codice','Prodotto','Unità','Tesserato','Cognome','Cellulare','Telegram','Qty','Prezzo unit.','Totale riga']];
+  const raccNome = racc?racc.nome:'';
+  const raccRitiro = racc&&racc.ritiroData ? racc.ritiroData+(racc.ritiroOra?' '+racc.ritiroOra:'') : '';
+  const raccLuogo = racc&&racc.ritiroLuogo?racc.ritiroLuogo:'';
+  const fornTel = forn&&forn.telefono?forn.telefono:'';
+  const fornEmail = forn&&forn.emailContatto?forn.emailContatto:'';
+  const fornZona = forn&&forn.zona?forn.zona:'';
+  const rows = [['ID Ordine','Data Ordine','Raccolta','Data Ritiro','Luogo Ritiro',
+    'Fornitore','Zona Fornitore','Tel. Fornitore','Email Fornitore',
+    'Codice','Prodotto','Unità',
+    'Tessera','Nome','Cognome','Cellulare','Telegram',
+    'Qty','Prezzo unit.','Totale riga']];
   let totale = 0;
   ordini.forEach(o=>{
+    const socio = (S.soci||[]).find(s=>s.id===o.socioId);
+    const tessera = socio?socio.tessera:'';
     const socioNome = o.socioNome || o.socioId;
     const socioCognome = o.socioCognome||'';
     const socioCellulare = o.socioCellulare||'';
     const socioTelegram = o.socioTelegram?'@'+o.socioTelegram:'';
+    const dataOrd = o.data?new Date(o.data).toLocaleDateString('it-IT'):'';
     o.items.forEach(i=>{
       const p = S.prodotti.find(x=>x.id===i.prodottoId);
       if(!p || p.fornitorId!==fornId) return;
-      rows.push([p.codice||'', p.nome, p.unita||'', socioNome, socioCognome, socioCellulare, socioTelegram, i.qty, p.prezzo, p.prezzo*i.qty]);
+      rows.push([o.id, dataOrd, raccNome, raccRitiro, raccLuogo,
+        forn?forn.nome:'', fornZona, fornTel, fornEmail,
+        p.codice||'', p.nome, p.unita||'',
+        tessera, socioNome, socioCognome, socioCellulare, socioTelegram,
+        i.qty, p.prezzo, p.prezzo*i.qty]);
       totale += p.prezzo*i.qty;
     });
   });
   rows.push([]);
-  rows.push(['','','','','','','','','TOTALE FORNITORE',totale]);
+  rows.push(['','','','','','','','','','','','','','','','','','','TOTALE FORNITORE',totale]);
   const fname = (racc?racc.nome:'raccolta').replace(/\s/g,'_')+'_'+(forn?forn.nome:'fornitore').replace(/\s/g,'_')+'.csv';
   _downloadCSV(rows, fname);
   toast('📥 CSV '+((forn?forn.nome:'fornitore'))+' scaricato');
@@ -25851,27 +25868,49 @@ function exportReportWord(raccoltaId){
 function exportReportCSV(raccoltaId){
   const racc = S.raccolte.find(r=>r.id===raccoltaId);
   const ordini = S.ordini.filter(o=>o.raccoltaId===raccoltaId);
-  const rows = [['Fornitore','Prodotto','Unità','Tesserato','Cognome','Cellulare','Telegram','Qty','Prezzo unit.','Totale riga']];
+  const raccNome = racc?racc.nome:'';
+  const raccData = racc?racc.dataCreazione||'':'';
+  const raccChiusura = racc&&racc.dataChiusura ? racc.dataChiusura+(racc.oraChiusura?' '+racc.oraChiusura:'') : '';
+  const raccRitiro = racc&&racc.ritiroData ? racc.ritiroData+(racc.ritiroOra?' '+racc.ritiroOra:'') : '';
+  const raccLuogo = racc&&racc.ritiroLuogo?racc.ritiroLuogo:'';
+  const rows = [['ID Ordine','Data Ordine','Raccolta','Aperta','Data Creazione','Chiusura Ordini','Data Ritiro','Luogo Ritiro',
+    'Fornitore','Zona Fornitore','Tel. Fornitore','Email Fornitore','WhatsApp Fornitore','Contatto Fornitore',
+    'Codice','Prodotto','Unità',
+    'Tessera','Nome','Cognome','Cellulare','Telegram',
+    'Qty','Prezzo unit.','Totale riga']];
   let totale = 0;
-  // raggruppa per fornitore
   const fornIds = [...new Set(ordini.flatMap(o=>o.items.map(i=>{const p=S.prodotti.find(x=>x.id===i.prodottoId);return p?p.fornitorId:null;}).filter(Boolean)))];
   fornIds.forEach(fid=>{
     const forn = S.fornitori.find(f=>f.id===fid);
+    const fornNome = forn?forn.nome:'?';
+    const fornZona = forn&&forn.zona?forn.zona:'';
+    const fornTel = forn&&forn.telefono?forn.telefono:'';
+    const fornEmail = forn&&forn.emailContatto?forn.emailContatto:'';
+    const fornWa = forn&&forn.whatsapp?forn.whatsapp:'';
+    const fornContatto = forn&&forn.nomeContatto?forn.nomeContatto:'';
     ordini.forEach(o=>{
+      const socio = (S.soci||[]).find(s=>s.id===o.socioId);
+      const tessera = socio?socio.tessera:'';
       const socioNome = o.socioNome || o.socioId;
       const socioCognome = o.socioCognome||'';
       const socioCellulare = o.socioCellulare||'';
       const socioTelegram = o.socioTelegram?'@'+o.socioTelegram:'';
+      const dataOrd = o.data?new Date(o.data).toLocaleDateString('it-IT'):'';
+      const raccAperta = racc?(racc.aperta?'Sì':'No'):'';
       o.items.forEach(i=>{
         const p = S.prodotti.find(x=>x.id===i.prodottoId);
         if(!p || p.fornitorId!==fid) return;
-        rows.push([forn?forn.nome:'?', p.nome, p.unita||'', socioNome, socioCognome, socioCellulare, socioTelegram, i.qty, p.prezzo, p.prezzo*i.qty]);
+        rows.push([o.id, dataOrd, raccNome, raccAperta, raccData, raccChiusura, raccRitiro, raccLuogo,
+          fornNome, fornZona, fornTel, fornEmail, fornWa, fornContatto,
+          p.codice||'', p.nome, p.unita||'',
+          tessera, socioNome, socioCognome, socioCellulare, socioTelegram,
+          i.qty, p.prezzo, p.prezzo*i.qty]);
         totale += p.prezzo*i.qty;
       });
     });
     rows.push([]); // riga vuota tra fornitori
   });
-  rows.push(['','','','','','','','','TOTALE RACCOLTA',totale]);
+  rows.push(new Array(24).fill('').concat(['TOTALE RACCOLTA', totale]));
   const fname = 'report_'+(racc?racc.nome:'raccolta').replace(/\s/g,'_')+'.csv';
   _downloadCSV(rows, fname);
   toast('📥 Report completo scaricato');
