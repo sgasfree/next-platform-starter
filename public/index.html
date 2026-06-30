@@ -26560,6 +26560,10 @@ async function loadPrenotazioniFromSupabase(){
 function renderSettings(){
   const hasLogo=(S.config.logoBase64||S.config.logoData)?true:false;
   const supabasePaused=S.config.supabasePaused||false;
+  const _myEmail=(currentUser&&currentUser.adminEmail||'').toLowerCase();
+  const _isAdmin2=S.config.adminEmail2&&_myEmail===S.config.adminEmail2.toLowerCase();
+  const _isAdmin3=S.config.adminEmail3&&_myEmail===S.config.adminEmail3.toLowerCase();
+  const _isAdmin1=!_isAdmin2&&!_isAdmin3;
   document.getElementById('admin-panel-content').innerHTML=`
     <div class="card" style="margin-bottom:16px;border-left:4px solid ${!S.config.supabaseUrl?'#bdbdbd':supabasePaused?'#e57373':'var(--green-main)'}">
       <h3 style="font-family:var(--font-serif,serif);margin-bottom:8px;">☁️ Supabase — Sync Multi-Admin</h3>
@@ -26626,15 +26630,18 @@ INSERT INTO config (chiave,valore) VALUES ('sgas_app_state','{}');</pre>
     </div>
     <div class="card" style="margin-bottom:16px;">
       <h3 style="font-family:var(--font-serif,serif);margin-bottom:16px;">⚙️ Configurazione GAS</h3>
+      ${_isAdmin1?`
       <div class="field"><label>Nome del GAS</label><input id="s-gasname" type="text" value="${escHtml(S.config.gasName)}"></div>
       <div class="field"><label>Email Admin</label><input id="s-email" type="email" value="${escHtml(S.config.adminEmail)}"></div>
-      <div class="field"><label>Nuova Password Admin</label><input id="s-pass" type="password" placeholder="Lascia vuoto per non cambiare"></div>
+      <div class="field"><label>Nuova Password Admin 1</label><input id="s-pass" type="password" placeholder="Lascia vuoto per non cambiare"></div>
       <div class="field">
         <label>🔗 Link accesso app (URL pubblico)</label>
         <input id="s-applink" type="url" value="${escHtml(S.config.appLink||'')}" placeholder="es. https://sgas-freeconomy.netlify.app">
         <div style="font-size:.75rem;color:var(--text-light);margin-top:4px;">Questo link viene mostrato nella schermata di login e può essere condiviso con i soci.</div>
-      </div>
-      <button class="btn btn-primary" onclick="saveConfigGAS()">💾 Salva config GAS</button>
+      </div>`:`
+      <div class="alert alert-info" style="font-size:.82rem;margin-bottom:14px;">ℹ️ Sei loggato come <strong>${escHtml(_myEmail)}</strong> (Admin ${_isAdmin2?'2':'3'}). Le impostazioni GAS globali sono modificabili solo dall'Admin principale.</div>
+      <div class="field"><label>🔑 Cambia tua password</label><input id="s-pass" type="password" placeholder="Lascia vuoto per non cambiare"></div>`}
+      <button class="btn btn-primary" onclick="saveConfigGAS()">💾 ${_isAdmin1?'Salva config GAS':'Aggiorna password'}</button>
     </div>
     <div class="card" style="margin-bottom:16px;">
       <h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">👥 Secondo Amministratore</h3>
@@ -26765,11 +26772,24 @@ function removeAdmin3(){
 
 async function saveConfigGAS(){
   if(!currentUser||currentUser.type!=='admin'){toast('❌ Accesso negato');return;}
-  S.config.gasName=document.getElementById('s-gasname').value.trim()||S.config.gasName;
-  S.config.adminEmail=document.getElementById('s-email').value.trim()||S.config.adminEmail;
+  const myEmail=(currentUser.adminEmail||'').toLowerCase();
+  const isAdmin2=S.config.adminEmail2 && myEmail===S.config.adminEmail2.toLowerCase();
+  const isAdmin3=S.config.adminEmail3 && myEmail===S.config.adminEmail3.toLowerCase();
+  const isAdmin1=!isAdmin2&&!isAdmin3;
+  // Solo admin 1 può modificare le impostazioni GAS globali
+  if(isAdmin1){
+    S.config.gasName=document.getElementById('s-gasname').value.trim()||S.config.gasName;
+    S.config.adminEmail=document.getElementById('s-email').value.trim()||S.config.adminEmail;
+    S.config.appLink=(document.getElementById('s-applink').value||'').trim();
+  }
+  // Password: salvata nel giusto slot in base a chi è loggato
   const np=document.getElementById('s-pass').value;
-  if(np) S.config.adminPassword=await hashPassword(np);
-  S.config.appLink=(document.getElementById('s-applink').value||'').trim();
+  if(np){
+    const hashed=await hashPassword(np);
+    if(isAdmin2) S.config.adminPassword2=hashed;
+    else if(isAdmin3) S.config.adminPassword3=hashed;
+    else S.config.adminPassword=hashed;
+  }
   saveState();
   _persistAdminCreds();
   updateSidebarName();
