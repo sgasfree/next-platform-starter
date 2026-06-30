@@ -25622,12 +25622,12 @@ function exportFornCSV(raccoltaId, fornId){
     o.items.forEach(i=>{
       const p = S.prodotti.find(x=>x.id===i.prodottoId);
       if(!p || p.fornitorId!==fornId) return;
-      rows.push([p.codice||'', p.nome, p.unita||'', socioNome, socioCognome, socioCellulare, socioTelegram, i.qty, p.prezzo, (p.prezzo*i.qty).toFixed(2)]);
+      rows.push([p.codice||'', p.nome, p.unita||'', socioNome, socioCognome, socioCellulare, socioTelegram, i.qty, p.prezzo, p.prezzo*i.qty]);
       totale += p.prezzo*i.qty;
     });
   });
   rows.push([]);
-  rows.push(['','TOTALE FORNITORE','','','','','','',totale.toFixed(2)]);
+  rows.push(['','','','','','','','','TOTALE FORNITORE',totale]);
   const fname = (racc?racc.nome:'raccolta').replace(/\s/g,'_')+'_'+(forn?forn.nome:'fornitore').replace(/\s/g,'_')+'.csv';
   _downloadCSV(rows, fname);
   toast('📥 CSV '+((forn?forn.nome:'fornitore'))+' scaricato');
@@ -25865,20 +25865,25 @@ function exportReportCSV(raccoltaId){
       o.items.forEach(i=>{
         const p = S.prodotti.find(x=>x.id===i.prodottoId);
         if(!p || p.fornitorId!==fid) return;
-        rows.push([forn?forn.nome:'?', p.nome, p.unita||'', socioNome, socioCognome, socioCellulare, socioTelegram, i.qty, p.prezzo, (p.prezzo*i.qty).toFixed(2)]);
+        rows.push([forn?forn.nome:'?', p.nome, p.unita||'', socioNome, socioCognome, socioCellulare, socioTelegram, i.qty, p.prezzo, p.prezzo*i.qty]);
         totale += p.prezzo*i.qty;
       });
     });
     rows.push([]); // riga vuota tra fornitori
   });
-  rows.push(['TOTALE RACCOLTA','','','','','',totale.toFixed(2)]);
+  rows.push(['','','','','','','','','TOTALE RACCOLTA',totale]);
   const fname = 'report_'+(racc?racc.nome:'raccolta').replace(/\s/g,'_')+'.csv';
   _downloadCSV(rows, fname);
   toast('📥 Report completo scaricato');
 }
 
 function _downloadCSV(rows, filename){
-  const csv = rows.map(r=>r.map(v=>'"'+(String(v).replace(/"/g,'""'))+'"').join(';')).join('\n');
+  const _fmtCell = v => {
+    if(typeof v === 'number') return String(v.toFixed(2)).replace('.',',');
+    const s = String(v==null?'':v);
+    return '"'+s.replace(/"/g,'""')+'"';
+  };
+  const csv = rows.map(r=>r.map(_fmtCell).join(';')).join('\n');
   const blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
