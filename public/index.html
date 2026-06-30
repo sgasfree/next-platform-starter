@@ -22783,11 +22783,12 @@ function prefillLogin(tess, tel){
 
 // ── Admin recovery: email + codice ──
 let _adminRecCode = null;
+let _adminRecIdx = 1; // slot (1/2/3) dell'admin che sta facendo il recupero
 
 function adminRecStep1(){
   const rc=document.getElementById('recovery-content');
   rc.innerHTML=
-    '<div style="text-align:center;margin-bottom:18px;">'    +'<div style="font-size:2.2rem;margin-bottom:8px;">🔑</div>'    +'<h3 style="font-family:\'DM Serif Display\',serif;font-size:1.2rem;">Reset password Admin</h3>'    +'<p style="font-size:.82rem;color:var(--text-mid);margin-top:6px;">Inserisci la tua email admin: riceverai un codice di verifica.</p>'    +'</div>'    +'<div class="alert alert-info" style="font-size:.8rem;margin-bottom:10px;">💡 Email admin salvata: <strong>'+escHtml(S.config.adminEmail)+'</strong></div>'    +'<div class="field"><label>Email Admin</label><input id="rec-adm-email" type="email" placeholder="'+escHtml(S.config.adminEmail)+'" value="'+escHtml(S.config.adminEmail)+'"></div>'    +'<div id="rec-adm-msg" style="margin:10px 0;"></div>'    +'<button class="btn btn-terra btn-block" onclick="adminRecSendCode()">📧 Invia codice via email</button>'    +'<div style="text-align:center;margin-top:16px;">'    +'<button onclick="showLoginView()" style="background:none;border:none;color:var(--text-light);font-size:.82rem;cursor:pointer;">← Torna al login</button>'    +'</div>';
+    '<div style="text-align:center;margin-bottom:18px;">'    +'<div style="font-size:2.2rem;margin-bottom:8px;">🔑</div>'    +'<h3 style="font-family:\'DM Serif Display\',serif;font-size:1.2rem;">Reset password Admin</h3>'    +'<p style="font-size:.82rem;color:var(--text-mid);margin-top:6px;">Inserisci la tua email admin: riceverai un codice di verifica via Telegram.</p>'    +'</div>'    +'<div class="field"><label>Email Admin</label><input id="rec-adm-email" type="email" placeholder="tua@email.it"></div>'    +'<div id="rec-adm-msg" style="margin:10px 0;"></div>'    +'<button class="btn btn-terra btn-block" onclick="adminRecSendCode()">📧 Invia codice via Telegram</button>'    +'<div style="text-align:center;margin-top:16px;">'    +'<button onclick="showLoginView()" style="background:none;border:none;color:var(--text-light);font-size:.82rem;cursor:pointer;">← Torna al login</button>'    +'</div>';
 }
 
 function adminRecSendCode(){
@@ -22851,6 +22852,7 @@ function adminRecVerifyCode(){
     msg.innerHTML='<div class="alert alert-info">❌ Codice errato. '+(3-_adminRecCode.attempts)+' tentativi rimasti.</div>';
     return;
   }
+  _adminRecIdx = _adminRecCode.adminIndex || 1; // salva slot PRIMA di azzerare
   _adminRecCode=null;
   adminRecStep3();
 }
@@ -22867,18 +22869,22 @@ async function adminRecSavePass(){
   const msg=document.getElementById('rec-adm-msg3');
   if(!np||np.length<8){msg.innerHTML='<div class="alert alert-info">❌ Minimo 8 caratteri.</div>';return;}
   if(np!==cp){msg.innerHTML='<div class="alert alert-info">❌ Le password non coincidono.</div>';return;}
-  const _adminIdx = (_adminRecCode && _adminRecCode.adminIndex) || 1;
   const _hashedPw = await hashPassword(np);
-  if(_adminIdx===2) S.config.adminPassword2=_hashedPw;
-  else if(_adminIdx===3) S.config.adminPassword3=_hashedPw;
+  if(_adminRecIdx===2) S.config.adminPassword2=_hashedPw;
+  else if(_adminRecIdx===3) S.config.adminPassword3=_hashedPw;
   else S.config.adminPassword=_hashedPw;
   saveState(); _persistAdminCreds();
+  // Recupera l'email dell'admin che ha fatto il reset per pre-compilare il login
+  const _recEmail = _adminRecIdx===2 ? (S.config.adminEmail2||S.config.adminEmail)
+                  : _adminRecIdx===3 ? (S.config.adminEmail3||S.config.adminEmail)
+                  : S.config.adminEmail;
+  _adminRecIdx = 1; // reset
   msg.innerHTML='<div class="alert alert-success">✅ Password aggiornata! Ora accedi con la nuova password.</div>';
   setTimeout(()=>{
     showLoginView();
     const ef=document.getElementById('adm-mail');
     const pf=document.getElementById('adm-pw');
-    if(ef) ef.value=S.config.adminEmail;
+    if(ef) ef.value=_recEmail;
     if(pf){pf.value='';pf.focus();}
   },1500);
 }
