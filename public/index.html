@@ -21997,14 +21997,15 @@ function syncToSupabase(){
         delete payloadObj.config.logoBase64;
         // Non sincronizzare segreti su config table (lettura pubblica)
         delete payloadObj.config.tgBotToken;
-        delete payloadObj.config.adminPassword;
-        delete payloadObj.config.adminPassword2;
-        delete payloadObj.config.adminPassword3;
-        delete payloadObj.config.adminEmail;
-        delete payloadObj.config.adminEmail2;
-        delete payloadObj.config.adminEmail3;
         delete payloadObj.config.supabaseUrl;
         delete payloadObj.config.supabaseKey;
+        // Credenziali admin: sincronizza email + password SOLO se hashate
+        // (pbkdf2) — mai password in chiaro. Serve per far funzionare gli
+        // admin 2/3 su tutti i dispositivi.
+        ['adminPassword','adminPassword2','adminPassword3'].forEach(k=>{
+          if(payloadObj.config[k] && !String(payloadObj.config[k]).startsWith('pbkdf2:'))
+            delete payloadObj.config[k];
+        });
       }
       // Anagrafica soci: vive solo nella tabella `soci` (RLS), non va mai
       // pubblicata nel blob `config` (lettura pubblica via anon key).
@@ -22057,12 +22058,13 @@ async function loadFromSupabase(){
     if(_prevConf.logoBase64) S.config.logoBase64 = _prevConf.logoBase64;
     // Preserva segreti locali (non vengono mai sincronizzati su Supabase)
     if(_prevConf.tgBotToken)     S.config.tgBotToken     = _prevConf.tgBotToken;
-    if(_prevConf.adminPassword)  S.config.adminPassword  = _prevConf.adminPassword;
-    if(_prevConf.adminPassword2) S.config.adminPassword2 = _prevConf.adminPassword2;
-    if(_prevConf.adminPassword3) S.config.adminPassword3 = _prevConf.adminPassword3;
-    if(_prevConf.adminEmail)     S.config.adminEmail     = _prevConf.adminEmail;
-    if(_prevConf.adminEmail2)    S.config.adminEmail2    = _prevConf.adminEmail2;
-    if(_prevConf.adminEmail3)    S.config.adminEmail3    = _prevConf.adminEmail3;
+    // Credenziali admin: il valore remoto (se presente) vince, così un cambio
+    // password/email si propaga a tutti i dispositivi; il locale è solo fallback
+    ['adminPassword','adminPassword2','adminPassword3','adminEmail','adminEmail2','adminEmail3'].forEach(k=>{
+      if(S.config[k]===undefined && _prevConf[k]!==undefined) S.config[k] = _prevConf[k];
+    });
+    // Aggiorna la copia locale delle credenziali con i valori appena ricevuti
+    try{ _persistAdminCreds(); }catch(e){}
     // Ripristina immagini fornitori/prodotti da localStorage (non sincronizzate su Supabase)
     const _prevState=(()=>{try{return JSON.parse(localStorage.getItem('sgas_state')||'{}')}catch(e){return {};}})();
     // L'anagrafica soci non è più nel blob remoto: ripristina quella locale
