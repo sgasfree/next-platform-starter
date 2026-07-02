@@ -21997,14 +21997,15 @@ function syncToSupabase(){
         delete payloadObj.config.logoBase64;
         // Non sincronizzare segreti su config table (lettura pubblica)
         delete payloadObj.config.tgBotToken;
-        delete payloadObj.config.adminPassword;
-        delete payloadObj.config.adminPassword2;
-        delete payloadObj.config.adminPassword3;
-        delete payloadObj.config.adminEmail;
-        delete payloadObj.config.adminEmail2;
-        delete payloadObj.config.adminEmail3;
         delete payloadObj.config.supabaseUrl;
         delete payloadObj.config.supabaseKey;
+        // Credenziali admin: sincronizza email + password SOLO se hashate
+        // (pbkdf2) — mai password in chiaro. Serve per far funzionare gli
+        // admin 2/3 su tutti i dispositivi.
+        ['adminPassword','adminPassword2','adminPassword3'].forEach(k=>{
+          if(payloadObj.config[k] && !String(payloadObj.config[k]).startsWith('pbkdf2:'))
+            delete payloadObj.config[k];
+        });
       }
       // Anagrafica soci: vive solo nella tabella `soci` (RLS), non va mai
       // pubblicata nel blob `config` (lettura pubblica via anon key).
@@ -22057,12 +22058,13 @@ async function loadFromSupabase(){
     if(_prevConf.logoBase64) S.config.logoBase64 = _prevConf.logoBase64;
     // Preserva segreti locali (non vengono mai sincronizzati su Supabase)
     if(_prevConf.tgBotToken)     S.config.tgBotToken     = _prevConf.tgBotToken;
-    if(_prevConf.adminPassword)  S.config.adminPassword  = _prevConf.adminPassword;
-    if(_prevConf.adminPassword2) S.config.adminPassword2 = _prevConf.adminPassword2;
-    if(_prevConf.adminPassword3) S.config.adminPassword3 = _prevConf.adminPassword3;
-    if(_prevConf.adminEmail)     S.config.adminEmail     = _prevConf.adminEmail;
-    if(_prevConf.adminEmail2)    S.config.adminEmail2    = _prevConf.adminEmail2;
-    if(_prevConf.adminEmail3)    S.config.adminEmail3    = _prevConf.adminEmail3;
+    // Credenziali admin: il valore remoto (se presente) vince, così un cambio
+    // password/email si propaga a tutti i dispositivi; il locale è solo fallback
+    ['adminPassword','adminPassword2','adminPassword3','adminEmail','adminEmail2','adminEmail3'].forEach(k=>{
+      if(S.config[k]===undefined && _prevConf[k]!==undefined) S.config[k] = _prevConf[k];
+    });
+    // Aggiorna la copia locale delle credenziali con i valori appena ricevuti
+    try{ _persistAdminCreds(); }catch(e){}
     // Ripristina immagini fornitori/prodotti da localStorage (non sincronizzate su Supabase)
     const _prevState=(()=>{try{return JSON.parse(localStorage.getItem('sgas_state')||'{}')}catch(e){return {};}})();
     // L'anagrafica soci non è più nel blob remoto: ripristina quella locale
@@ -22125,6 +22127,8 @@ async function loadFromSupabase(){
       setTimeout(() => syncToSupabase(), 3000);
     }
     localStorage.setItem('sgas_state', JSON.stringify(S));
+    // Richiudi subito eventuali raccolte scadute riaperte dal blob remoto
+    try{ if(typeof chiudiRaccolteScadute==='function') chiudiRaccolteScadute(); }catch(e){}
     return true;
   }catch(e){ console.warn('Supabase load error:', e); return false; }
 }
@@ -23755,6 +23759,14 @@ function submitOrder(){
   const raccEl=document.getElementById('cart-raccolta');
   const raccId=raccEl?raccEl.value:'';
   if(!raccId){toast('Seleziona una raccolta');return;}
+  // Blocco ordini su raccolta scaduta (ora ufficiale italiana)
+  chiudiRaccolteScadute();
+  const raccSel=S.raccolte.find(r=>r.id===raccId);
+  if(!raccSel||!raccSel.aperta){
+    toast('⛔ Questa raccolta è chiusa: ordini non più accettati.');
+    renderCart();
+    return;
+  }
   S.cart.raccoltaId=raccId;
   let total=0;
   S.cart.items.forEach(i=>{const p=S.prodotti.find(x=>x.id===i.prodottoId);if(p)total+=p.prezzo*i.qty;});
@@ -25279,10 +25291,61 @@ function saveRaccolta(){
 function toggleRaccolta(id){
   const r=S.raccolte.find(x=>x.id===id);if(!r)return;
   r.aperta=!r.aperta;
+  if(r.aperta && raccoltaScaduta(r)){
+    // Riapertura manuale di una raccolta già scaduta: rimuovi la data di
+    // chiusura altrimenti l'auto-chiusura la richiuderebbe entro un minuto
+    if(!confirm('⏰ La data di chiusura ('+r.dataChiusura+(r.oraChiusura?' '+r.oraChiusura:'')+') è già passata.\nRiaprire comunque? La data di chiusura verrà azzerata.')){ r.aperta=false; renderRaccolte(); return; }
+    r.dataChiusura=null; r.oraChiusura=null;
+  }
   if(!r.aperta){
     sendPush('⏰ Raccolta in chiusura!', r.nome+' — Ultima occasione per ordinare prima della chiusura.', window.location.origin);
   }
   saveState(); renderRaccolte();
+}
+
+// ── Chiusura automatica raccolte: calendario e ora ufficiale italiana ──
+// Ora corrente in Italia (Europe/Rome) come "YYYY-MM-DD HH:MM".
+// Intl gestisce automaticamente ora legale/solare (CEST/CET), qualunque
+// sia il fuso del dispositivo dell'utente.
+function _nowItaly(){
+  try{
+    return new Date().toLocaleString('sv-SE',{timeZone:'Europe/Rome'}).slice(0,16);
+  }catch(e){
+    // Fallback: ora locale del dispositivo
+    const d=new Date();
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  }
+}
+
+// True se la data/ora di chiusura della raccolta è passata (ora italiana).
+// Senza oraChiusura la raccolta resta valida fino a fine giornata (23:59).
+function raccoltaScaduta(r){
+  if(!r || !r.dataChiusura) return false;
+  const limite = r.dataChiusura+' '+(r.oraChiusura||'23:59');
+  return _nowItaly() > limite;
+}
+
+// Chiude tutte le raccolte aperte la cui chiusura è passata.
+// Ritorna true se qualcosa è cambiato (e sincronizza).
+function chiudiRaccolteScadute(){
+  let changed=false;
+  (S.raccolte||[]).forEach(r=>{
+    if(r.aperta && raccoltaScaduta(r)){
+      r.aperta=false;
+      changed=true;
+      console.log('⏰ Raccolta "'+r.nome+'" chiusa automaticamente (scadenza '+r.dataChiusura+' '+(r.oraChiusura||'23:59')+' ora italiana)');
+    }
+  });
+  if(changed){
+    saveState();
+    // Aggiorna le viste aperte in questo momento
+    try{
+      if(currentUser&&currentUser.type==='admin'&&window._currentAdminSec==='raccolte') renderRaccolte();
+      if(document.getElementById('fornitori-list')) renderFornitori();
+      if(document.getElementById('cart-content')) renderCart();
+    }catch(e){}
+  }
+  return changed;
 }
 
 function modalDisponibilitaRaccolta(raccoltaId){
@@ -27427,6 +27490,12 @@ function applyAppLink(){
 loadState();
 applyLogo();
 applyAppLink();
+
+// ── Chiusura automatica raccolte scadute (calendario/ora italiana) ──
+// All'avvio e poi ogni minuto: se la data+ora di chiusura è passata la
+// raccolta viene chiusa anche se l'admin non ha premuto "chiudi".
+try{ chiudiRaccolteScadute(); }catch(e){}
+setInterval(()=>{ try{ chiudiRaccolteScadute(); }catch(e){} }, 60000);
 
 // ── Login page clock ──
 (function(){
