@@ -21859,6 +21859,17 @@ function _normNome(n){ return (n||'').toLowerCase().replace(/[“”‘’"']/g,
 // varianti dello stesso prodotto (taglie/prezzi diversi) NON vengono unite.
 function _prodKey(p){ return _normNome(p&&p.nome)+'|'+((p&&p.fornitorId)||'')+'|'+_normNome(p&&p.unita)+'|'+_normNome(p&&p.codice); }
 
+// Testo di ricerca completo per un fornitore: tutti i campi anagrafici
+// + nome/codice/unità dei suoi prodotti (per trovarlo anche da un codice articolo)
+function _fornHaystack(f){
+  const prods=(S.prodotti||[]).filter(p=>p.fornitorId===f.id);
+  return [f.nome, f.zona, f.descrizione, f.vision, f.nomeContatto,
+    f.telefono, f.whatsapp, f.emailContatto, f.telegramContatto, f.indirizzoContatto,
+    (f.caratteristiche||[]).join(' '),
+    prods.map(p=>[p.nome,p.codice,p.unita].filter(Boolean).join(' ')).join(' ')
+  ].filter(Boolean).join(' ').toLowerCase();
+}
+
 function loadState(){
   const raw = localStorage.getItem('sgas_state');
   if(raw){try{S=JSON.parse(raw);}catch(e){S={}}}
@@ -22465,10 +22476,7 @@ function renderFornitoriOspite(){
     if(f.categoria!==ospiteTab||f.attivo===false) return false;
     if(_seenO.has(f.id)) return false;
     _seenO.add(f.id);
-    if(qO){
-      const haystack=(f.nome+' '+(f.zona||'')+' '+(f.descrizione||'')+' '+((f.caratteristiche||[]).join(' '))).toLowerCase();
-      if(!haystack.includes(qO)) return false;
-    }
+    if(qO && !_fornHaystack(f).includes(qO)) return false;
     return true;
   });
   if(!filt.length){
@@ -23399,10 +23407,7 @@ function renderFornitori(){
     if(f.categoria!==currentTab||f.attivo===false) return false;
     if(seen.has(f.id)) return false;
     seen.add(f.id);
-    if(q){
-      const haystack=(f.nome+' '+(f.zona||'')+' '+(f.descrizione||'')+' '+((f.caratteristiche||[]).join(' '))).toLowerCase();
-      if(!haystack.includes(q)) return false;
-    }
+    if(q && !_fornHaystack(f).includes(q)) return false;
     return true;
   });
   if(!filt.length){list.innerHTML='<div class="empty"><div class="empty-icon">🌱</div><p>Nessun fornitore in questa categoria</p></div>';return;}
@@ -23578,14 +23583,15 @@ function openFornitore(id){
         +'<div style="font-size:.75rem;color:var(--text-mid);">Puoi vedere i prodotti ma non ordinare. Torna quando l&#39;admin apre una raccolta.</div>'
         +'</div></div>';
     }
-    html+='<div style="margin-bottom:12px;"><input id="search-prodotti" type="search" placeholder="🔍 Cerca prodotto..." style="width:100%;padding:9px 14px;border:1.5px solid var(--border);border-radius:20px;font-family:\'Nunito\',sans-serif;font-size:.9rem;outline:none;"></div>'
+    html+='<div style="margin-bottom:12px;"><input id="search-prodotti" type="search" placeholder="🔍 Cerca prodotto o codice..." style="width:100%;padding:9px 14px;border:1.5px solid var(--border);border-radius:20px;font-family:\'Nunito\',sans-serif;font-size:.9rem;outline:none;"></div>'
       +'<h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">Prodotti</h3>'
       +prods.map(p=>{
         const qty=getCartQty(p.id);
         const disp = p.disponibile !== false;
         const codBadge = p.codice ? '<span style="font-family:monospace;background:#e8f5e9;color:var(--green-dark);font-size:.7rem;padding:1px 6px;border-radius:4px;font-weight:700;margin-left:6px;">cod. '+escHtml(p.codice)+'</span>' : '';
+        const searchTxt=escHtml([p.nome,p.codice,p.descrizione,p.unita].filter(Boolean).join(' ').toLowerCase());
         if(canOrder && disp){
-          return '<div class="prodotto-row" data-name="'+escHtml(p.nome.toLowerCase())+'">'
+          return '<div class="prodotto-row" data-name="'+searchTxt+'">'
             +'<div><div class="prodotto-name">'+escHtml(p.nome)+codBadge+'</div>'
             +(p.descrizione?'<div style="font-size:.75rem;color:var(--text-mid);margin-top:2px;line-height:1.4;">'+escHtml(p.descrizione)+'</div>':'')
             +'<div style="font-size:.75rem;color:var(--text-light);">'+escHtml(p.unita)+'</div></div>'
@@ -23600,7 +23606,7 @@ function openFornitore(id){
           const label = !disp
             ? '<span style="font-size:.72rem;background:#f5f5f5;color:#999;border-radius:20px;padding:2px 10px;font-weight:700;border:1px solid #e0e0e0;">⛔ Non disponibile</span>'
             : '<div style="font-size:.8rem;color:var(--text-light);padding:4px 8px;">—</div>';
-          return '<div class="prodotto-row" data-name="'+escHtml(p.nome.toLowerCase())+'" style="opacity:'+(!disp?'.5':'.55')+'; pointer-events:none;">'
+          return '<div class="prodotto-row" data-name="'+searchTxt+'" style="opacity:'+(!disp?'.5':'.55')+'; pointer-events:none;">'
             +'<div><div class="prodotto-name" style="color:var(--text-light);">'+escHtml(p.nome)+codBadge+'</div>'
             +(p.descrizione?'<div style="font-size:.75rem;color:var(--text-light);margin-top:2px;line-height:1.4;">'+escHtml(p.descrizione)+'</div>':'')
             +'<div style="font-size:.75rem;color:var(--text-light);">'+escHtml(p.unita)+'</div></div>'
@@ -24760,7 +24766,7 @@ function filterAdminFornitori(q){
 }
 function renderFornitori_admin(){
   const catLabel={ali:'🥗 Alimentari',igi:'🧴 Igiene',ser:'💼 Servizi'};
-  const rows=S.fornitori.map(f=>`<tr class="${f.attivo===false?'sospeso':''}" data-forn="${escHtml([(f.nome||''),(f.zona||''),(f.categoria||'')].join(' ').toLowerCase())}">
+  const rows=S.fornitori.map(f=>`<tr class="${f.attivo===false?'sospeso':''}" data-forn="${escHtml((_fornHaystack(f)+' '+(f.categoria||'')).toLowerCase())}">
     <td>
       <div style="display:flex;align-items:center;gap:10px;">
         ${f.logo?`<img src="${f.logo}" style="width:38px;height:38px;object-fit:cover;border-radius:8px;flex-shrink:0;" alt="">`:`<span style="font-size:1.4rem;flex-shrink:0;">${f.emoji||'🏪'}</span>`}
@@ -25013,7 +25019,7 @@ function renderProdotti_admin(){
       sep=`<tr><td colspan="6" style="background:var(--green-pale);padding:7px 14px;font-weight:800;font-size:.82rem;color:var(--green-dark);border-top:2px solid var(--green-light);">${f?f.emoji||'🏪':''} ${escHtml(fornNome)}</td></tr>`;
       lastForn=fornNome;
     }
-    return sep+`<tr style="${disp?'':'opacity:.6;'}" data-prod="${escHtml((p.nome||'')+' '+(fornNome||'')+' '+(p.codice||'')).toLowerCase()}">
+    return sep+`<tr style="${disp?'':'opacity:.6;'}" data-prod="${escHtml([(p.nome||''),(fornNome||''),(p.codice||''),(p.unita||''),(f&&f.zona||'')].join(' ')).toLowerCase()}">
       <td><strong>${escHtml(p.nome)}</strong>${!disp?'<br><span style="font-size:.7rem;color:#e53935;font-weight:700;">⛔ Non disponibile</span>':''}</td>
       <td style="color:var(--text-light);font-size:.78rem;">${escHtml(fornNome)}</td>
       <td>${codCell}</td>
@@ -25035,7 +25041,7 @@ function renderProdotti_admin(){
       </div>`
     :'';
   document.getElementById('admin-panel-content').innerHTML=orfaniBanner+`
-    <input id="admin-search-prodotti" type="search" placeholder="🔍 Cerca prodotto o fornitore..." oninput="filterAdminProdotti(this.value)" style="width:100%;padding:8px 12px;border:1.5px solid var(--green-light);border-radius:8px;font-size:.92rem;margin-bottom:12px;box-sizing:border-box;">
+    <input id="admin-search-prodotti" type="search" placeholder="🔍 Cerca prodotto, codice o fornitore..." oninput="filterAdminProdotti(this.value)" style="width:100%;padding:8px 12px;border:1.5px solid var(--green-light);border-radius:8px;font-size:.92rem;margin-bottom:12px;box-sizing:border-box;">
     <div class="tbl-wrap"><table>
     <thead><tr><th>Prodotto</th><th>Fornitore</th><th>Codice</th><th>Prezzo</th><th>Unità</th><th>Disp. / Azioni</th></tr></thead>
     <tbody id="admin-prodotti-tbody">${rows||'<tr><td colspan="6" style="text-align:center;color:var(--text-light);">Nessun prodotto</td></tr>'}</tbody>
