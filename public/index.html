@@ -22209,10 +22209,13 @@ function _subscribeSupabaseRealtime(){
           S.config.supabaseKey    = _prev.supabaseKey||'';
           if(_prev.logoData)   S.config.logoData   = _prev.logoData;
           if(_prev.logoBase64) S.config.logoBase64 = _prev.logoBase64;
-          // Preserva password admin locali: non devono essere sovrascritte da push remoti
-          if(_prev.adminPassword)  S.config.adminPassword  = _prev.adminPassword;
-          if(_prev.adminPassword2) S.config.adminPassword2 = _prev.adminPassword2;
-          if(_prev.adminPassword3) S.config.adminPassword3 = _prev.adminPassword3;
+          // Credenziali admin: il valore remoto vince (un altro admin può aver
+          // cambiato la propria password proprio in questo evento realtime);
+          // il locale serve solo come fallback se il remoto non lo include.
+          ['adminPassword','adminPassword2','adminPassword3','adminEmail','adminEmail2','adminEmail3'].forEach(function(k){
+            if(S.config[k]===undefined && _prev[k]!==undefined) S.config[k]=_prev[k];
+          });
+          try{ _persistAdminCreds(); }catch(e){}
           // Ripristina immagini locali (non viaggiano su Supabase)
           (S.fornitori||[]).forEach(f=>{if(_rtImgForn[f.id]){if(_rtImgForn[f.id].logo) f.logo=_rtImgForn[f.id].logo; if(_rtImgForn[f.id].banner) f.banner=_rtImgForn[f.id].banner;}});
           (S.prodotti||[]).forEach(p=>{if(_rtImgProd[p.id]) p.foto=_rtImgProd[p.id];});
