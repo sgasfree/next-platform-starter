@@ -20575,7 +20575,7 @@ var __async = (__this, __arguments, generator) => {
 window.docx = docx;
 
 </script>
-<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.es6.js?v=160603" defer=""></script></head>
+</head>
 <body>
 
 <!-- Pulsante flottante Torna al catalogo (socio) -->
@@ -21108,11 +21108,9 @@ let S = {}; // main state
    CONFIGURAZIONE TELEGRAM ASSISTENZA
    Sostituire i valori con i propri account Telegram
    ═══════════════════════════════════════════════════ */
-/* ═══════════════════════════════════════════════════
-   ONESIGNAL — PUSH NOTIFICATIONS
-   ═══════════════════════════════════════════════════ */
-async function sendPush(){ /* OneSignal rimosso */ }
-function promptPushPermission(){ /* OneSignal rimosso */ }
+// Push web rimosse (OneSignal dismesso): le notifiche reali viaggiano su
+// Telegram. sendPush resta come no-op perché richiamata in più punti.
+async function sendPush(){}
 
 const TG_ASSIST = {
   app:    { label:'App',    icon:'🛠️', handle:'Frenkenergy', desc:'Bug, errori, accesso' },
