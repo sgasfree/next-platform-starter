@@ -62,13 +62,13 @@ che li ho rimossi dal codice (vedi PR #88):
   editano la stessa sezione, o salvataggio per-entità invece del blob intero.
   Priorità in base a quanti admin lavorano davvero in contemporanea.
 
-### 📱 Miglioramenti mobile (già discussi, non ancora fatti)
-Ordine consigliato per rapporto sforzo/beneficio:
+### 📱 Miglioramenti mobile
 1. **PWA installabile** — aggiungere `manifest.json` + service worker minimale:
    l'app diventa installabile sul telefono dei tesserati e consultabile offline
    (catalogo visibile senza rete). _Beneficio alto, pubblico principale = mobile._
-2. **Alleggerire il peso** (~3 MB / 1,5 MB gzip): caricare la libreria Word (docx.js)
-   solo al primo export invece che sempre; ottimizzare le immagini base64.
+2. ✅ **Alleggerire il peso** — FATTO (PR #90): libreria Word (docx.js, 725 KB)
+   estratta in `public/docx-lib.js` e caricata solo al primo export. index.html
+   da 3,0 MB → 2,29 MB (−24%). Resta possibile ottimizzare le immagini base64.
 3. **Vista "a schede" per le tabelle admin** su schermo piccolo (tesserati/ordini/prodotti).
 4. **Breakpoint intermedio tablet** (tra 700px e 1024px oggi è desktop pieno).
 
