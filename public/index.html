@@ -6478,16 +6478,39 @@ async function _deleteOrdinePrenotazioneFromSupabase(id){
 // l'admin le vede tutte.
 async function loadSociFromSupabase(){
   const sb = getAuthSb();
-  if(!sb) return false;
   let session;
-  try{ session = (await sb.auth.getSession()).data.session; }catch(e){}
-  if(!session) return false;
+  if(sb){ try{ session = (await sb.auth.getSession()).data.session; }catch(e){} }
+  // Con sessione (login OTP): lettura diretta, la RLS filtra per ruolo.
+  if(session){
+    try{
+      const { data, error } = await sb.from('soci').select('*').order('tessera');
+      if(!error && data && data.length){ S.soci = data.map(_socioRowToBlob); return true; }
+    }catch(e){ console.warn('loadSociFromSupabase error:', e); }
+  }
+  // Senza sessione (admin email+password): l'anagrafica non è nel file pubblico
+  // e la RLS blocca la lettura anon → recupera i tesserati via proxy autenticato.
+  return await _loadSociViaProxy();
+}
+
+// Carica i tesserati tramite la Netlify Function state-save (azione 'soci-list'),
+// che verifica il token admin e legge con la service_role. Usato dagli admin
+// email+password, che non hanno una sessione Supabase.
+async function _loadSociViaProxy(){
+  const token = await _getStateToken();
+  if(!token) return false;
   try{
-    const { data, error } = await sb.from('soci').select('*').order('tessera');
-    if(error || !data || !data.length) return false;
-    S.soci = data.map(_socioRowToBlob);
-    return true;
-  }catch(e){ console.warn('loadSociFromSupabase error:', e); return false; }
+    const res = await fetch('/.netlify/functions/state-save',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'soci-list', token})
+    });
+    if(!res.ok){ if(res.status===401) _clearStateToken(); return false; }
+    const data = await res.json().catch(()=>null);
+    if(data && data.ok && Array.isArray(data.soci) && data.soci.length){
+      S.soci = data.soci.map(_socioRowToBlob);
+      return true;
+    }
+  }catch(e){ console.warn('_loadSociViaProxy error:', e); }
+  return false;
 }
 
 // Legge gli ordini da Supabase e popola S.ordini.

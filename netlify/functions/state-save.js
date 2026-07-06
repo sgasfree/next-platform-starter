@@ -141,6 +141,20 @@ export const handler = async (event) => {
     return json(400, { ok:false, error:'kind non valido' });
   }
 
+  // ── Azione: elenco tesserati (solo admin) ─────────────────────────────────
+  // L'anagrafica soci non è nel file pubblico e la RLS blocca la lettura anon;
+  // gli admin email+password (senza sessione Supabase) la ottengono qui.
+  if(action === 'soci-list'){
+    const payload = verifyToken(SECRET, body.token);
+    if(!payload) return json(401, { ok:false, error:'Token non valido o scaduto' });
+    if(payload.role !== 'admin') return json(403, { ok:false, error:'Riservato agli admin' });
+    const res = await sbFetch(SUPA_URL, SUPA_KEY, `/rest/v1/soci?select=*&order=tessera`);
+    if(!res.ok) return json(502, { ok:false, error:'Lettura soci fallita' });
+    const soci = await res.json().catch(()=> null);
+    if(!Array.isArray(soci)) return json(502, { ok:false, error:'Risposta soci non valida' });
+    return json(200, { ok:true, soci });
+  }
+
   // ── Azione: salvataggio stato ─────────────────────────────────────────────
   if(action === 'save'){
     const payload = verifyToken(SECRET, body.token);
