@@ -4,6 +4,15 @@ _Ultimo aggiornamento: 4 luglio 2026 · branch `claude/review-sgas-freeconomy-Gt
 
 ---
 
+## 👥 Tesserati non visibili con login email+password → RISOLTO (PR #91)
+Dopo la rimozione dell'anagrafica dal file pubblico (PR #88), un admin che entra
+con **email+password** (senza sessione Supabase) non vedeva i tesserati (la RLS
+blocca la lettura anon). I dati NON sono persi: sono nella tabella `soci` di Supabase.
+- **Sblocco immediato (nessun deploy)**: entra via **Telegram OTP** → i tesserati ricompaiono.
+- **Fix definitivo (PR #91)**: azione `soci-list` nel proxy → gli admin email+password
+  leggono i tesserati via service_role. ⚠️ Funziona solo dopo aver impostato
+  `STATE_TOKEN_SECRET` su Netlify (stesso secret del punto 3) e deployato.
+
 ## ⚠️ AZIONI MANUALI URGENTI (da fare TU sui pannelli, prima di aprire ai tesserati)
 
 Questi due segreti erano **pubblici** nel file → vanno considerati compromessi anche ora
