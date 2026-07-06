@@ -22003,6 +22003,45 @@ function getSupabase(){
 }
 
 let _syncTimeout = null;
+// ── Scrittura stato via proxy autenticato (Netlify Function state-save) ──────
+// La tabella `config` non accetta più scritture dirette con la anon key: ogni
+// salvataggio passa dal proxy che verifica il chiamante (admin o tesserato) e
+// scrive con la service_role. Il token firmato viene richiesto al login e
+// conservato in memoria + localStorage (scade dopo 24h).
+let _stateAuth  = null;   // {kind:'admin',email,password} | {kind:'socio',tessera,cellulare}
+let _stateToken = null;
+let _stateTokenExp = 0;
+
+function _setStateAuth(a){ _stateAuth = a || null; if(!a){ _clearStateToken(); } }
+function _clearStateToken(){ _stateToken=null; _stateTokenExp=0; try{ localStorage.removeItem('sgas_state_tok'); }catch(e){} }
+function _restoreStateToken(){
+  try{
+    const raw = localStorage.getItem('sgas_state_tok');
+    if(raw){ const o=JSON.parse(raw); if(o && o.t && o.exp && Date.now()<o.exp){ _stateToken=o.t; _stateTokenExp=o.exp; } }
+  }catch(e){}
+}
+async function _fetchStateToken(){
+  if(!_stateAuth) return null;
+  try{
+    const res = await fetch('/.netlify/functions/state-save',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'token', ..._stateAuth})
+    });
+    const data = await res.json().catch(()=>null);
+    if(data && data.ok && data.token){
+      _stateToken = data.token;
+      _stateTokenExp = Date.now() + 23*60*60*1000; // margine sui 24h del server
+      try{ localStorage.setItem('sgas_state_tok', JSON.stringify({t:_stateToken, exp:_stateTokenExp})); }catch(e){}
+      return _stateToken;
+    }
+  }catch(e){ console.warn('state token error', e); }
+  return null;
+}
+async function _getStateToken(){
+  if(_stateToken && Date.now() < _stateTokenExp) return _stateToken;
+  return await _fetchStateToken();
+}
+
 function syncToSupabase(){
   if(S.config && S.config.supabasePaused) return; // sync in standby
   clearTimeout(_syncTimeout);
@@ -22042,10 +22081,33 @@ function syncToSupabase(){
         });
       }
       const payload = JSON.stringify(payloadObj);
-      await sb.from('config').upsert(
-        { chiave:'sgas_app_state', valore:payload, updated_at: new Date().toISOString() },
-        { onConflict:'chiave' }
-      );
+      // 1) Percorso preferito: proxy autenticato (scrive con service_role).
+      //    Se il token è scaduto (401) se ne richiede uno nuovo e si riprova una volta.
+      let savedViaProxy = false;
+      async function _proxySave(tok){
+        const res = await fetch('/.netlify/functions/state-save',{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({action:'save', token:tok, valore:payload})
+        });
+        return res.status;
+      }
+      let token = await _getStateToken();
+      if(token){
+        try{
+          let st = await _proxySave(token);
+          if(st===401){ _clearStateToken(); token = await _fetchStateToken(); if(token) st = await _proxySave(token); }
+          if(st>=200 && st<300) savedViaProxy = true;
+        }catch(e){ /* rete: si tenta il fallback */ }
+      }
+      // 2) Fallback (finché la RLS non è bloccata): scrittura diretta anon.
+      //    Dopo l'attivazione della policy SQL questo percorso verrà rifiutato
+      //    dal database e resterà valido solo il proxy.
+      if(!savedViaProxy){
+        await sb.from('config').upsert(
+          { chiave:'sgas_app_state', valore:payload, updated_at: new Date().toISOString() },
+          { onConflict:'chiave' }
+        );
+      }
     }catch(e){ console.warn('Supabase sync error:', e); toast('⚠️ Salvataggio cloud fallito — dati salvati solo in locale. Riprova tra poco.'); }
   }, 1500);
 }
@@ -22319,6 +22381,8 @@ function restoreSession(){
         if(!(ses._tok && lt && ses._tok===lt)){ localStorage.removeItem('sgas_usr_tok'); return false; }
       }
       currentUser={type:'admin', viaOtp:true, id:ses.socioId, adminEmail:ses.adminEmail, _tok:ses._tok, _rememberMe:!!ses.rememberMe};
+      // Ripristina le credenziali proxy dal socio corrispondente (admin OTP = tesserato).
+      try{ const _s=(S.soci||[]).find(s=>s.id===ses.socioId); if(_s) _setStateAuth({kind:'socio', tessera:_s.tessera, cellulare:_s.cellulare||_s.telefono||''}); }catch(e){}
       resetInactivityTimer();
       updateSidebarName();
       applyLogo();
@@ -22351,6 +22415,7 @@ function restoreSession(){
       const socio=S.soci.find(s=>s.id===ses.socioId);
       if(socio){
         currentUser={type:'socio',...socio};
+        _setStateAuth({kind:'socio', tessera:socio.tessera, cellulare:socio.cellulare||socio.telefono||''});
         resetInactivityTimer();
         document.getElementById('topbar-gas-name').textContent=S.config.gasName.split(' ')[0]||'S-GAS';
         applyLogo();
@@ -23090,6 +23155,9 @@ function _enterSocio(socio){
   if(rememberMe) localStorage.setItem('sgas_remember_pref','1');
   else localStorage.removeItem('sgas_remember_pref');
   currentUser={type:'socio',...socio,_rememberMe:rememberMe};
+  // Credenziali per il proxy di scrittura (tessera+cellulare verificati su Supabase).
+  _setStateAuth({kind:'socio', tessera: socio.tessera, cellulare: socio.cellulare||socio.telefono||''});
+  _fetchStateToken();
   _adminSocioBackup=null;
   saveSession();
   resetInactivityTimer();
@@ -23117,6 +23185,9 @@ function _enterAdminViaOtp(socio){
   currentUser={type:'admin', viaOtp:true, id:socio.id,
                adminEmail:(socio.tessera||'').toLowerCase(),
                nome:socio.nome||'', cognome:socio.cognome||'', _rememberMe:rememberMe};
+  // L'admin via OTP è anche un tesserato: si autentica al proxy come socio.
+  _setStateAuth({kind:'socio', tessera: socio.tessera, cellulare: socio.cellulare||socio.telefono||''});
+  _fetchStateToken();
   saveSession();
   resetInactivityTimer();
   updateSidebarName();
@@ -23245,6 +23316,9 @@ async function loginAdmin(){
     _setLoginState({});
     const tok = (crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now());
     currentUser={type:'admin', adminEmail: email, _tok: tok};
+    // Credenziali per il proxy di scrittura (verificate lato server via hash).
+    _setStateAuth({kind:'admin', email, password: pass});
+    _fetchStateToken();
     saveSession();
     resetInactivityTimer();
     updateSidebarName();
@@ -23268,6 +23342,7 @@ function logout(){
   const wasAdmin = currentUser && currentUser.type === 'admin';
   const wasViaOtp = currentUser && currentUser.viaOtp;
   currentUser=null;
+  _setStateAuth(null); // revoca il token di scrittura del proxy
   saveSession();
   S.cart={raccoltaId:'',items:[]};
   saveState();
@@ -26705,7 +26780,9 @@ function renderSettings(){
   updated_at timestamptz DEFAULT now()
 );
 ALTER TABLE config ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "public_rw" ON config FOR ALL TO anon USING (true) WITH CHECK (true);
+-- Lettura pubblica solo della chiave dello stato app; scrittura NON anonima
+-- (i salvataggi passano dal proxy server-side che usa la service_role).
+CREATE POLICY "config_read" ON config FOR SELECT TO anon USING (chiave = 'sgas_app_state');
 ALTER PUBLICATION supabase_realtime ADD TABLE config;
 INSERT INTO config (chiave,valore) VALUES ('sgas_app_state','{}');</pre>
           <p style="margin-top:8px;">3. In <strong>Project Settings → API</strong> copia URL e chiave <em>anon/public</em></p>
@@ -27524,6 +27601,7 @@ function applyAppLink(){
 
 // ════════════════════ INIT ════════════════════
 loadState();
+_restoreStateToken(); // riusa il token del proxy salvato (24h) dopo un reload
 applyLogo();
 applyAppLink();
 

@@ -34,15 +34,26 @@ che li ho rimossi dal codice (vedi PR #88):
 
 ## 🔜 DA FARE nella prossima sessione
 
-### 🔴 Sicurezza — punto 3 (il più importante rimasto)
-**Restringere la policy RLS della tabella `config` su Supabase.**
-Attualmente chiunque con l'anon key (pubblica) può leggere e **sovrascrivere** l'intero
-stato dell'app (fornitori, prodotti, raccolte, ordini). L'anagrafica soci è già protetta,
-il resto no.
-- Preparare la migrazione SQL: scrittura consentita solo agli admin autenticati
-  (come già fatto per `soci` con `is_admin()`), lettura pubblica se serve al catalogo ospite.
-- Adattare le scritture di stato del client per usare la sessione autenticata.
-- **Serve accesso al pannello Supabase (SQL Editor).**
+### 🔴 Sicurezza — punto 3: PROXY PRONTO, manca il rollout (PR #89)
+**Codice completo e testato**; restano 2 passi manuali + l'attivazione SQL a stadi.
+- ✅ Creata Netlify Function `netlify/functions/state-save.js`: proxy che verifica
+  il chiamante (admin via email+password, tesserato via tessera+cellulare) e scrive
+  `config` con la service_role. Token firmato HMAC (24h). Testata a fondo (crittografia
+  + 8 casi handler + flusso client end-to-end con Chromium headless).
+- ✅ Client (`syncToSupabase`) ora salva via proxy **con fallback al percorso anon**
+  finché la policy SQL non è attiva → nessun downtime.
+- ✅ Migrazione SQL pronta: `supabase/migrations/2026-07-05_lock_config_writes.sql`.
+- ✅ SQL di setup in-app aggiornato alla versione sicura (niente più `public_rw`).
+
+**ROLLOUT (in ordine, quando riprendiamo):**
+1. Deploy dell'app (merge PR #89).
+2. Su **Netlify** → env var: aggiungere `STATE_TOKEN_SECRET` = stringa lunga e casuale
+   (es. 40+ caratteri). Senza questa, il proxy non parte e resta attivo il fallback anon.
+3. Verificare in produzione: login admin → salvataggio → `config.updated_at` cambia;
+   ordine da tesserato → l'admin lo vede. (Il proxy gestisce entrambi.)
+4. Solo dopo la verifica: eseguire la migrazione SQL nel **SQL Editor Supabase**
+   (`2026-07-05_lock_config_writes.sql`) → blocca le scritture anonime.
+5. (facoltativo) Dopo qualche giorno, rimuovere il fallback anon dal client.
 
 ### 🟠 Sicurezza — punti minori
 - **EmailJS**: attivare restrizione per dominio nel pannello EmailJS (invii solo dal
