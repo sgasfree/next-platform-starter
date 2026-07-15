@@ -2460,7 +2460,10 @@ function renderFornitoriOspite(){
   }
   list.innerHTML=filt.map(f=>{
     const chars=f.caratteristiche||[];
-    const nProd=S.prodotti.filter(p=>p.fornitorId===f.id&&p.disponibile!==false).length;
+    // Vetrina (showcase pubblico): conta TUTTI i prodotti offerti, come il
+    // catalogo loggato. Il flag `disponibile` riguarda l'ordinabilità nelle
+    // raccolte, non cosa mostrare in vetrina.
+    const nProd=S.prodotti.filter(p=>p.fornitorId===f.id).length;
     return '<div class="forn-card" onclick="openFornitoreOspite(\''+f.id+'\')">'
       +'<div class="forn-card-header">'
       +(f.logo
@@ -2481,7 +2484,7 @@ function renderFornitoriOspite(){
 function openFornitoreOspite(id){
   const f=S.fornitori.find(x=>x.id===id);
   if(!f) return;
-  const prods=S.prodotti.filter(p=>p.fornitorId===id&&p.disponibile!==false);
+  const prods=S.prodotti.filter(p=>p.fornitorId===id); // vetrina: mostra tutti i prodotti offerti (come il catalogo)
   const chars=f.caratteristiche||[];
   const logoHtml=(f.banner||f.logo)
     ?'<div style="margin-bottom:0;overflow:hidden;border-radius:14px 14px 0 0;"><img src="'+(f.banner||f.logo)+'" style="width:100%;max-height:180px;object-fit:cover;display:block;" alt="'+escHtml(f.nome)+'"></div>'
@@ -2507,7 +2510,7 @@ function openFornitoreOspite(id){
 
   if(prods.length){
     html+='<div class="card">'
-      +'<h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">📦 Prodotti disponibili</h3>'
+      +'<h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">📦 Prodotti e servizi offerti</h3>'
       +prods.map(p=>
         '<div class="prodotto-row">'
         +'<div style="flex:1;"><div class="prodotto-name">'+escHtml(p.nome)+'</div>'
