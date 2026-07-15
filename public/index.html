@@ -3853,8 +3853,8 @@ function exportOrderWord(ord){
       mkCell(p?p.nome:'?'),
       mkCell(f?f.nome:'?'),
       mkCell(i.qty,AlignmentType.CENTER),
-      mkCell(p?'€'+p.prezzo.toFixed(2):'',AlignmentType.RIGHT),
-      mkCell(p?'€'+(p.prezzo*i.qty).toFixed(2):'',AlignmentType.RIGHT)
+      mkCell(p?'€'+p.prezzo.toFixed(2).replace('.',','):'',AlignmentType.RIGHT),
+      mkCell(p?'€'+(p.prezzo*i.qty).toFixed(2).replace('.',','):'',AlignmentType.RIGHT)
     ]});
   });
   const totalRow=new TableRow({children:[
@@ -3863,7 +3863,7 @@ function exportOrderWord(ord){
         children:[new TextRun({text:'TOTALE ORDINE',bold:true,size:20,font:'Arial'})]})]  }),
     new TableCell({shading:{fill:'E8F5E9'},margins:{top:60,bottom:60,left:80,right:80},
       children:[new Paragraph({alignment:AlignmentType.RIGHT,
-        children:[new TextRun({text:'€ '+ord.totale.toFixed(2),bold:true,size:20,font:'Arial',color:'1B5E20'})]})]})
+        children:[new TextRun({text:'€ '+ord.totale.toFixed(2).replace('.',','),bold:true,size:20,font:'Arial',color:'1B5E20'})]})]})
   ]});
   const mainTable=new Table({width:{size:9620,type:WidthType.DXA},columnWidths:colW,
     rows:[headerRow,...dataRows,totalRow]});
@@ -5511,8 +5511,8 @@ function exportSingleOrderWord(oid){
     mkCell(r.forn,false,false,false,colW[2]),
     mkCell(r.unita,false,false,false,colW[3]),
     mkCell(r.qty,false,true,false,colW[4]),
-    mkCell('€ '+r.prezzo.toFixed(2),false,true,false,colW[5]),
-    mkCell('€ '+r.tot.toFixed(2),false,true,false,colW[6])
+    mkCell('€ '+r.prezzo.toFixed(2).replace('.',','),false,true,false,colW[5]),
+    mkCell('€ '+r.tot.toFixed(2).replace('.',','),false,true,false,colW[6])
   ]}));
   const totalRow = new TableRow({children:[
     new TableCell({borders:bdrs,width:{size:colW[0]+colW[1]+colW[2]+colW[3]+colW[4]+colW[5],type:WidthType.DXA},columnSpan:6,
@@ -5520,7 +5520,7 @@ function exportSingleOrderWord(oid){
       children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[new TextRun({text:'TOTALE',bold:true,size:22,font:'Arial'})]})]}),
     new TableCell({borders:bdrs,width:{size:colW[6],type:WidthType.DXA},
       margins:{top:80,bottom:80,left:120,right:120},shading:{fill:'A8D5A2',type:ShadingType.CLEAR},
-      children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[new TextRun({text:'€ '+totale.toFixed(2),bold:true,size:22,font:'Arial'})]})]}),
+      children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[new TextRun({text:'€ '+totale.toFixed(2).replace('.',','),bold:true,size:22,font:'Arial'})]})]}),
   ]});
   const mainTable = new Table({width:{size:9026,type:WidthType.DXA},columnWidths:colW,rows:[headerRow,...dataRows,totalRow]});
   const children = [];
@@ -5806,8 +5806,8 @@ function exportFornWord(raccoltaId, fornId){
       mkCell(r.nome,false,false,false,colW[1]),
       mkCell(r.unita,false,false,false,colW[2]),
       mkCell(r.qty,false,true,false,colW[3]),
-      mkCell('€ '+r.prezzo.toFixed(2),false,true,false,colW[4]),
-      mkCell('€ '+r.tot.toFixed(2),false,true,false,colW[5])
+      mkCell('€ '+r.prezzo.toFixed(2).replace('.',','),false,true,false,colW[4]),
+      mkCell('€ '+r.tot.toFixed(2).replace('.',','),false,true,false,colW[5])
     ]}));
     const totalRow = new TableRow({children:[
       new TableCell({borders:bdrs,width:{size:colW[0]+colW[1]+colW[2]+colW[3]+colW[4],type:WidthType.DXA},
@@ -5817,7 +5817,7 @@ function exportFornWord(raccoltaId, fornId){
       new TableCell({borders:bdrs,width:{size:colW[5],type:WidthType.DXA},
         margins:{top:80,bottom:80,left:120,right:120},
         shading:{fill:'A8D5A2',type:ShadingType.CLEAR},
-        children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[new TextRun({text:'€ '+totale.toFixed(2),bold:true,size:22,font:'Arial'})]})]}),
+        children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[new TextRun({text:'€ '+totale.toFixed(2).replace('.',','),bold:true,size:22,font:'Arial'})]})]}),
     ]});
     const mainTable = new Table({width:{size:9026,type:WidthType.DXA},columnWidths:colW,rows:[headerRow,...dataRows,totalRow]});
     const children = [];
@@ -5937,8 +5937,8 @@ function exportReportWord(raccoltaId){
       const dataRows=rows2.map(r=>new TableRow({children:[
         mkCell(r.codice,false,false,false,colW[0]),mkCell(r.nome,false,false,false,colW[1]),
         mkCell(r.unita,false,false,false,colW[2]),mkCell(r.qty,false,true,false,colW[3]),
-        mkCell('€ '+r.prezzo.toFixed(2),false,true,false,colW[4]),
-        mkCell('€ '+r.tot.toFixed(2),false,true,false,colW[5])
+        mkCell('€ '+r.prezzo.toFixed(2).replace('.',','),false,true,false,colW[4]),
+        mkCell('€ '+r.tot.toFixed(2).replace('.',','),false,true,false,colW[5])
       ]}));
       const totalRow=new TableRow({children:[
         new TableCell({borders:bdrs,width:{size:colW[0]+colW[1]+colW[2]+colW[3]+colW[4],type:WidthType.DXA},
@@ -5949,7 +5949,7 @@ function exportReportWord(raccoltaId){
         new TableCell({borders:bdrs,width:{size:colW[5],type:WidthType.DXA},
           margins:{top:80,bottom:80,left:120,right:120},
           shading:{fill:'A8D5A2',type:ShadingType.CLEAR},
-          children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[new TextRun({text:'€ '+totale.toFixed(2),bold:true,size:22,font:'Arial'})]})]
+          children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[new TextRun({text:'€ '+totale.toFixed(2).replace('.',','),bold:true,size:22,font:'Arial'})]})]
         })
       ]});
       children.push(new Table({width:{size:9026,type:WidthType.DXA},columnWidths:colW,rows:[headerRow,...dataRows,totalRow]}));
