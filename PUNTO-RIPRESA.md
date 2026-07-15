@@ -72,9 +72,12 @@ che li ho rimossi dal codice (vedi PR #88):
   Priorità in base a quanti admin lavorano davvero in contemporanea.
 
 ### 📱 Miglioramenti mobile
-1. **PWA installabile** — aggiungere `manifest.json` + service worker minimale:
-   l'app diventa installabile sul telefono dei tesserati e consultabile offline
-   (catalogo visibile senza rete). _Beneficio alto, pubblico principale = mobile._
+1. ✅ **PWA installabile** — FATTO: `public/manifest.json` + `public/sw.js`
+   (service worker) + icone (192/512/maskable). App installabile sul telefono
+   (icona in home, schermo intero) e catalogo consultabile offline. Cache
+   conservativa: network-first per l'HTML, cache-first per gli asset, nessuna
+   intercettazione di Supabase/Functions. Verificato headless: manifest valido,
+   SW attivo, ricarica offline funzionante.
 2. ✅ **Alleggerire il peso** — FATTO (PR #90): libreria Word (docx.js, 725 KB)
    estratta in `public/docx-lib.js` e caricata solo al primo export. index.html
    da 3,0 MB → 2,29 MB (−24%). Resta possibile ottimizzare le immagini base64.
