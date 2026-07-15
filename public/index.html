@@ -5716,6 +5716,7 @@ function exportFornCSV(raccoltaId, fornId){
     'Tessera','Nome','Cognome','Cellulare','Telegram',
     'Qty','Prezzo unit.','Totale riga']];
   let totale = 0;
+  const prodMap = {}; // cumulo quantità per prodotto (per il riepilogo fornitore)
   ordini.forEach(o=>{
     const socio = (S.soci||[]).find(s=>s.id===o.socioId);
     const tessera = socio?socio.tessera:'';
@@ -5727,16 +5728,28 @@ function exportFornCSV(raccoltaId, fornId){
     o.items.forEach(i=>{
       const p = S.prodotti.find(x=>x.id===i.prodottoId);
       if(!p || p.fornitorId!==fornId) return;
+      const rigaTot = p.prezzo*i.qty;
       rows.push([o.id, dataOrd, raccNome, raccRitiro, raccLuogo,
         forn?forn.nome:'', fornZona, fornTel, fornEmail,
         p.codice||'', p.nome, p.unita||'',
         tessera, socioNome, socioCognome, socioCellulare, socioTelegram,
-        i.qty, p.prezzo, p.prezzo*i.qty]);
-      totale += p.prezzo*i.qty;
+        i.qty, p.prezzo, rigaTot]);
+      totale += rigaTot;
+      if(prodMap[i.prodottoId]){ prodMap[i.prodottoId].qty += i.qty; prodMap[i.prodottoId].tot += rigaTot; }
+      else prodMap[i.prodottoId] = {codice:p.codice||'', nome:p.nome, unita:p.unita||'', qty:i.qty, prezzo:p.prezzo, tot:rigaTot};
     });
   });
   rows.push([]);
   rows.push(['','','','','','','','','','','','','','','','','','','TOTALE FORNITORE',totale]);
+  // Riepilogo cumulato per prodotto (quantità totali da ordinare al fornitore)
+  const riepilogo = Object.values(prodMap).sort((a,b)=>a.nome.localeCompare(b.nome,'it'));
+  if(riepilogo.length){
+    rows.push([]);
+    rows.push(['RIEPILOGO PER PRODOTTO — quantità totali da ordinare al fornitore']);
+    rows.push(['Codice','Prodotto','Unità','Qty totale','Prezzo unit.','Totale']);
+    riepilogo.forEach(r=>rows.push([r.codice, r.nome, r.unita, r.qty, r.prezzo, r.tot]));
+    rows.push(['','','','','TOTALE', totale]);
+  }
   const fname = (racc?racc.nome:'raccolta').replace(/\s/g,'_')+'_'+(forn?forn.nome:'fornitore').replace(/\s/g,'_')+'.csv';
   _downloadCSV(rows, fname);
   toast('📥 CSV '+((forn?forn.nome:'fornitore'))+' scaricato');
@@ -5980,6 +5993,8 @@ function exportReportCSV(raccoltaId){
     const fornEmail = forn&&forn.emailContatto?forn.emailContatto:'';
     const fornWa = forn&&forn.whatsapp?forn.whatsapp:'';
     const fornContatto = forn&&forn.nomeContatto?forn.nomeContatto:'';
+    const prodMap = {}; // cumulo per prodotto di QUESTO fornitore
+    let totaleForn = 0;
     ordini.forEach(o=>{
       const socio = (S.soci||[]).find(s=>s.id===o.socioId);
       const tessera = socio?socio.tessera:'';
@@ -5992,14 +6007,25 @@ function exportReportCSV(raccoltaId){
       o.items.forEach(i=>{
         const p = S.prodotti.find(x=>x.id===i.prodottoId);
         if(!p || p.fornitorId!==fid) return;
+        const rigaTot = p.prezzo*i.qty;
         rows.push([o.id, dataOrd, raccNome, raccAperta, raccData, raccChiusura, raccRitiro, raccLuogo,
           fornNome, fornZona, fornTel, fornEmail, fornWa, fornContatto,
           p.codice||'', p.nome, p.unita||'',
           tessera, socioNome, socioCognome, socioCellulare, socioTelegram,
-          i.qty, p.prezzo, p.prezzo*i.qty]);
-        totale += p.prezzo*i.qty;
+          i.qty, p.prezzo, rigaTot]);
+        totale += rigaTot; totaleForn += rigaTot;
+        if(prodMap[i.prodottoId]){ prodMap[i.prodottoId].qty += i.qty; prodMap[i.prodottoId].tot += rigaTot; }
+        else prodMap[i.prodottoId] = {codice:p.codice||'', nome:p.nome, unita:p.unita||'', qty:i.qty, prezzo:p.prezzo, tot:rigaTot};
       });
     });
+    // Riepilogo cumulato per prodotto di questo fornitore
+    const riep = Object.values(prodMap).sort((a,b)=>a.nome.localeCompare(b.nome,'it'));
+    if(riep.length){
+      rows.push(['RIEPILOGO '+fornNome+' — quantità totali da ordinare']);
+      rows.push(['Codice','Prodotto','Unità','Qty totale','Prezzo unit.','Totale']);
+      riep.forEach(r=>rows.push([r.codice, r.nome, r.unita, r.qty, r.prezzo, r.tot]));
+      rows.push(['','','','','TOTALE '+fornNome, totaleForn]);
+    }
     rows.push([]); // riga vuota tra fornitori
   });
   rows.push(new Array(24).fill('').concat(['TOTALE RACCOLTA', totale]));
