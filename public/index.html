@@ -3779,30 +3779,32 @@ function submitOrder(){
 }
 
 function exportOrderExcel(ord){
-  // mantenuta per compatibilità admin download CSV
+  // CSV del singolo ordine (pulsante 📥 nella tabella Ordini). Formato coerente
+  // con gli altri export: passa da _downloadCSV (virgola decimale, numeri
+  // allineati a destra) e include la tessera del tesserato.
+  const socio=(S.soci||[]).find(s=>s.id===ord.socioId);
+  const tessera=(socio&&socio.tessera)||ord.socioTessera||'';
+  const nome=socio?(socio.nome||''):(ord.socioNome||'');
+  const cognome=socio?(socio.cognome||''):(ord.socioCognome||'');
   const rows=[
-    ['ORDINE',ord.id,'','','',''],
-    ['Data',new Date(ord.data).toLocaleDateString('it-IT'),'','','',''],
-    ['Nome',ord.socioNome||'','Cognome',ord.socioCognome||'','',''],
-    ['Cellulare',ord.socioCellulare||'','Telegram',ord.socioTelegram?'@'+ord.socioTelegram:'','',''],
+    ['ORDINE',ord.id],
+    ['Data',new Date(ord.data).toLocaleDateString('it-IT')],
+    ['Tessera',tessera],
+    ['Nome',nome,'Cognome',cognome],
+    ['Cellulare',ord.socioCellulare||'','Telegram',ord.socioTelegram?'@'+ord.socioTelegram:''],
     [],
-    ['Codice','Prodotto','Fornitore','Qty','Prezzo unitario','Totale riga']
+    ['Codice','Prodotto','Fornitore','Unità','Qty','Prezzo unit.','Totale riga']
   ];
   ord.items.forEach(i=>{
     const p=S.prodotti.find(x=>x.id===i.prodottoId);
     const f=p?S.fornitori.find(x=>x.id===p.fornitorId):null;
-    rows.push([p?(p.codice||''):'',p?p.nome:'?',f?f.nome:'?',i.qty,p?p.prezzo:0,p?p.prezzo*i.qty:0]);
+    rows.push([p?(p.codice||''):'', p?p.nome:'?', f?f.nome:'?', p?(p.unita||''):'', i.qty, p?p.prezzo:0, p?(p.prezzo*i.qty):0]);
   });
   rows.push([]);
-  rows.push(['','TOTALE','','','',ord.totale]);
-  const csv=rows.map(r=>r.join(';')).join('\n');
-  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download=`${ord.id}_${(ord.socioNome||'').replace(/\s/g,'_')}.csv`;
-  a.click();
+  rows.push(['','','','','','TOTALE',ord.totale]);
+  const fname=`${ord.id}_${(nome||tessera||'ordine').replace(/\s/g,'_')}.csv`;
+  _downloadCSV(rows, fname);
 }
-
 // Carica la libreria Word (docx.js) su richiesta: è ~725 KB e la maggior parte
 // degli utenti non esporta mai un Word, quindi non va caricata all'avvio.
 // Ritorna una Promise<boolean> (true quando window.docx è pronta).
@@ -3851,8 +3853,8 @@ function exportOrderWord(ord){
       mkCell(p?p.nome:'?'),
       mkCell(f?f.nome:'?'),
       mkCell(i.qty,AlignmentType.CENTER),
-      mkCell(p?'€'+p.prezzo.toFixed(2):'',AlignmentType.RIGHT),
-      mkCell(p?'€'+(p.prezzo*i.qty).toFixed(2):'',AlignmentType.RIGHT)
+      mkCell(p?'€'+p.prezzo.toFixed(2).replace('.',','):'',AlignmentType.RIGHT),
+      mkCell(p?'€'+(p.prezzo*i.qty).toFixed(2).replace('.',','):'',AlignmentType.RIGHT)
     ]});
   });
   const totalRow=new TableRow({children:[
@@ -3861,7 +3863,7 @@ function exportOrderWord(ord){
         children:[new TextRun({text:'TOTALE ORDINE',bold:true,size:20,font:'Arial'})]})]  }),
     new TableCell({shading:{fill:'E8F5E9'},margins:{top:60,bottom:60,left:80,right:80},
       children:[new Paragraph({alignment:AlignmentType.RIGHT,
-        children:[new TextRun({text:'€ '+ord.totale.toFixed(2),bold:true,size:20,font:'Arial',color:'1B5E20'})]})]})
+        children:[new TextRun({text:'€ '+ord.totale.toFixed(2).replace('.',','),bold:true,size:20,font:'Arial',color:'1B5E20'})]})]})
   ]});
   const mainTable=new Table({width:{size:9620,type:WidthType.DXA},columnWidths:colW,
     rows:[headerRow,...dataRows,totalRow]});
@@ -5509,8 +5511,8 @@ function exportSingleOrderWord(oid){
     mkCell(r.forn,false,false,false,colW[2]),
     mkCell(r.unita,false,false,false,colW[3]),
     mkCell(r.qty,false,true,false,colW[4]),
-    mkCell('€ '+r.prezzo.toFixed(2),false,true,false,colW[5]),
-    mkCell('€ '+r.tot.toFixed(2),false,true,false,colW[6])
+    mkCell('€ '+r.prezzo.toFixed(2).replace('.',','),false,true,false,colW[5]),
+    mkCell('€ '+r.tot.toFixed(2).replace('.',','),false,true,false,colW[6])
   ]}));
   const totalRow = new TableRow({children:[
     new TableCell({borders:bdrs,width:{size:colW[0]+colW[1]+colW[2]+colW[3]+colW[4]+colW[5],type:WidthType.DXA},columnSpan:6,
@@ -5518,7 +5520,7 @@ function exportSingleOrderWord(oid){
       children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[new TextRun({text:'TOTALE',bold:true,size:22,font:'Arial'})]})]}),
     new TableCell({borders:bdrs,width:{size:colW[6],type:WidthType.DXA},
       margins:{top:80,bottom:80,left:120,right:120},shading:{fill:'A8D5A2',type:ShadingType.CLEAR},
-      children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[new TextRun({text:'€ '+totale.toFixed(2),bold:true,size:22,font:'Arial'})]})]}),
+      children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[new TextRun({text:'€ '+totale.toFixed(2).replace('.',','),bold:true,size:22,font:'Arial'})]})]}),
   ]});
   const mainTable = new Table({width:{size:9026,type:WidthType.DXA},columnWidths:colW,rows:[headerRow,...dataRows,totalRow]});
   const children = [];
@@ -5714,6 +5716,7 @@ function exportFornCSV(raccoltaId, fornId){
     'Tessera','Nome','Cognome','Cellulare','Telegram',
     'Qty','Prezzo unit.','Totale riga']];
   let totale = 0;
+  const prodMap = {}; // cumulo quantità per prodotto (per il riepilogo fornitore)
   ordini.forEach(o=>{
     const socio = (S.soci||[]).find(s=>s.id===o.socioId);
     const tessera = socio?socio.tessera:'';
@@ -5725,16 +5728,28 @@ function exportFornCSV(raccoltaId, fornId){
     o.items.forEach(i=>{
       const p = S.prodotti.find(x=>x.id===i.prodottoId);
       if(!p || p.fornitorId!==fornId) return;
+      const rigaTot = p.prezzo*i.qty;
       rows.push([o.id, dataOrd, raccNome, raccRitiro, raccLuogo,
         forn?forn.nome:'', fornZona, fornTel, fornEmail,
         p.codice||'', p.nome, p.unita||'',
         tessera, socioNome, socioCognome, socioCellulare, socioTelegram,
-        i.qty, p.prezzo, p.prezzo*i.qty]);
-      totale += p.prezzo*i.qty;
+        i.qty, p.prezzo, rigaTot]);
+      totale += rigaTot;
+      if(prodMap[i.prodottoId]){ prodMap[i.prodottoId].qty += i.qty; prodMap[i.prodottoId].tot += rigaTot; }
+      else prodMap[i.prodottoId] = {codice:p.codice||'', nome:p.nome, unita:p.unita||'', qty:i.qty, prezzo:p.prezzo, tot:rigaTot};
     });
   });
   rows.push([]);
   rows.push(['','','','','','','','','','','','','','','','','','','TOTALE FORNITORE',totale]);
+  // Riepilogo cumulato per prodotto (quantità totali da ordinare al fornitore)
+  const riepilogo = Object.values(prodMap).sort((a,b)=>a.nome.localeCompare(b.nome,'it'));
+  if(riepilogo.length){
+    rows.push([]);
+    rows.push(['RIEPILOGO PER PRODOTTO — quantità totali da ordinare al fornitore']);
+    rows.push(['Codice','Prodotto','Unità','Qty totale','Prezzo unit.','Totale']);
+    riepilogo.forEach(r=>rows.push([r.codice, r.nome, r.unita, r.qty, r.prezzo, r.tot]));
+    rows.push(['','','','','TOTALE', totale]);
+  }
   const fname = (racc?racc.nome:'raccolta').replace(/\s/g,'_')+'_'+(forn?forn.nome:'fornitore').replace(/\s/g,'_')+'.csv';
   _downloadCSV(rows, fname);
   toast('📥 CSV '+((forn?forn.nome:'fornitore'))+' scaricato');
@@ -5791,8 +5806,8 @@ function exportFornWord(raccoltaId, fornId){
       mkCell(r.nome,false,false,false,colW[1]),
       mkCell(r.unita,false,false,false,colW[2]),
       mkCell(r.qty,false,true,false,colW[3]),
-      mkCell('€ '+r.prezzo.toFixed(2),false,true,false,colW[4]),
-      mkCell('€ '+r.tot.toFixed(2),false,true,false,colW[5])
+      mkCell('€ '+r.prezzo.toFixed(2).replace('.',','),false,true,false,colW[4]),
+      mkCell('€ '+r.tot.toFixed(2).replace('.',','),false,true,false,colW[5])
     ]}));
     const totalRow = new TableRow({children:[
       new TableCell({borders:bdrs,width:{size:colW[0]+colW[1]+colW[2]+colW[3]+colW[4],type:WidthType.DXA},
@@ -5802,7 +5817,7 @@ function exportFornWord(raccoltaId, fornId){
       new TableCell({borders:bdrs,width:{size:colW[5],type:WidthType.DXA},
         margins:{top:80,bottom:80,left:120,right:120},
         shading:{fill:'A8D5A2',type:ShadingType.CLEAR},
-        children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[new TextRun({text:'€ '+totale.toFixed(2),bold:true,size:22,font:'Arial'})]})]}),
+        children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[new TextRun({text:'€ '+totale.toFixed(2).replace('.',','),bold:true,size:22,font:'Arial'})]})]}),
     ]});
     const mainTable = new Table({width:{size:9026,type:WidthType.DXA},columnWidths:colW,rows:[headerRow,...dataRows,totalRow]});
     const children = [];
@@ -5922,8 +5937,8 @@ function exportReportWord(raccoltaId){
       const dataRows=rows2.map(r=>new TableRow({children:[
         mkCell(r.codice,false,false,false,colW[0]),mkCell(r.nome,false,false,false,colW[1]),
         mkCell(r.unita,false,false,false,colW[2]),mkCell(r.qty,false,true,false,colW[3]),
-        mkCell('€ '+r.prezzo.toFixed(2),false,true,false,colW[4]),
-        mkCell('€ '+r.tot.toFixed(2),false,true,false,colW[5])
+        mkCell('€ '+r.prezzo.toFixed(2).replace('.',','),false,true,false,colW[4]),
+        mkCell('€ '+r.tot.toFixed(2).replace('.',','),false,true,false,colW[5])
       ]}));
       const totalRow=new TableRow({children:[
         new TableCell({borders:bdrs,width:{size:colW[0]+colW[1]+colW[2]+colW[3]+colW[4],type:WidthType.DXA},
@@ -5934,7 +5949,7 @@ function exportReportWord(raccoltaId){
         new TableCell({borders:bdrs,width:{size:colW[5],type:WidthType.DXA},
           margins:{top:80,bottom:80,left:120,right:120},
           shading:{fill:'A8D5A2',type:ShadingType.CLEAR},
-          children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[new TextRun({text:'€ '+totale.toFixed(2),bold:true,size:22,font:'Arial'})]})]
+          children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[new TextRun({text:'€ '+totale.toFixed(2).replace('.',','),bold:true,size:22,font:'Arial'})]})]
         })
       ]});
       children.push(new Table({width:{size:9026,type:WidthType.DXA},columnWidths:colW,rows:[headerRow,...dataRows,totalRow]}));
@@ -5978,6 +5993,8 @@ function exportReportCSV(raccoltaId){
     const fornEmail = forn&&forn.emailContatto?forn.emailContatto:'';
     const fornWa = forn&&forn.whatsapp?forn.whatsapp:'';
     const fornContatto = forn&&forn.nomeContatto?forn.nomeContatto:'';
+    const prodMap = {}; // cumulo per prodotto di QUESTO fornitore
+    let totaleForn = 0;
     ordini.forEach(o=>{
       const socio = (S.soci||[]).find(s=>s.id===o.socioId);
       const tessera = socio?socio.tessera:'';
@@ -5990,14 +6007,25 @@ function exportReportCSV(raccoltaId){
       o.items.forEach(i=>{
         const p = S.prodotti.find(x=>x.id===i.prodottoId);
         if(!p || p.fornitorId!==fid) return;
+        const rigaTot = p.prezzo*i.qty;
         rows.push([o.id, dataOrd, raccNome, raccAperta, raccData, raccChiusura, raccRitiro, raccLuogo,
           fornNome, fornZona, fornTel, fornEmail, fornWa, fornContatto,
           p.codice||'', p.nome, p.unita||'',
           tessera, socioNome, socioCognome, socioCellulare, socioTelegram,
-          i.qty, p.prezzo, p.prezzo*i.qty]);
-        totale += p.prezzo*i.qty;
+          i.qty, p.prezzo, rigaTot]);
+        totale += rigaTot; totaleForn += rigaTot;
+        if(prodMap[i.prodottoId]){ prodMap[i.prodottoId].qty += i.qty; prodMap[i.prodottoId].tot += rigaTot; }
+        else prodMap[i.prodottoId] = {codice:p.codice||'', nome:p.nome, unita:p.unita||'', qty:i.qty, prezzo:p.prezzo, tot:rigaTot};
       });
     });
+    // Riepilogo cumulato per prodotto di questo fornitore
+    const riep = Object.values(prodMap).sort((a,b)=>a.nome.localeCompare(b.nome,'it'));
+    if(riep.length){
+      rows.push(['RIEPILOGO '+fornNome+' — quantità totali da ordinare']);
+      rows.push(['Codice','Prodotto','Unità','Qty totale','Prezzo unit.','Totale']);
+      riep.forEach(r=>rows.push([r.codice, r.nome, r.unita, r.qty, r.prezzo, r.tot]));
+      rows.push(['','','','','TOTALE '+fornNome, totaleForn]);
+    }
     rows.push([]); // riga vuota tra fornitori
   });
   rows.push(new Array(24).fill('').concat(['TOTALE RACCOLTA', totale]));
