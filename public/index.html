@@ -3755,7 +3755,7 @@ function submitOrder(){
   S.cart.raccoltaId=raccId;
   let total=0;
   S.cart.items.forEach(i=>{const p=S.prodotti.find(x=>x.id===i.prodottoId);if(p)total+=p.prezzo*i.qty;});
-  const ord={id:'ORD-'+uid().toUpperCase().slice(0,6),socioId:currentUser.id,socioNome:currentUser.nome,socioCognome:currentUser.cognome||'',socioCellulare:currentUser.cellulare||currentUser.telefono||'',socioTelegram:currentUser.telegram||'',raccoltaId:raccId,items:[...S.cart.items],totale:total,data:new Date().toISOString()};
+  const ord={id:'ORD-'+uid().toUpperCase().slice(0,6),socioId:currentUser.id,socioTessera:currentUser.tessera||'',socioNome:currentUser.nome,socioCognome:currentUser.cognome||'',socioCellulare:currentUser.cellulare||currentUser.telefono||'',socioTelegram:currentUser.telegram||'',raccoltaId:raccId,items:[...S.cart.items],totale:total,data:new Date().toISOString()};
   S.ordini.push(ord);
   S.cart.items=[];
   S.cart.raccoltaId='';
@@ -4249,7 +4249,7 @@ function renderDashboard(){
   // 4. Attività soci (n. ordini per socio)
   const socioOrd={};
   S.ordini.forEach(o=>{
-    const key=o.socioNome||o.socioId||'?';
+    const key=o.socioNome||o.socioTessera||'?';
     socioOrd[key]=(socioOrd[key]||0)+1;
   });
   const socioSorted=Object.entries(socioOrd).sort((a,b)=>b[1]-a[1]).slice(0,6);
@@ -4384,7 +4384,7 @@ function renderDashboard(){
     <div class="card">
       <h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">🛒 Ultimi ordini</h3>
       ${S.ordini.slice(-5).reverse().map(o=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
-        <div><div style="font-weight:700;font-size:.88rem;">${escHtml(o.id)} — ${escHtml(o.socioNome||o.socioId)}</div>
+        <div><div style="font-weight:700;font-size:.88rem;">${escHtml(o.id)} — ${escHtml(_ordSocioLabel(o))}</div>
         <div style="font-size:.75rem;color:var(--text-light);">${new Date(o.data).toLocaleDateString('it-IT')}</div></div>
         <span style="font-weight:800;color:var(--green);">€${o.totale.toFixed(2)}</span>
       </div>`).join('')||'<p style="color:var(--text-light);font-size:.88rem;">Nessun ordine</p>'}
@@ -4477,7 +4477,7 @@ function renderPeriodCharts(){
   // ── Tesserati per periodo ──
   const fatSociP={};
   filtered.forEach(o=>{
-    const key=o.socioNome||o.socioId||'?';
+    const key=o.socioNome||o.socioTessera||'?';
     fatSociP[key]=(fatSociP[key]||0)+o.totale;
   });
   const sociSorted=Object.entries(fatSociP).sort((a,b)=>b[1]-a[1]).slice(0,8);
@@ -5406,12 +5406,24 @@ function renderOrdini(){
   });
 }
 
+// Etichetta socio per gli ordini: mostra la TESSERA (+ nome), risolta dal
+// registro soci tramite socioId. Non mostra MAI l'id grezzo (es. uid casuale).
+// Fallback in ordine: soci → tessera salvata sull'ordine → nome → '—'.
+function _ordSocioLabel(o){
+  const s=(S.soci||[]).find(x=>x.id===o.socioId);
+  const tess=(s&&s.tessera)||o.socioTessera||'';
+  const nome=s?((s.nome||'')+(s.cognome?' '+s.cognome:'')).trim()
+             :((o.socioNome&&o.socioNome!==o.socioId)?o.socioNome:'');
+  if(tess&&nome) return tess+' — '+nome;
+  return tess||nome||'—';
+}
+
 function _renderOrdiniTable(){
   const rows=S.ordini.slice().reverse().map(o=>{
     const racc=S.raccolte.find(r=>r.id===o.raccoltaId);
     return `<tr>
       <td><strong>${escHtml(o.id)}</strong></td>
-      <td>${escHtml(o.socioNome||o.socioId)}</td>
+      <td>${escHtml(_ordSocioLabel(o))}</td>
       <td>${racc?escHtml(racc.nome):'—'}</td>
       <td>${new Date(o.data).toLocaleDateString('it-IT')}</td>
       <td>${o.items.length} prodotti</td>
@@ -5468,7 +5480,7 @@ function exportSingleOrderWord(oid){
         children:[new TextRun({text:String(txt==null?'':txt),bold:!!bold,size:20,font:'Arial'})]})]});
   }
   const socio = S.soci.find(x=>x.id===o.socioId);
-  const socioNomeCompleto = socio?(socio.nome||'')+(socio.cognome?' '+socio.cognome:''):(o.socioNome||o.socioId);
+  const socioNomeCompleto = socio?(socio.nome||'')+(socio.cognome?' '+socio.cognome:''):(o.socioNome||o.socioTessera||'');
   const socioTessera = socio?socio.tessera||'—':'—';
   const rows2 = o.items.map(i=>{
     const p = S.prodotti.find(x=>x.id===i.prodottoId);
@@ -5541,7 +5553,7 @@ function exportSingleOrderWord(oid){
     children
   }]});
   Packer.toBlob(doc).then(blob=>{
-    const fname = o.id+'_'+(o.socioNome||o.socioId).replace(/\s/g,'_')+'.docx';
+    const fname = o.id+'_'+(o.socioNome||o.socioTessera||'socio').replace(/\s/g,'_')+'.docx';
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
     a.href=url; a.download=fname; a.click();
@@ -5561,7 +5573,7 @@ function reportFornitori(raccoltaId){
   // Raggruppa per fornitore → prodotto → {qtaTot, righe soci}
   const byForn = {}; // {fornId: {nome, emoji, prodotti: {prodId: {nome,unita,prezzo,qtaTot,soci:[{nome,qty}]}}}}
   ordini.forEach(o=>{
-    const socioNome = o.socioNome || o.socioId;
+    const socioNome = o.socioNome || o.socioTessera || '';
     o.items.forEach(i=>{
       const p = S.prodotti.find(x=>x.id===i.prodottoId);
       if(!p) return;
@@ -5592,7 +5604,7 @@ function reportFornitori(raccoltaId){
   // Dati per grafici
   const totaleRaccolta = Object.values(byForn).reduce((a,f)=>a+f.totale,0);
   const bySocio = {};
-  ordini.forEach(o=>{ const sn=o.socioNome||o.socioId; bySocio[sn]=(bySocio[sn]||0)+o.totale; });
+  ordini.forEach(o=>{ const sn=o.socioNome||o.socioTessera||'?'; bySocio[sn]=(bySocio[sn]||0)+o.totale; });
   const socioSorted = Object.entries(bySocio).sort((a,b)=>b[1]-a[1]).slice(0,8);
   const byProd = {};
   ordini.forEach(o=>o.items.forEach(i=>{ const p=S.prodotti.find(x=>x.id===i.prodottoId); if(p) byProd[p.nome]=(byProd[p.nome]||0)+i.qty; }));
@@ -5705,7 +5717,7 @@ function exportFornCSV(raccoltaId, fornId){
   ordini.forEach(o=>{
     const socio = (S.soci||[]).find(s=>s.id===o.socioId);
     const tessera = socio?socio.tessera:'';
-    const socioNome = o.socioNome || o.socioId;
+    const socioNome = o.socioNome || o.socioTessera || '';
     const socioCognome = o.socioCognome||'';
     const socioCellulare = o.socioCellulare||'';
     const socioTelegram = o.socioTelegram?'@'+o.socioTelegram:'';
@@ -5969,7 +5981,7 @@ function exportReportCSV(raccoltaId){
     ordini.forEach(o=>{
       const socio = (S.soci||[]).find(s=>s.id===o.socioId);
       const tessera = socio?socio.tessera:'';
-      const socioNome = o.socioNome || o.socioId;
+      const socioNome = o.socioNome || o.socioTessera || '';
       const socioCognome = o.socioCognome||'';
       const socioCellulare = o.socioCellulare||'';
       const socioTelegram = o.socioTelegram?'@'+o.socioTelegram:'';
@@ -6532,9 +6544,10 @@ async function loadOrdiniFromSupabase(){
   // differisce dal blobId, es. soci migrati con id pre-esistente diverso).
   const blobIdByDbId = {};
   const dbIdByTessera = {};
+  const tesseraByDbId = {};
   let dbSoci = [];
   try{ const r = await sb.from('soci').select('id,tessera'); dbSoci = r.data||[]; }catch(e){}
-  dbSoci.forEach(r => { dbIdByTessera[normTessera(r.tessera)] = r.id; });
+  dbSoci.forEach(r => { dbIdByTessera[normTessera(r.tessera)] = r.id; tesseraByDbId[r.id] = r.tessera||''; });
   (S.soci||[]).forEach(s => {
     const dbId = dbIdByTessera[normTessera(s.tessera)];
     if(dbId) blobIdByDbId[dbId] = s.id;
@@ -6550,7 +6563,10 @@ async function loadOrdiniFromSupabase(){
       return {
         id:              o.id,
         socioId:         blobSocioId,
-        socioNome:       socio ? (socio.nome||'') : (o.socio_id||''),
+        socioTessera:    socio ? (socio.tessera||'') : (tesseraByDbId[o.socio_id]||''),
+        // Niente più fallback all'id grezzo: se il socio non è risolto, il nome
+        // resta vuoto e la tessera (sopra) fa da etichetta.
+        socioNome:       socio ? (socio.nome||'') : '',
         socioCognome:    socio ? (socio.cognome||'') : '',
         socioCellulare:  socio ? (socio.cellulare||socio.telefono||'') : '',
         socioTelegram:   socio ? (socio.telegram||'') : '',
