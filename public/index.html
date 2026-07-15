@@ -2436,6 +2436,8 @@ function renderCatSidebarOspite(){
 
 function setTabOspite(cat){
   ospiteTab=cat;
+  // Azzera la ricerca al cambio categoria (vedi setTab).
+  const _si=document.getElementById('search-fornitori-ospite'); if(_si) _si.value='';
   document.querySelectorAll('#ospite-cat-sidebar .cat-btn').forEach(b=>b.classList.remove('active'));
   const el=document.querySelector('#ospite-cat-sidebar .cat-btn[onclick*="'+cat+'"]');
   if(el) el.classList.add('active');
@@ -3260,6 +3262,9 @@ function renderCatSidebar(){
 
 function setTab(cat){
   currentTab=cat;
+  // Azzera la ricerca al cambio categoria: altrimenti la query precedente
+  // continuerebbe a filtrare la nuova categoria (sembra "categoria vuota").
+  const _si=document.getElementById('search-fornitori'); if(_si) _si.value='';
   // aggiorna active su tutti i tab (categorie + _raccolte)
   ['_raccolte',...S.categorie.map(c=>c.id)].forEach(id=>{
     const el=document.getElementById('tab-'+id);
