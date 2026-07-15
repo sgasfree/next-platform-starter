@@ -2,6 +2,14 @@
 <html lang="it"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- PWA: installabile + offline -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2f7d4f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="S-GAS">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>S-GAS Freeconomy</title>
 <!--SGAS_PRELOAD_START-->
 <script>
@@ -2436,6 +2444,8 @@ function renderCatSidebarOspite(){
 
 function setTabOspite(cat){
   ospiteTab=cat;
+  // Azzera la ricerca al cambio categoria (vedi setTab).
+  const _si=document.getElementById('search-fornitori-ospite'); if(_si) _si.value='';
   document.querySelectorAll('#ospite-cat-sidebar .cat-btn').forEach(b=>b.classList.remove('active'));
   const el=document.querySelector('#ospite-cat-sidebar .cat-btn[onclick*="'+cat+'"]');
   if(el) el.classList.add('active');
@@ -3260,6 +3270,9 @@ function renderCatSidebar(){
 
 function setTab(cat){
   currentTab=cat;
+  // Azzera la ricerca al cambio categoria: altrimenti la query precedente
+  // continuerebbe a filtrare la nuova categoria (sembra "categoria vuota").
+  const _si=document.getElementById('search-fornitori'); if(_si) _si.value='';
   // aggiorna active su tutti i tab (categorie + _raccolte)
   ['_raccolte',...S.categorie.map(c=>c.id)].forEach(id=>{
     const el=document.getElementById('tab-'+id);
@@ -7570,6 +7583,13 @@ function applyAppLink(){
 // ════════════════════ INIT ════════════════════
 loadState();
 _restoreStateToken(); // riusa il token del proxy salvato (24h) dopo un reload
+
+// PWA: registra il service worker (installabile + offline). Non blocca l'avvio.
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(err=>console.warn('SW registration:', err));
+  });
+}
 applyLogo();
 applyAppLink();
 
