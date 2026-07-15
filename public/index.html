@@ -3779,30 +3779,32 @@ function submitOrder(){
 }
 
 function exportOrderExcel(ord){
-  // mantenuta per compatibilità admin download CSV
+  // CSV del singolo ordine (pulsante 📥 nella tabella Ordini). Formato coerente
+  // con gli altri export: passa da _downloadCSV (virgola decimale, numeri
+  // allineati a destra) e include la tessera del tesserato.
+  const socio=(S.soci||[]).find(s=>s.id===ord.socioId);
+  const tessera=(socio&&socio.tessera)||ord.socioTessera||'';
+  const nome=socio?(socio.nome||''):(ord.socioNome||'');
+  const cognome=socio?(socio.cognome||''):(ord.socioCognome||'');
   const rows=[
-    ['ORDINE',ord.id,'','','',''],
-    ['Data',new Date(ord.data).toLocaleDateString('it-IT'),'','','',''],
-    ['Nome',ord.socioNome||'','Cognome',ord.socioCognome||'','',''],
-    ['Cellulare',ord.socioCellulare||'','Telegram',ord.socioTelegram?'@'+ord.socioTelegram:'','',''],
+    ['ORDINE',ord.id],
+    ['Data',new Date(ord.data).toLocaleDateString('it-IT')],
+    ['Tessera',tessera],
+    ['Nome',nome,'Cognome',cognome],
+    ['Cellulare',ord.socioCellulare||'','Telegram',ord.socioTelegram?'@'+ord.socioTelegram:''],
     [],
-    ['Codice','Prodotto','Fornitore','Qty','Prezzo unitario','Totale riga']
+    ['Codice','Prodotto','Fornitore','Unità','Qty','Prezzo unit.','Totale riga']
   ];
   ord.items.forEach(i=>{
     const p=S.prodotti.find(x=>x.id===i.prodottoId);
     const f=p?S.fornitori.find(x=>x.id===p.fornitorId):null;
-    rows.push([p?(p.codice||''):'',p?p.nome:'?',f?f.nome:'?',i.qty,p?p.prezzo:0,p?p.prezzo*i.qty:0]);
+    rows.push([p?(p.codice||''):'', p?p.nome:'?', f?f.nome:'?', p?(p.unita||''):'', i.qty, p?p.prezzo:0, p?(p.prezzo*i.qty):0]);
   });
   rows.push([]);
-  rows.push(['','TOTALE','','','',ord.totale]);
-  const csv=rows.map(r=>r.join(';')).join('\n');
-  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download=`${ord.id}_${(ord.socioNome||'').replace(/\s/g,'_')}.csv`;
-  a.click();
+  rows.push(['','','','','','TOTALE',ord.totale]);
+  const fname=`${ord.id}_${(nome||tessera||'ordine').replace(/\s/g,'_')}.csv`;
+  _downloadCSV(rows, fname);
 }
-
 // Carica la libreria Word (docx.js) su richiesta: è ~725 KB e la maggior parte
 // degli utenti non esporta mai un Word, quindi non va caricata all'avvio.
 // Ritorna una Promise<boolean> (true quando window.docx è pronta).
