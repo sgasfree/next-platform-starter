@@ -4628,6 +4628,7 @@ function modalEditSocio(id){
 }
 
 function saveSocio(editId){
+  if(!_requireOtp('salvare un tesserato')) return;
   const tess=document.getElementById('m-tess').value.trim().toUpperCase();
   const nome=document.getElementById('m-nome').value.trim();
   const cognome=(document.getElementById('m-cognome')||{value:''}).value.trim();
@@ -4655,6 +4656,7 @@ function saveSocio(editId){
 
 function deleteSocio(id){
   if(!currentUser||currentUser.type!=='admin'){toast('❌ Accesso negato');return;}
+  if(!_requireOtp('eliminare un tesserato')) return;
   if(!confirm('Eliminare questo tesserato?')) return;
   S.soci=S.soci.filter(s=>s.id!==id);
   saveState(); _renderSociTable(); toast('Tesserato eliminato');
@@ -5628,6 +5630,7 @@ function exportSingleOrder(oid){
 
 function eliminaOrdine(oid){
   if(!currentUser||currentUser.type!=='admin'){toast('❌ Accesso negato');return;}
+  if(!_requireOtp('eliminare un ordine')) return;
   if(!confirm('Eliminare definitivamente l\'ordine '+oid+'?\nQuesta operazione non è reversibile.')) return;
   S.ordini = S.ordini.filter(o=>o.id!==oid);
   saveState();
@@ -6387,6 +6390,25 @@ async function _requireAdminSb(){
     return null;
   }
   return sb;
+}
+
+// Rete di sicurezza per le operazioni su tesserati, ordini, messaggi e
+// prenotazioni: queste scrivono su tabelle Supabase dedicate, che richiedono
+// una sessione ottenibile SOLO col login via codice Telegram (OTP).
+// Con il login email+password la modifica resterebbe sul solo dispositivo e
+// ricomparirebbe al primo ricaricamento dei dati (il classico "sparisce e poi
+// tornain"): meglio bloccarla subito e spiegare come procedere.
+// NB: catalogo, prodotti, fornitori, raccolte e impostazioni NON passano di qui
+// — quelli si salvano correttamente con entrambi i tipi di accesso.
+function _requireOtp(azione){
+  if(currentUser && currentUser.viaOtp) return true;
+  alert('🔒 Operazione non consentita con questo tipo di accesso\n\n'
+    + 'Per ' + azione + ' devi essere entrato con il codice Telegram (OTP).\n\n'
+    + 'Con l\'accesso email+password questa modifica NON verrebbe salvata sul '
+    + 'server: sparirebbe solo da questo dispositivo e ricomparirebbe al '
+    + 'prossimo aggiornamento dei dati.\n\n'
+    + 'Esci e rientra usando tessera + codice ricevuto su Telegram.');
+  return false;
 }
 
 // Migra S.ordini → tabella public.ordini (upsert su id).
@@ -7480,6 +7502,7 @@ function sendMsgSocio(){
 function sendMsgAdmin(socioId){
   const txt=(document.getElementById('msg-input-admin-'+socioId)||{value:''}).value.trim();
   if(!txt) return;
+  if(!_requireOtp('inviare un messaggio')) return;
   const socio=S.soci.find(s=>s.id===socioId);
   if(!S.messaggi) S.messaggi=[];
   const msg = {
@@ -7948,6 +7971,7 @@ function aggiungiRigaProd(){
 }
 
 function salvaPrenotazione(editId){
+  if(!_requireOtp('salvare una prenotazione')) return;
   initPrenotazioni();
   const titolo=document.getElementById('pren-titolo').value.trim();
   const fornitorId=document.getElementById('pren-forn').value;
@@ -7981,6 +8005,7 @@ function salvaPrenotazione(editId){
 }
 
 function togglePrenotazione(id){
+  if(!_requireOtp('aprire o chiudere una prenotazione')) return;
   initPrenotazioni();
   const p=S.prenotazioni.find(x=>x.id===id);
   if(p){
@@ -7993,6 +8018,7 @@ function togglePrenotazione(id){
 }
 
 function eliminaPrenotazione(id){
+  if(!_requireOtp('eliminare una prenotazione')) return;
   if(!confirm('Eliminare questa prenotazione e tutti i relativi ordini?')) return;
   initPrenotazioni();
   S.prenotazioni=S.prenotazioni.filter(p=>p.id!==id);
