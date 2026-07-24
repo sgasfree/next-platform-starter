@@ -2840,10 +2840,12 @@ function adminRecSendCode(){
   // lato server: basta quindi avere i Chat ID, il token client non serve.
   const tgChat1 = (S.config.tgAdminChatId||'').trim();
   const tgChat2 = (S.config.tgAdminChatId2||'').trim();
+  const tgChat3 = (S.config.tgAdminChatId3||'').trim();
   const tgMsg = '🔐 SGAS — Codice reset password admin:\n\n*'+_adminRecCode.code+'*\n\n⏱ Scade tra 15 minuti.\nSe non hai richiesto questo codice, ignora questo messaggio.';
   if(tgChat1) sendTelegramMsg(tgChat1, tgMsg);
   if(tgChat2) sendTelegramMsg(tgChat2, tgMsg);
-  const hasTg = !!(tgChat1||tgChat2);
+  if(tgChat3) sendTelegramMsg(tgChat3, tgMsg);
+  const hasTg = !!(tgChat1||tgChat2||tgChat3);
   msg.innerHTML='<div class="alert alert-success" style="padding:16px;text-align:center;">'
     +(hasTg
       ?'<div style="font-size:.85rem;">📬 Codice inviato via <strong>Telegram</strong> agli admin.<br><span style="font-size:.78rem;color:var(--text-light);">⏱ Scade tra 15 minuti</span></div>'
