@@ -1832,6 +1832,9 @@ function loadState(){
     });
   }
   if(!S.raccolte) S.raccolte=DEFAULT_RACCOLTE;
+  // Storico nomi raccolte eliminate (id → nome): mantiene leggibili le
+  // statistiche e la lista ordini anche dopo l'eliminazione di una raccolta.
+  if(!S.raccolteStorico) S.raccolteStorico={};
   if(!S.ordini) S.ordini=[];
   if(!S.messaggi) S.messaggi=[];
   if(!S.categorie) S.categorie=DEFAULT_CATEGORIE;
@@ -2226,8 +2229,7 @@ async function sendTelegramMsg(chatId, text){
 }
 
 function buildOrderTgMsg(ord, forSocio){
-  const racc = S.raccolte.find(r=>r.id===ord.raccoltaId);
-  const raccNome = racc ? racc.nome : ord.raccoltaId;
+  const raccNome = _ordRaccoltaNome(ord);
   let righe = '';
   ord.items.forEach(i=>{
     const p = S.prodotti.find(x=>x.id===i.prodottoId);
@@ -3755,8 +3757,7 @@ function sendOrderEmail(ord){
   const dest=(S.config.emailDest||'').trim();
   if(!svc||!tpl||!(S.config.emailjsPublicKey||'').trim()||!dest) return;
   if(!_ejInit()) return;
-  const racc=S.raccolte.find(r=>r.id===ord.raccoltaId);
-  const raccNome=racc?racc.nome:ord.raccoltaId;
+  const raccNome=_ordRaccoltaNome(ord);
   let itemsList='';
   ord.items.forEach(i=>{
     const p=S.prodotti.find(x=>x.id===i.prodottoId);
@@ -3801,7 +3802,7 @@ function submitOrder(){
   S.cart.raccoltaId=raccId;
   let total=0;
   S.cart.items.forEach(i=>{const p=S.prodotti.find(x=>x.id===i.prodottoId);if(p)total+=p.prezzo*i.qty;});
-  const ord={id:'ORD-'+uid().toUpperCase().slice(0,6),socioId:currentUser.id,socioTessera:currentUser.tessera||'',socioNome:currentUser.nome,socioCognome:currentUser.cognome||'',socioCellulare:currentUser.cellulare||currentUser.telefono||'',socioTelegram:currentUser.telegram||'',raccoltaId:raccId,items:[...S.cart.items],totale:total,data:new Date().toISOString()};
+  const ord={id:'ORD-'+uid().toUpperCase().slice(0,6),socioId:currentUser.id,socioTessera:currentUser.tessera||'',socioNome:currentUser.nome,socioCognome:currentUser.cognome||'',socioCellulare:currentUser.cellulare||currentUser.telefono||'',socioTelegram:currentUser.telegram||'',raccoltaId:raccId,raccoltaNome:(raccSel&&raccSel.nome)||'',items:[...S.cart.items],totale:total,data:new Date().toISOString()};
   S.ordini.push(ord);
   S.cart.items=[];
   S.cart.raccoltaId='';
@@ -4002,9 +4003,9 @@ function renderProfilo(){
   const mensileArr=Object.values(mensile).sort((a,b)=>a.label<b.label?-1:1).slice(-6);
 
   const ordHtml=ordiniSocio.slice().reverse().map(o=>{
-    const racc=S.raccolte.find(r=>r.id===o.raccoltaId);
+    const _rn=_ordRaccoltaNome(o);
     return `<div class="card-sm" style="display:flex;justify-content:space-between;align-items:center;">
-      <div><div style="font-weight:700;font-size:.9rem;">${escHtml(o.id)}</div><div style="font-size:.78rem;color:var(--text-light);">${racc?escHtml(racc.nome):''} · ${new Date(o.data).toLocaleDateString('it-IT')}</div></div>
+      <div><div style="font-weight:700;font-size:.9rem;">${escHtml(o.id)}</div><div style="font-size:.78rem;color:var(--text-light);">${_rn==='—'?'':escHtml(_rn)+' · '}${new Date(o.data).toLocaleDateString('it-IT')}</div></div>
       <div style="font-weight:800;color:var(--green);">€${o.totale.toFixed(2)}</div>
     </div>`;
   }).join('')||`<div class="empty" style="padding:24px;"><p>Nessun ordine ancora</p></div>`;
@@ -4288,8 +4289,7 @@ function renderDashboard(){
   // 3. Ordini per raccolta
   const ordRacc={};
   S.ordini.forEach(o=>{
-    const r=S.raccolte.find(x=>x.id===o.raccoltaId);
-    const key=r?r.nome:'Altra';
+    const key=_ordRaccoltaNome(o);
     ordRacc[key]=(ordRacc[key]||0)+o.totale;
   });
   const ordRaccSorted=Object.entries(ordRacc).sort((a,b)=>b[1]-a[1]).slice(0,6);
@@ -5441,6 +5441,10 @@ function toggleDispModal(prodId, btn){
 
 function deleteRaccolta(id){
   if(!confirm('Eliminare questa raccolta?')) return;
+  // Conserva il nome nello storico prima di rimuoverla: gli ordini già inviati
+  // continueranno a mostrare la raccolta corretta in statistiche ed elenchi.
+  const _r=(S.raccolte||[]).find(r=>r.id===id);
+  if(_r&&_r.nome){ if(!S.raccolteStorico) S.raccolteStorico={}; S.raccolteStorico[id]=_r.nome; }
   S.raccolte=S.raccolte.filter(r=>r.id!==id);
   saveState(); renderRaccolte(); toast('Raccolta eliminata');
 }
@@ -5464,6 +5468,21 @@ function _ordSocioLabel(o){
              :((o.socioNome&&o.socioNome!==o.socioId)?o.socioNome:'');
   if(tess&&nome) return tess+' — '+nome;
   return tess||nome||'—';
+}
+
+// Nome della raccolta di un ordine, resistente all'eliminazione della raccolta.
+// Senza questo, gli ordini di una raccolta eliminata finivano tutti sotto la
+// voce generica "Altra" nelle statistiche (fatturato conteggiato ma storico del
+// nome perso, e più raccolte eliminate si fondevano insieme).
+// Fallback in ordine: raccolte attuali → nome salvato sull'ordine → storico
+// dei nomi delle raccolte eliminate → '—'.
+function _ordRaccoltaNome(o){
+  if(!o) return '—';
+  const r=(S.raccolte||[]).find(x=>x.id===o.raccoltaId);
+  if(r&&r.nome) return r.nome;
+  if(o.raccoltaNome) return o.raccoltaNome;
+  const st=(S.raccolteStorico||{})[o.raccoltaId];
+  return st || '—';
 }
 
 // ── Riepilogo per tesserato (stile tabella pivot) ──────────────────────────
@@ -5576,11 +5595,10 @@ function exportRiepilogoTesseratiCSV(){
 
 function _renderOrdiniTable(){
   const rows=S.ordini.slice().reverse().map(o=>{
-    const racc=S.raccolte.find(r=>r.id===o.raccoltaId);
     return `<tr>
       <td><strong>${escHtml(o.id)}</strong></td>
       <td>${escHtml(_ordSocioLabel(o))}</td>
-      <td>${racc?escHtml(racc.nome):'—'}</td>
+      <td>${escHtml(_ordRaccoltaNome(o))}</td>
       <td>${new Date(o.data).toLocaleDateString('it-IT')}</td>
       <td>${o.items.length} prodotti</td>
       <td style="font-weight:800;color:var(--green);">€${o.totale.toFixed(2)}</td>
@@ -6740,6 +6758,11 @@ async function loadOrdiniFromSupabase(){
       .select('*')
       .order('created_at', { ascending: false });
     if(error || !data) return false;
+    // Nomi raccolta già noti localmente: la tabella `ordini` non ha questa
+    // colonna, quindi li riportiamo per non perderli dopo il ricaricamento
+    // (lo storico in S.raccolteStorico resta comunque il fallback finale).
+    const _nomeRaccByOrd = {};
+    (S.ordini||[]).forEach(x=>{ if(x && x.id && x.raccoltaNome) _nomeRaccByOrd[x.id]=x.raccoltaNome; });
     S.ordini = data.map(o => {
       const blobSocioId = blobIdByDbId[o.socio_id] || o.socio_id || '';
       const socio = (S.soci||[]).find(s => s.id === blobSocioId);
@@ -6754,6 +6777,7 @@ async function loadOrdiniFromSupabase(){
         socioCellulare:  socio ? (socio.cellulare||socio.telefono||'') : '',
         socioTelegram:   socio ? (socio.telegram||'') : '',
         raccoltaId:      o.raccolta_id || '',
+        raccoltaNome:    _nomeRaccByOrd[o.id] || '',
         items:           Array.isArray(o.items) ? o.items : [],
         totale:          typeof o.totale === 'number' ? o.totale : 0,
         stato:           o.stato || 'inviato',
