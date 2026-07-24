@@ -5466,6 +5466,114 @@ function _ordSocioLabel(o){
   return tess||nome||'—';
 }
 
+// ── Riepilogo per tesserato (stile tabella pivot) ──────────────────────────
+// Raggruppa gli ordini per Tesserato → Fornitore → Prodotto, sommando quantità
+// e importi, con subtotale per tesserato. Filtrabile per raccolta.
+let _riepFiltroRacc = ''; // '' = tutte le raccolte
+
+// Aggrega gli ordini nella struttura del riepilogo.
+// Ritorna: [{label, qty, tot, fornitori:[{nome, righe:[{codice,nome,qty,tot}]}]}]
+function _buildRiepilogoTesserati(raccoltaId){
+  const ordini = raccoltaId ? S.ordini.filter(o=>o.raccoltaId===raccoltaId) : S.ordini;
+  const bySocio = {};
+  ordini.forEach(o=>{
+    const label = _ordSocioLabel(o);
+    if(!bySocio[label]) bySocio[label] = {label, qty:0, tot:0, _forn:{}};
+    const g = bySocio[label];
+    (o.items||[]).forEach(i=>{
+      const p = S.prodotti.find(x=>x.id===i.prodottoId);
+      if(!p) return;
+      const f = S.fornitori.find(x=>x.id===p.fornitorId);
+      const fname = f ? f.nome : '—';
+      const rigaTot = (p.prezzo||0) * i.qty;
+      if(!g._forn[fname]) g._forn[fname] = {};
+      const rg = g._forn[fname];
+      if(rg[p.id]){ rg[p.id].qty += i.qty; rg[p.id].tot += rigaTot; }
+      else rg[p.id] = {codice:p.codice||'', nome:p.nome, qty:i.qty, tot:rigaTot};
+      g.qty += i.qty; g.tot += rigaTot;
+    });
+  });
+  return Object.values(bySocio)
+    .map(g=>({
+      label: g.label, qty: g.qty, tot: g.tot,
+      fornitori: Object.keys(g._forn).sort((a,b)=>a.localeCompare(b,'it')).map(fn=>({
+        nome: fn,
+        righe: Object.values(g._forn[fn]).sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','it'))
+      }))
+    }))
+    .sort((a,b)=>a.label.localeCompare(b.label,'it'));
+}
+
+function setRiepFiltro(raccId){ _riepFiltroRacc = raccId||''; _renderOrdiniTable(); }
+
+function _riepilogoTesseratiHTML(){
+  const gruppi = _buildRiepilogoTesserati(_riepFiltroRacc);
+  const opts = ['<option value=""'+(_riepFiltroRacc?'':' selected')+'>Tutte le raccolte</option>']
+    .concat((S.raccolte||[]).map(r=>'<option value="'+escHtml(r.id)+'"'+(_riepFiltroRacc===r.id?' selected':'')+'>'+escHtml(r.nome)+'</option>')).join('');
+  let body='';
+  let totQty=0, totImp=0;
+  gruppi.forEach(g=>{
+    totQty += g.qty; totImp += g.tot;
+    let primaRigaSocio = true;
+    g.fornitori.forEach(f=>{
+      let primaRigaForn = true;
+      f.righe.forEach(r=>{
+        body += '<tr>'
+          + '<td style="'+(primaRigaSocio?'font-weight:800;':'')+'">'+(primaRigaSocio?escHtml(g.label):'')+'</td>'
+          + '<td style="font-size:.85rem;">'+(primaRigaForn?escHtml(f.nome):'')+'</td>'
+          + '<td style="font-family:monospace;font-size:.82rem;">'+escHtml(r.codice||'')+'</td>'
+          + '<td>'+escHtml(r.nome)+'</td>'
+          + '<td style="text-align:right;">'+r.qty+'</td>'
+          + '<td style="text-align:right;">€'+r.tot.toFixed(2)+'</td>'
+          + '</tr>';
+        primaRigaSocio = false; primaRigaForn = false;
+      });
+    });
+    body += '<tr style="background:var(--green-pale);font-weight:800;">'
+      + '<td colspan="4">'+escHtml(g.label)+' — Totale</td>'
+      + '<td style="text-align:right;">'+g.qty+'</td>'
+      + '<td style="text-align:right;color:var(--green);">€'+g.tot.toFixed(2)+'</td>'
+      + '</tr>';
+  });
+  if(gruppi.length){
+    body += '<tr style="border-top:2px solid var(--green);font-weight:800;">'
+      + '<td colspan="4">TOTALE GENERALE</td>'
+      + '<td style="text-align:right;">'+totQty+'</td>'
+      + '<td style="text-align:right;color:var(--green);">€'+totImp.toFixed(2)+'</td>'
+      + '</tr>';
+  }
+  return '<div style="display:flex;align-items:center;justify-content:space-between;margin:26px 0 12px;flex-wrap:wrap;gap:8px;">'
+    + '<h3 style="font-family:var(--font-serif,serif);font-size:1.1rem;margin:0;">👥 Riepilogo per Tesserato</h3>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'
+    + '<select onchange="setRiepFiltro(this.value)" style="padding:6px 10px;border:1.5px solid var(--green-light);border-radius:8px;font-size:.88rem;">'+opts+'</select>'
+    + '<button class="btn btn-sm btn-secondary" onclick="exportRiepilogoTesseratiCSV()">📥 CSV</button>'
+    + '</div></div>'
+    + '<div class="tbl-wrap"><table>'
+    + '<thead><tr><th>Tesserato</th><th>Fornitore</th><th>Cod.</th><th>Prodotto</th><th style="text-align:right;">Q.tà</th><th style="text-align:right;">Importo</th></tr></thead>'
+    + '<tbody>'+(body||'<tr><td colspan="6" style="text-align:center;color:var(--text-light);">Nessun ordine per la selezione</td></tr>')+'</tbody>'
+    + '</table></div>';
+}
+
+// Export CSV del riepilogo (stessa struttura della tabella a schermo).
+function exportRiepilogoTesseratiCSV(){
+  const gruppi = _buildRiepilogoTesserati(_riepFiltroRacc);
+  const racc = _riepFiltroRacc ? S.raccolte.find(r=>r.id===_riepFiltroRacc) : null;
+  const rows = [['Tesserato','Fornitore','Codice','Prodotto','Q.tà','Importo']];
+  let totQty=0, totImp=0;
+  gruppi.forEach(g=>{
+    totQty += g.qty; totImp += g.tot;
+    g.fornitori.forEach(f=>{
+      f.righe.forEach(r=>rows.push([g.label, f.nome, r.codice||'', r.nome, r.qty, r.tot]));
+    });
+    rows.push(['','','','TOTALE '+g.label, g.qty, g.tot]);
+    rows.push([]);
+  });
+  rows.push(['','','','TOTALE GENERALE', totQty, totImp]);
+  const fname = 'riepilogo_tesserati_'+((racc?racc.nome:'tutte').replace(/\s/g,'_'))+'.csv';
+  _downloadCSV(rows, fname);
+  toast('📥 Riepilogo per tesserato scaricato');
+}
+
 function _renderOrdiniTable(){
   const rows=S.ordini.slice().reverse().map(o=>{
     const racc=S.raccolte.find(r=>r.id===o.raccoltaId);
@@ -5491,7 +5599,8 @@ function _renderOrdiniTable(){
     <div class="tbl-wrap"><table>
     <thead><tr><th>ID</th><th>Tesserato</th><th>Raccolta</th><th>Data</th><th>Articoli</th><th>Totale</th><th></th></tr></thead>
     <tbody>${rows||'<tr><td colspan="7" style="text-align:center;color:var(--text-light);">Nessun ordine ricevuto</td></tr>'}</tbody>
-  </table></div>`;
+  </table></div>
+  ${_riepilogoTesseratiHTML()}`;
 }
 
 function exportSingleOrder(oid){
