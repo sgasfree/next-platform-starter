@@ -1931,6 +1931,30 @@ async function _getStateToken(){
   return await _fetchStateToken();
 }
 
+// Unico modo autorizzato a scrivere email/password admin (slot 1/2/3): passa
+// dall'azione dedicata 'admin-creds' del proxy, che aggiorna solo quello slot
+// leggendo-scrivendo l'ultimo stato del server — mai tramite il salvataggio
+// generico (vedi commento in syncToSupabase). passwordHash vuoto = rimuove
+// lo slot. Ritorna true/false; in caso di errore mostra un toast esplicito
+// (niente fallimenti silenziosi come nel bug del salvataggio generico).
+async function _saveAdminCredsToProxy(slot, email, passwordHash){
+  const token = await _getStateToken();
+  if(!token){ toast('⚠️ Credenziali admin salvate solo in locale: impossibile autenticarsi col server. Riprova tra poco.'); return false; }
+  try{
+    const res = await fetch('/.netlify/functions/state-save',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'admin-creds', token, slot, email, passwordHash})
+    });
+    if(res.ok) return true;
+    const data = await res.json().catch(()=>null);
+    toast('⚠️ Credenziali admin salvate solo in locale: '+(data&&data.error||'errore server')+'. Riprova tra poco.');
+    return false;
+  }catch(e){
+    toast('⚠️ Credenziali admin salvate solo in locale — problema di rete. Riprova tra poco.');
+    return false;
+  }
+}
+
 function syncToSupabase(){
   if(S.config && S.config.supabasePaused) return; // sync in standby
   clearTimeout(_syncTimeout);
@@ -1947,12 +1971,15 @@ function syncToSupabase(){
         delete payloadObj.config.tgBotToken;
         delete payloadObj.config.supabaseUrl;
         delete payloadObj.config.supabaseKey;
-        // Credenziali admin: sincronizza email + password SOLO se hashate
-        // (pbkdf2) — mai password in chiaro. Serve per far funzionare gli
-        // admin 2/3 su tutti i dispositivi.
-        ['adminPassword','adminPassword2','adminPassword3'].forEach(k=>{
-          if(payloadObj.config[k] && !String(payloadObj.config[k]).startsWith('pbkdf2:'))
-            delete payloadObj.config[k];
+        // Credenziali admin: MAI incluse nel salvataggio generico. Un dispositivo
+        // con copia locale non aggiornata (che non conosce ancora email/password
+        // di admin 2/3, es. configurate da un altro dispositivo) altrimenti le
+        // cancellerebbe qui ad ogni modifica del catalogo, bloccando admin 2/3
+        // fuori dall'app. Le credenziali viaggiano SOLO tramite l'azione dedicata
+        // 'admin-creds' (vedi saveAdmin2/saveAdmin3/removeAdmin2/removeAdmin3/
+        // saveConfigGAS), mai attraverso questo salvataggio "di tutto il resto".
+        ['adminEmail','adminPassword','adminEmail2','adminPassword2','adminEmail3','adminPassword3'].forEach(k=>{
+          delete payloadObj.config[k];
         });
       }
       // Anagrafica soci: vive solo nella tabella `soci` (RLS), non va mai
@@ -1988,14 +2015,18 @@ function syncToSupabase(){
           if(st>=200 && st<300) savedViaProxy = true;
         }catch(e){ /* rete: si tenta il fallback */ }
       }
-      // 2) Fallback (finché la RLS non è bloccata): scrittura diretta anon.
-      //    Dopo l'attivazione della policy SQL questo percorso verrà rifiutato
-      //    dal database e resterà valido solo il proxy.
+      // 2) Fallback: scrittura diretta anon. Con la RLS bloccata sulla tabella
+      //    `config` questo percorso viene normalmente rifiutato dal database:
+      //    resta solo come rete di sicurezza per errori transitori del proxy.
+      //    IMPORTANTE: supabase-js NON lancia eccezioni sui rifiuti RLS, li
+      //    restituisce in {error} — va controllato esplicitamente, altrimenti
+      //    un salvataggio rifiutato sembra riuscito e nessuno se ne accorge.
       if(!savedViaProxy){
-        await sb.from('config').upsert(
+        const {error} = await sb.from('config').upsert(
           { chiave:'sgas_app_state', valore:payload, updated_at: new Date().toISOString() },
           { onConflict:'chiave' }
         );
+        if(error) throw error;
       }
     }catch(e){ console.warn('Supabase sync error:', e); toast('⚠️ Salvataggio cloud fallito — dati salvati solo in locale. Riprova tra poco.'); }
   }, 1500);
@@ -6897,17 +6928,24 @@ async function saveAdmin2(){
   if(!email){ toast('Inserisci email Admin 2'); return; }
   if(!email.includes('@')){ toast('Email non valida'); return; }
   if(email===S.config.adminEmail.toLowerCase()){ toast('❌ Email uguale all\'Admin 1'); return; }
-  if(pass) S.config.adminPassword2=await hashPassword(pass);
+  let hashed;
+  if(pass) hashed=await hashPassword(pass);
   else if(!S.config.adminPassword2){ toast('Inserisci la password per Admin 2'); return; }
+  else hashed=S.config.adminPassword2;
+  S.config.adminPassword2=hashed;
   S.config.adminEmail2=email;
-  saveState(); _persistAdminCreds(); renderSettings(); toast('✅ Admin 2 salvato: '+email);
+  saveState(); _persistAdminCreds(); renderSettings();
+  const ok = await _saveAdminCredsToProxy(2, email, hashed);
+  toast(ok?'✅ Admin 2 salvato: '+email:'⚠️ Admin 2 salvato solo in locale, riprova più tardi');
 }
 
-function removeAdmin2(){
+async function removeAdmin2(){
   if(!confirm('Rimuovere il secondo amministratore?')) return;
   S.config.adminEmail2='';
   S.config.adminPassword2='';
-  saveState(); _persistAdminCreds(); renderSettings(); toast('Admin 2 rimosso');
+  saveState(); _persistAdminCreds(); renderSettings();
+  const ok = await _saveAdminCredsToProxy(2, '', '');
+  toast(ok?'Admin 2 rimosso':'⚠️ Rimozione salvata solo in locale, riprova più tardi');
 }
 
 async function saveAdmin3(){
@@ -6917,17 +6955,24 @@ async function saveAdmin3(){
   if(!email.includes('@')){ toast('Email non valida'); return; }
   if(email===S.config.adminEmail.toLowerCase()){ toast('❌ Email uguale all\'Admin 1'); return; }
   if(S.config.adminEmail2 && email===S.config.adminEmail2.toLowerCase()){ toast('❌ Email uguale all\'Admin 2'); return; }
-  if(pass) S.config.adminPassword3=await hashPassword(pass);
+  let hashed;
+  if(pass) hashed=await hashPassword(pass);
   else if(!S.config.adminPassword3){ toast('Inserisci la password per Admin 3'); return; }
+  else hashed=S.config.adminPassword3;
+  S.config.adminPassword3=hashed;
   S.config.adminEmail3=email;
-  saveState(); _persistAdminCreds(); renderSettings(); toast('✅ Admin 3 salvato: '+email);
+  saveState(); _persistAdminCreds(); renderSettings();
+  const ok = await _saveAdminCredsToProxy(3, email, hashed);
+  toast(ok?'✅ Admin 3 salvato: '+email:'⚠️ Admin 3 salvato solo in locale, riprova più tardi');
 }
 
-function removeAdmin3(){
+async function removeAdmin3(){
   if(!confirm('Rimuovere il terzo amministratore?')) return;
   S.config.adminEmail3='';
   S.config.adminPassword3='';
-  saveState(); _persistAdminCreds(); renderSettings(); toast('Admin 3 rimosso');
+  saveState(); _persistAdminCreds(); renderSettings();
+  const ok = await _saveAdminCredsToProxy(3, '', '');
+  toast(ok?'Admin 3 rimosso':'⚠️ Rimozione salvata solo in locale, riprova più tardi');
 }
 
 async function saveConfigGAS(){
@@ -6944,17 +6989,21 @@ async function saveConfigGAS(){
   }
   // Password: salvata nel giusto slot in base a chi è loggato
   const np=document.getElementById('s-pass').value;
+  let credOk=true;
   if(np){
     const hashed=await hashPassword(np);
+    const slot = isAdmin2?2:isAdmin3?3:1;
+    const slotEmail = isAdmin2?S.config.adminEmail2:isAdmin3?S.config.adminEmail3:S.config.adminEmail;
     if(isAdmin2) S.config.adminPassword2=hashed;
     else if(isAdmin3) S.config.adminPassword3=hashed;
     else S.config.adminPassword=hashed;
+    credOk = await _saveAdminCredsToProxy(slot, slotEmail, hashed);
   }
   saveState();
   _persistAdminCreds();
   updateSidebarName();
   applyAppLink();
-  toast('✅ Configurazione salvata');
+  toast(credOk?'✅ Configurazione salvata':'⚠️ Password salvata solo in locale, riprova più tardi');
 }
 
 function testEmailJS(){

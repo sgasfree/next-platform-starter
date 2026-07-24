@@ -155,6 +155,43 @@ export const handler = async (event) => {
     return json(200, { ok:true, soci });
   }
 
+  // ── Azione: gestione credenziali admin (slot 1/2/3) ───────────────────────
+  // Unico percorso autorizzato a scrivere email/password admin. Aggiorna SOLO
+  // lo slot indicato, in scrittura-lettura sul valore più recente del server:
+  // non passa mai dal blob "generico" (vedi protezione nell'azione 'save'),
+  // quindi non rischia di essere sovrascritto o di sovrascrivere per errore
+  // gli altri slot o i dati di catalogo.
+  if(action === 'admin-creds'){
+    const payload = verifyToken(SECRET, body.token);
+    if(!payload) return json(401, { ok:false, error:'Token non valido o scaduto' });
+    if(payload.role !== 'admin') return json(403, { ok:false, error:'Riservato agli admin' });
+    const slot = Number(body.slot);
+    if(![1,2,3].includes(slot)) return json(400, { ok:false, error:'Slot non valido' });
+    const email = String(body.email || '').trim().toLowerCase();
+    const passwordHash = String(body.passwordHash || ''); // già hashata pbkdf2 dal client, o '' per rimuovere
+    if(passwordHash && !passwordHash.startsWith('pbkdf2:'))
+      return json(400, { ok:false, error:'Password non hashata' });
+
+    const state = await readConfigState(SUPA_URL, SUPA_KEY);
+    if(!state || !state.config) return json(500, { ok:false, error:'Stato remoto non disponibile' });
+
+    const emailKey = slot===1 ? 'adminEmail' : `adminEmail${slot}`;
+    const passKey  = slot===1 ? 'adminPassword' : `adminPassword${slot}`;
+    state.config[emailKey] = email;
+    state.config[passKey]  = passwordHash;
+
+    const res = await sbFetch(SUPA_URL, SUPA_KEY, `/rest/v1/config?on_conflict=chiave`, {
+      method: 'POST',
+      prefer: 'resolution=merge-duplicates,return=minimal',
+      body: JSON.stringify({ chiave: STATE_KEY, valore: JSON.stringify(state), updated_at: new Date().toISOString() })
+    });
+    if(!res.ok){
+      const txt = await res.text().catch(()=> '');
+      return json(502, { ok:false, error:'Scrittura fallita', detail: txt.slice(0,200) });
+    }
+    return json(200, { ok:true });
+  }
+
   // ── Azione: salvataggio stato ─────────────────────────────────────────────
   if(action === 'save'){
     const payload = verifyToken(SECRET, body.token);
@@ -167,10 +204,27 @@ export const handler = async (event) => {
     if(!parsed || typeof parsed !== 'object' || !parsed.config)
       return json(400, { ok:false, error:'Stato incompleto' });
 
+    // Blindatura credenziali admin: questo è il salvataggio "generico" (catalogo,
+    // raccolte, ordini...) che ogni dispositivo invia per intero ad ogni modifica.
+    // Un dispositivo con una copia locale non aggiornata (che non conosce ancora
+    // le credenziali di admin 2/3, es. perché configurate da un altro dispositivo)
+    // altrimenti le cancellerebbe qui sopra a ogni salvataggio — bloccando admin
+    // 2/3 fuori dall'app. Le credenziali si toccano SOLO tramite l'azione
+    // dedicata 'admin-creds' qui sotto: un salvataggio generico non può mai
+    // svuotare un campo credenziale che sul server è già valorizzato.
+    const CRED_KEYS = ['adminEmail','adminPassword','adminEmail2','adminPassword2','adminEmail3','adminPassword3'];
+    const remoteState = await readConfigState(SUPA_URL, SUPA_KEY);
+    const remoteCfg = (remoteState && remoteState.config) || {};
+    let credsProtected = false;
+    CRED_KEYS.forEach(k=>{
+      if(!parsed.config[k] && remoteCfg[k]){ parsed.config[k] = remoteCfg[k]; credsProtected = true; }
+    });
+    const finalValore = credsProtected ? JSON.stringify(parsed) : body.valore;
+
     const res = await sbFetch(SUPA_URL, SUPA_KEY, `/rest/v1/config?on_conflict=chiave`, {
       method: 'POST',
       prefer: 'resolution=merge-duplicates,return=minimal',
-      body: JSON.stringify({ chiave: STATE_KEY, valore: body.valore, updated_at: new Date().toISOString() })
+      body: JSON.stringify({ chiave: STATE_KEY, valore: finalValore, updated_at: new Date().toISOString() })
     });
     if(!res.ok){
       const txt = await res.text().catch(()=> '');
