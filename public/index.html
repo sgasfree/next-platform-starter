@@ -562,8 +562,16 @@ tr:hover td{background:var(--green-pale);}
         <!-- Passo 2: inserisci il codice ricevuto -->
         <div id="login-socio-step2" style="display:none;">
           <div style="font-size:.85rem;color:var(--text-mid);text-align:center;margin-bottom:12px;">
-            📩 <span id="otp-sent-msg">Ti abbiamo inviato un codice su Telegram.</span><br>Inseriscilo qui sotto:
+            📩 <span id="otp-sent-msg">Ti abbiamo inviato un codice su Telegram.</span>
           </div>
+          <div style="background:rgba(74,140,76,.08);border-radius:12px;padding:14px;text-align:center;margin-bottom:14px;">
+            <div style="font-size:.85rem;color:var(--text-mid);line-height:1.45;">
+              Nel messaggio tocca <strong>✅ Sono io, entra</strong>:<br>l'app ti fa entrare da sola, senza copiare nulla.
+            </div>
+            <a class="btn btn-primary btn-block" href="https://t.me/infoSgas_bot" target="_blank" rel="noopener" style="margin-top:12px;text-decoration:none;">💬 Apri Telegram</a>
+            <div id="otp-wait-msg" style="font-size:.78rem;color:var(--text-light);margin-top:10px;">⏳ In attesa della conferma…</div>
+          </div>
+          <div style="text-align:center;font-size:.78rem;color:var(--text-light);margin-bottom:8px;">— oppure inserisci il codice ricevuto —</div>
           <div class="field"><label>Codice a 6 cifre</label><input id="l-otp" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="••••••" oninput="onOtpInput(this)" style="letter-spacing:.4em;text-align:center;font-size:1.3rem;"></div>
           <button class="btn btn-primary btn-block" id="btn-verify-code" onclick="socioVerifyCode()">✅ Accedi</button>
           <div style="text-align:center;margin-top:10px;">
@@ -2997,10 +3005,11 @@ let _otpTessera = '';
 // stato "codice inviato" e lo ripristiniamo al rientro, finché il codice è valido.
 const OTP_PENDING_KEY = 'sgas_otp_pending';
 
-function _saveOtpPending(tessera, cellulare, sentTo, expiresInSec){
+function _saveOtpPending(tessera, cellulare, sentTo, expiresInSec, pollToken){
   try{
     localStorage.setItem(OTP_PENDING_KEY, JSON.stringify({
       tessera: tessera||'', cellulare: cellulare||'', sentTo: sentTo||'',
+      pollToken: pollToken||'',
       exp: Date.now() + (Number(expiresInSec)>0 ? Number(expiresInSec)*1000 : 5*60*1000)
     }));
   }catch(e){}
@@ -3034,6 +3043,7 @@ function restoreOtpPending(){
   if(msg) msg.textContent = 'Codice inviato su '+(p.sentTo||'Telegram')+'.';
   s1.style.display='none';
   s2.style.display='';
+  startOtpApprovalPolling();   // il tap su Telegram vale anche dopo il reload
   return true;
 }
 
@@ -3077,11 +3087,11 @@ async function socioRequestCode(){
     const data=await res.json();
     if(!data.ok){toast('❌ '+(data.error||'Errore'));return;}
     _otpTessera=tess;
-    _saveOtpPending(tess, tel, data.sentTo, data.expiresInSec);
+    _saveOtpPending(tess, tel, data.sentTo, data.expiresInSec, data.pollToken);
     document.getElementById('otp-sent-msg').textContent='Codice inviato su '+(data.sentTo||'Telegram')+'.';
     document.getElementById('login-socio-step1').style.display='none';
     document.getElementById('login-socio-step2').style.display='';
-    document.getElementById('l-otp').focus();
+    startOtpApprovalPolling();
     toast('📩 Codice inviato su Telegram');
   }catch(e){toast('❌ Connessione non riuscita');}
   finally{btn.disabled=false;btn.textContent=_t;}
@@ -3114,24 +3124,7 @@ async function socioVerifyCode(){
     });
     const data=await res.json();
     if(!data.ok){toast('❌ '+(data.error||'Codice errato'));return;}
-    // Scambia il token monouso per una sessione Supabase vera (abilita RLS)
-    const sb=getAuthSb();
-    if(sb && data.token_hash){
-      try{
-        const {error}=await sb.auth.verifyOtp({type:'magiclink',token_hash:data.token_hash});
-        if(error) console.warn('verifyOtp:',error.message);
-      }catch(e){ console.warn('verifyOtp ex:',e); }
-    }
-    // Carica i dati del socio dalla tabella Supabase, filtrando per l'id
-    // restituito dal server (evita di prendere una riga arbitraria quando
-    // il socio è anche admin, vedi _fetchOwnSocioFromSupabase).
-    const socio = await _fetchOwnSocioFromSupabase(sb, data.socioId) || (S.soci||[]).find(s=>(s.tessera||'').toUpperCase()===_otpTessera);
-    if(!socio){toast('❌ Tesserato non trovato');return;}
-    socioResetLogin();
-    // Se il server segnala che la tessera è admin (ADMIN_TESSERE), entra nella
-    // vista admin con permessi Supabase completi; altrimenti vista socio.
-    if(data.isAdmin) _enterAdminViaOtp(socio);
-    else _enterSocio(socio);
+    await _completeOtpLogin(data);
   }catch(e){toast('❌ Connessione non riuscita');}
   finally{
     _otpVerifying=false;
@@ -3143,6 +3136,93 @@ async function socioVerifyCode(){
   }
 }
 
+// Apre la sessione e porta l'utente dentro l'app. Condiviso dalle due strade
+// di accesso: codice a 6 cifre digitato e conferma con un tap su Telegram.
+async function _completeOtpLogin(data){
+  // Scambia il token monouso per una sessione Supabase vera (abilita RLS)
+  const sb=getAuthSb();
+  if(sb && data.token_hash){
+    try{
+      const {error}=await sb.auth.verifyOtp({type:'magiclink',token_hash:data.token_hash});
+      if(error) console.warn('verifyOtp:',error.message);
+    }catch(e){ console.warn('verifyOtp ex:',e); }
+  }
+  // Carica i dati del socio dalla tabella Supabase, filtrando per l'id
+  // restituito dal server (evita di prendere una riga arbitraria quando
+  // il socio è anche admin, vedi _fetchOwnSocioFromSupabase).
+  const socio = await _fetchOwnSocioFromSupabase(sb, data.socioId) || (S.soci||[]).find(s=>(s.tessera||'').toUpperCase()===_otpTessera);
+  if(!socio){toast('❌ Tesserato non trovato');return false;}
+  socioResetLogin();
+  // Se il server segnala che la tessera è admin (ADMIN_TESSERE), entra nella
+  // vista admin con permessi Supabase completi; altrimenti vista socio.
+  if(data.isAdmin) _enterAdminViaOtp(socio);
+  else _enterSocio(socio);
+  return true;
+}
+
+// ── Accesso con un tap dal messaggio Telegram ────────────────────────────────
+// Il messaggio del codice contiene il bottone "✅ Sono io, entra": premendolo,
+// il webhook del bot approva la richiesta. Qui la pagina resta in ascolto e,
+// appena l'approvazione arriva, entra da sola — nessun codice da copiare.
+const OTP_POLL_MS = 3000;
+let _otpPollTimer = null;
+let _otpPollBusy  = false;
+
+function _setOtpWaitMsg(txt){
+  const el=document.getElementById('otp-wait-msg');
+  if(!el) return;
+  el.textContent = txt || '';
+  el.style.display = txt ? '' : 'none';
+}
+
+function stopOtpApprovalPolling(txt){
+  if(_otpPollTimer){ clearInterval(_otpPollTimer); _otpPollTimer=null; }
+  _otpPollBusy=false;
+  _setOtpWaitMsg(txt||'');
+}
+
+function startOtpApprovalPolling(){
+  stopOtpApprovalPolling();
+  const p=_readOtpPending();
+  if(!p || !p.pollToken) return;   // richieste vecchie: solo codice manuale
+  _setOtpWaitMsg('⏳ In attesa della conferma…');
+  _otpPollTimer=setInterval(_otpPollTick, OTP_POLL_MS);
+  _otpPollTick();
+}
+
+async function _otpPollTick(){
+  if(_otpPollBusy || _otpVerifying) return;
+  // A schermo spento o con l'app in background non ha senso interrogare il
+  // server: al rientro il primo tick riparte subito.
+  if(document.hidden) return;
+  const p=_readOtpPending();
+  if(!p || !p.pollToken){ stopOtpApprovalPolling('⏱ Richiesta scaduta: richiedi un nuovo codice.'); return; }
+  _otpPollBusy=true;
+  try{
+    const res=await fetch('/.netlify/functions/auth-poll-approval',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({tessera:p.tessera,pollToken:p.pollToken})
+    });
+    const data=await res.json();
+    if(!data.ok){                       // richiesta scaduta o non più valida
+      stopOtpApprovalPolling(res.status===410 ? '⏱ Richiesta scaduta: richiedi un nuovo codice.' : '');
+      return;
+    }
+    if(data.done){ stopOtpApprovalPolling(); return; }  // consumata altrove
+    if(data.approved){
+      stopOtpApprovalPolling('✅ Confermato, accesso in corso…');
+      _otpTessera=p.tessera;
+      const okLogin=await _completeOtpLogin(data);
+      if(okLogin) toast('✅ Accesso confermato su Telegram');
+    }
+  }catch(e){ /* rete assente: si riprova al tick successivo */ }
+  finally{ _otpPollBusy=false; }
+}
+
+// Al rientro nell'app (schermo riacceso, cambio di applicazione) controlla
+// subito, senza aspettare il tick successivo.
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && _otpPollTimer) _otpPollTick(); });
+
 function socioResetLogin(){
   const s2=document.getElementById('login-socio-step2');
   const s1=document.getElementById('login-socio-step1');
@@ -3150,6 +3230,7 @@ function socioResetLogin(){
   if(s1) s1.style.display='';
   const otp=document.getElementById('l-otp'); if(otp) otp.value='';
   _otpTessera='';
+  stopOtpApprovalPolling();
   _clearOtpPending();
 }
 

@@ -44,8 +44,40 @@ Aggiungi queste (spunta "Contains secret values" per le chiavi):
 | `SUPABASE_URL` | il Project URL | no |
 | `SUPABASE_SERVICE_ROLE_KEY` | la service_role key | ✅ sì |
 | `TELEGRAM_BOT_TOKEN` | (già presente) | ✅ sì |
+| `TELEGRAM_WEBHOOK_SECRET` | una stringa casuale scelta da te (es. `openssl rand -hex 16`) | ✅ sì |
 
 > La **anon key** e l'URL andranno invece nel client in Fase 2 (sono pubbliche).
+
+---
+
+## 3-bis. Attiva l'accesso "con un tap" (webhook Telegram)
+
+Il messaggio con il codice contiene anche il bottone **✅ Sono io, entra**:
+premendolo, il socio entra nell'app senza copiare il codice a mano. Perché
+funzioni servono due passi una tantum.
+
+**a) Aggiungi le colonne alla tabella `otp_codes`**
+Supabase → **SQL Editor** → incolla ed esegui
+[`supabase/migrations/2026-07-25_otp_tap_approval.sql`](./migrations/2026-07-25_otp_tap_approval.sql).
+È rieseguibile e non tocca i dati esistenti.
+
+**b) Registra il webhook del bot** (dopo aver deployato le Functions e impostato
+`TELEGRAM_WEBHOOK_SECRET`). Da un terminale, sostituendo token, dominio e secret:
+
+```bash
+curl -F "url=https://TUO-SITO.netlify.app/.netlify/functions/telegram-webhook" \
+     -F "secret_token=IL_TUO_TELEGRAM_WEBHOOK_SECRET" \
+     -F "allowed_updates=[\"message\",\"callback_query\"]" \
+     "https://api.telegram.org/botIL_TUO_BOT_TOKEN/setWebhook"
+```
+
+Risposta attesa: `{"ok":true,"result":true,"description":"Webhook was set"}`.
+Per controllare in seguito: `.../getWebhookInfo`; per rimuoverlo: `.../deleteWebhook`.
+
+> Il `secret_token` viaggia in un header su ogni chiamata: la Function scarta
+> tutto ciò che non lo presenta, così nessuno può fingere un'approvazione.
+> Finché il webhook non è registrato l'app resta pienamente utilizzabile: il
+> bottone semplicemente non fa nulla e si entra con il codice a 6 cifre.
 
 ---
 
@@ -86,15 +118,23 @@ controlla questa tabella.
 Socio inserisce tessera + cellulare
         │
         ▼
-[auth-request-code]  ── verifica socio ──▶ genera OTP ──▶ invia su Telegram
-        │
-        ▼
-Socio inserisce il codice a 6 cifre
-        │
-        ▼
-[auth-verify-code]   ── verifica OTP ──▶ crea/collega account Auth ──▶ token_hash
-        │
-        ▼
+[auth-request-code]  ── verifica socio ──▶ genera OTP + token ──▶ invia su Telegram
+        │                                                        (codice + bottone)
+        ├───────────────────────────┬────────────────────────────┐
+        ▼                           ▼                            │
+Socio digita il codice      Socio tocca "✅ Sono io, entra"       │
+        │                           │                            │
+        ▼                           ▼                            │
+[auth-verify-code]          [telegram-webhook] ── segna approvato │
+        │                           │                            │
+        │                           ▼                            │
+        │                   [auth-poll-approval] ◀── la pagina interroga ogni 3 s
+        │                           │
+        └───────────┬───────────────┘
+                    ▼
+     crea/collega account Auth ──▶ token_hash
+                    │
+                    ▼
 Client: supabase.auth.verifyOtp({type:'magiclink', token_hash}) ──▶ sessione RLS
 ```
 
