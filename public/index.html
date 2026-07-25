@@ -1937,8 +1937,25 @@ async function _fetchStateToken(){
   }catch(e){ console.warn('state token error', e); }
   return null;
 }
+// Ricostruisce l'identità da presentare al proxy quando è andata persa.
+// Serve dopo un ricaricamento della pagina: restoreSession la imposta cercando
+// il tesserato in S.soci, ma l'anagrafica arriva in modo asincrono da Supabase,
+// quindi al momento del ripristino può non esserci ancora — e senza identità
+// nessuna operazione protetta riesce ad autenticarsi ("Non riesco ad
+// autenticarmi col server"). Qui riproviamo con i dati ormai disponibili.
+function _rebuildStateAuth(){
+  if(_stateAuth || !currentUser) return;
+  const socio = (currentUser.viaOtp && typeof _adminOwnSocio !== 'undefined' && _adminOwnSocio
+                 && _adminOwnSocio.id === currentUser.id) ? _adminOwnSocio
+              : (S.soci||[]).find(s => s.id === currentUser.id);
+  if(socio && socio.tessera){
+    _setStateAuth({kind:'socio', tessera:socio.tessera, cellulare:socio.cellulare||socio.telefono||''});
+  }
+}
+
 async function _getStateToken(){
   if(_stateToken && Date.now() < _stateTokenExp) return _stateToken;
+  if(!_stateAuth) _rebuildStateAuth();
   return await _fetchStateToken();
 }
 
@@ -7389,7 +7406,10 @@ function _tgWebhookMsg(html, kind){
 async function _tgWebhookCall(action){
   const token = await _getStateToken();
   if(!token){
-    _tgWebhookMsg('🔒 Non riesco ad autenticarmi col server. Esci e rientra, poi riprova.', 'err');
+    _tgWebhookMsg('🔒 <strong>Non riesco ad autenticarmi col server.</strong><br>'
+      + 'Prova ad aggiornare la pagina e riapri le Impostazioni: se hai appena '
+      + 'ricaricato, l\'anagrafica tesserati potrebbe non essere ancora stata caricata.<br>'
+      + 'Se il problema resta, esci e rientra con il codice Telegram.', 'err');
     return null;
   }
   const res = await fetch('/.netlify/functions/state-save', {

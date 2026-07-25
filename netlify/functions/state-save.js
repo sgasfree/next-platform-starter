@@ -136,7 +136,14 @@ export const handler = async (event) => {
       const match = Array.isArray(soci) && soci.find(s =>
         normTessera(s.tessera) === tess && normTel(s.cellulare) === tel);
       if(!match) return json(401, { ok:false, error:'Tesserato non riconosciuto' });
-      return json(200, { ok:true, token: signToken(SECRET, { role:'socio', sub:String(match.id), exp: Date.now()+TOKEN_TTL_MS }) });
+      // Un admin che entra col codice Telegram si identifica qui come tesserato:
+      // se la sua tessera è fra quelle admin (ADMIN_TESSERE — la stessa fonte
+      // che gli apre il pannello admin al login OTP) il token vale come admin,
+      // altrimenti non potrebbe usare le azioni riservate pur essendo admin.
+      const adminTess = (process.env.ADMIN_TESSERE || '')
+        .split(',').map(t => normTessera(t)).filter(Boolean);
+      const role = adminTess.includes(normTessera(match.tessera)) ? 'admin' : 'socio';
+      return json(200, { ok:true, token: signToken(SECRET, { role, sub:String(match.id), exp: Date.now()+TOKEN_TTL_MS }) });
     }
     return json(400, { ok:false, error:'kind non valido' });
   }
