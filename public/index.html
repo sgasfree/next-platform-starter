@@ -7201,13 +7201,25 @@ INSERT INTO config (chiave,valore) VALUES ('sgas_app_state','{}');</pre>
         4️⃣ Ogni socio può ottenere il proprio Chat ID scrivendo a <b>@userinfobot</b> su Telegram
       </div>
       <div class="alert alert-info" style="font-size:.8rem;margin-bottom:10px;">🔒 Il Bot Token è protetto su Netlify (variabile d'ambiente <code>TELEGRAM_BOT_TOKEN</code>) — non va inserito qui.</div>
-      <div class="field"><label>💬 Chat ID Admin 1 (per ricevere ordini)</label><input id="s-tgadmin" type="text" value="\${S.config.tgAdminChatId||''}" placeholder="es. 123456789"></div>
-      <div class="field"><label>💬 Chat ID Admin 2 <span style="font-size:.75rem;color:var(--text-light);">(opzionale)</span></label><input id="s-tgadmin2" type="text" value="\${S.config.tgAdminChatId2||''}" placeholder="es. 987654321"></div>
-      <div class="field"><label>💬 Chat ID Admin 3 <span style="font-size:.75rem;color:var(--text-light);">(opzionale)</span></label><input id="s-tgadmin3" type="text" value="\${S.config.tgAdminChatId3||''}" placeholder="es. 111222333"></div>
+      <div class="field"><label>💬 Chat ID Admin 1 (per ricevere ordini)</label><input id="s-tgadmin" type="text" value="${S.config.tgAdminChatId||''}" placeholder="es. 123456789"></div>
+      <div class="field"><label>💬 Chat ID Admin 2 <span style="font-size:.75rem;color:var(--text-light);">(opzionale)</span></label><input id="s-tgadmin2" type="text" value="${S.config.tgAdminChatId2||''}" placeholder="es. 987654321"></div>
+      <div class="field"><label>💬 Chat ID Admin 3 <span style="font-size:.75rem;color:var(--text-light);">(opzionale)</span></label><input id="s-tgadmin3" type="text" value="${S.config.tgAdminChatId3||''}" placeholder="es. 111222333"></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;">
         <button class="btn btn-primary" onclick="saveTelegramConfig()">💾 Salva config Telegram</button>
         <button class="btn btn-secondary" onclick="testTelegramMsg()">🧪 Invia messaggio di test</button>
       </div>
+      <hr style="border:none;border-top:1px solid var(--green-light);margin:18px 0 14px;">
+      <h4 style="font-size:.95rem;margin-bottom:6px;">🔗 Accesso con un tap (webhook)</h4>
+      <p style="font-size:.8rem;color:var(--text-light);margin-bottom:12px;">
+        Serve una sola volta: collega il bot all'app perché il tesserato possa entrare
+        premendo il bottone nel messaggio Telegram, senza digitare il codice.
+        Token e secret restano sul server — non devi copiare nulla.
+      </p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="registraWebhookTelegram()">🔗 Attiva accesso con un tap</button>
+        <button class="btn btn-secondary" onclick="verificaWebhookTelegram()">🔍 Verifica stato</button>
+      </div>
+      <div id="tg-webhook-result" style="margin-top:12px;font-size:.85rem;"></div>
     </div>
     <div class="card" style="margin-bottom:16px;">
       <h3 style="font-family:var(--font-serif,serif);margin-bottom:6px;">🗂 Categorie Catalogo</h3>
@@ -7360,6 +7372,77 @@ function saveEmailJS(){
   S.config.emailjsPublicKey=document.getElementById('s-ejkey').value.trim();
   S.config.emailDest=document.getElementById('s-ejdest').value.trim();
   saveState(); toast('✅ EmailJS salvato');
+}
+
+// ── Webhook Telegram: registrazione e verifica dall'app ────────────────────
+// Il bot token e il secret restano sul server (env Netlify): qui inviamo solo
+// il token admin già in uso per le altre operazioni protette, così l'admin non
+// deve costruire a mano un URL con dentro il token del bot.
+function _tgWebhookMsg(html, kind){
+  const el = document.getElementById('tg-webhook-result');
+  if(!el) return;
+  const colori = { ok:['#e8f5e9','#2e7d32'], err:['#fdecea','#c62828'], info:['#e3f2fd','#1565c0'] };
+  const c = colori[kind] || colori.info;
+  el.innerHTML = '<div style="background:'+c[0]+';color:'+c[1]+';border-radius:8px;padding:10px 12px;line-height:1.5;">'+html+'</div>';
+}
+
+async function _tgWebhookCall(action){
+  const token = await _getStateToken();
+  if(!token){
+    _tgWebhookMsg('🔒 Non riesco ad autenticarmi col server. Esci e rientra, poi riprova.', 'err');
+    return null;
+  }
+  const res = await fetch('/.netlify/functions/state-save', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ action, token, siteUrl: window.location.origin })
+  });
+  const data = await res.json().catch(()=>null);
+  return { status: res.status, data };
+}
+
+async function registraWebhookTelegram(){
+  _tgWebhookMsg('⏳ Collegamento in corso…', 'info');
+  try{
+    const r = await _tgWebhookCall('telegram-setwebhook');
+    if(!r) return;
+    if(r.data && r.data.ok){
+      _tgWebhookMsg('✅ <strong>Accesso con un tap attivato.</strong><br>'
+        + 'Il bot è collegato a:<br><code style="font-size:.78rem;">'+escHtml(r.data.url||'')+'</code><br><br>'
+        + 'Prova a farti inviare un codice di accesso: nel messaggio Telegram comparirà il bottone per entrare direttamente.', 'ok');
+    } else {
+      _tgWebhookMsg('❌ <strong>Non è riuscito.</strong><br>'+escHtml((r.data&&r.data.error)||'Errore sconosciuto'), 'err');
+    }
+  }catch(e){
+    _tgWebhookMsg('❌ Problema di rete: '+escHtml(e.message), 'err');
+  }
+}
+
+async function verificaWebhookTelegram(){
+  _tgWebhookMsg('⏳ Controllo in corso…', 'info');
+  try{
+    const r = await _tgWebhookCall('telegram-webhookinfo');
+    if(!r) return;
+    if(!(r.data && r.data.ok)){
+      _tgWebhookMsg('❌ '+escHtml((r.data&&r.data.error)||'Errore sconosciuto'), 'err');
+      return;
+    }
+    const i = r.data.info || {};
+    if(!i.url){
+      _tgWebhookMsg('⚠️ <strong>Webhook non ancora attivo.</strong><br>Premi «Attiva accesso con un tap» qui sopra.', 'err');
+      return;
+    }
+    let html = '✅ <strong>Webhook attivo</strong><br><code style="font-size:.78rem;">'+escHtml(i.url)+'</code>';
+    if(i.pending_update_count) html += '<br>Messaggi in attesa: '+i.pending_update_count;
+    if(i.last_error_message){
+      html += '<br><br>⚠️ Ultimo errore segnalato da Telegram:<br><em>'+escHtml(i.last_error_message)+'</em>';
+      _tgWebhookMsg(html, 'err');
+    } else {
+      html += '<br>Nessun errore segnalato.';
+      _tgWebhookMsg(html, 'ok');
+    }
+  }catch(e){
+    _tgWebhookMsg('❌ Problema di rete: '+escHtml(e.message), 'err');
+  }
 }
 
 function saveTelegramConfig(){
