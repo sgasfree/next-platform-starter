@@ -3,40 +3,12 @@
 //
 // Env richieste: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, TELEGRAM_BOT_TOKEN
 
-import { createHash, randomInt } from 'node:crypto';
+import { randomInt } from 'node:crypto';
+import { json, hashCode, hashToken, newToken, normTel, normTessera, sbFetch }
+  from '../lib/otp-session.mjs';
 
 const CODE_TTL_MS       = 5 * 60 * 1000;  // 5 minuti
 const RESEND_COOLDOWN_MS = 30 * 1000;      // 30 s tra invii successivi
-
-const json = (status, obj) => ({
-  statusCode: status,
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(obj)
-});
-
-const hashCode = (code, tessera) =>
-  createHash('sha256').update(code + '|' + tessera).digest('hex');
-
-const normTel = s => String(s || '').replace(/[\s\-]/g, '');
-
-// Normalizza la tessera per il confronto: ignora spazi, trattini e zeri iniziali
-// del numero. Così "SGAS 0016" = "SGAS-00016" = "SGAS00016".
-const normTessera = s => String(s || '').toUpperCase()
-  .replace(/[^A-Z0-9]/g, '')
-  .replace(/([A-Z])0+(\d)/g, '$1$2');
-
-// Helper: chiama la Supabase REST API
-const sbFetch = (url, key, path, opts = {}) =>
-  fetch(`${url}${path}`, {
-    ...opts,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${key}`,
-      'apikey': key,
-      'Prefer': opts.prefer || '',
-      ...opts.headers
-    }
-  });
 
 export const handler = async (event) => {
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method Not Allowed' });
@@ -81,31 +53,59 @@ export const handler = async (event) => {
   }
 
   // ── 3. Genera e salva il codice ────────────────────────────────────────────
-  const code = String(randomInt(0, 1000000)).padStart(6, '0');
+  // Oltre al codice a 6 cifre generiamo due token opachi:
+  //  · approveToken → viaggia nel bottone Telegram (callback_data). Chi lo
+  //    preme conferma l'accesso senza digitare nulla.
+  //  · pollToken    → resta nel browser che ha chiesto il codice: solo quella
+  //    pagina può trasformare l'approvazione in una sessione.
+  // Nel database salviamo solo il loro hash, come per il codice.
+  const code         = String(randomInt(0, 1000000)).padStart(6, '0');
+  const approveToken = newToken();
+  const pollToken    = newToken();
   const insertRes = await sbFetch(SUPA_URL, SUPA_KEY, '/rest/v1/otp_codes', {
     method: 'POST',
     prefer: 'return=minimal',
     body: JSON.stringify({
       tessera,
       code_hash: hashCode(code, tessera),
+      approve_hash: hashToken(approveToken),
+      poll_hash: hashToken(pollToken),
+      chat_id: String(socio.telegram_chat_id),
       expires_at: new Date(Date.now() + CODE_TTL_MS).toISOString()
     })
   });
   if (!insertRes.ok) return json(500, { ok: false, error: 'Impossibile generare il codice' });
 
   // ── 4. Invia su Telegram ───────────────────────────────────────────────────
+  // Il messaggio porta con sé il bottone di conferma: un tap lì dentro fa
+  // entrare la pagina che sta aspettando, senza copiare il codice a mano.
   const text =
-    `🔐 <b>SGAS Freeconomy</b>\n\nIl tuo codice di accesso è:\n\n<b>${code}</b>\n\n` +
-    `Scade tra 5 minuti. Non condividerlo con nessuno.`;
+    `🔐 <b>SGAS Freeconomy</b>\n\nStai accedendo all'app.\n` +
+    `Tocca <b>✅ Sono io, entra</b> qui sotto per entrare subito,\n` +
+    `oppure inserisci questo codice:\n\n<b>${code}</b>\n\n` +
+    `Scade tra 5 minuti. Non condividerlo con nessuno.\n` +
+    `Se non sei stato tu, ignora questo messaggio.`;
   const tgRes  = await fetch(`https://api.telegram.org/bot${BOT}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: socio.telegram_chat_id, text, parse_mode: 'HTML' })
+    body: JSON.stringify({
+      chat_id: socio.telegram_chat_id,
+      text,
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [[{ text: '✅ Sono io, entra', callback_data: 'otp:' + approveToken }]]
+      }
+    })
   });
   const tgData = await tgRes.json();
   if (!tgData.ok)
     return json(502, { ok: false, error: 'Invio Telegram fallito. Verifica di aver avviato il bot.' });
 
   const handle = socio.telegram ? '@' + socio.telegram : 'il tuo Telegram';
-  return json(200, { ok: true, sentTo: handle, expiresInSec: CODE_TTL_MS / 1000 });
+  return json(200, {
+    ok: true,
+    sentTo: handle,
+    pollToken,
+    expiresInSec: CODE_TTL_MS / 1000
+  });
 };

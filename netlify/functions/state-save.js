@@ -155,6 +155,55 @@ export const handler = async (event) => {
     return json(200, { ok:true, soci });
   }
 
+  // ── Azione: registrazione / verifica webhook Telegram (solo admin) ────────
+  // Evita all'admin di dover maneggiare a mano il bot token in un URL del
+  // browser (dove finirebbe nella cronologia): token e secret restano qui sul
+  // server, presi dalle env var di Netlify.
+  if(action === 'telegram-setwebhook' || action === 'telegram-webhookinfo'){
+    const payload = verifyToken(SECRET, body.token);
+    if(!payload) return json(401, { ok:false, error:'Token non valido o scaduto' });
+    if(payload.role !== 'admin') return json(403, { ok:false, error:'Riservato agli admin' });
+
+    const BOT  = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
+    if(!BOT) return json(500, { ok:false, error:'TELEGRAM_BOT_TOKEN non configurato su Netlify' });
+
+    // Verifica stato: utile per capire se il webhook è attivo e se Telegram
+    // sta segnalando errori di consegna.
+    if(action === 'telegram-webhookinfo'){
+      try{
+        const r = await fetch(`https://api.telegram.org/bot${BOT}/getWebhookInfo`);
+        const d = await r.json().catch(()=>null);
+        if(d && d.ok) return json(200, { ok:true, info:d.result });
+        return json(502, { ok:false, error:(d&&d.description)||'Telegram non ha risposto correttamente' });
+      }catch(e){ return json(502, { ok:false, error:'Chiamata a Telegram fallita: '+e.message }); }
+    }
+
+    const HOOK = (process.env.TELEGRAM_WEBHOOK_SECRET || '').trim();
+    if(!HOOK) return json(500, { ok:false, error:'TELEGRAM_WEBHOOK_SECRET non configurato su Netlify (aggiungilo e rifai il deploy)' });
+
+    // L'origine arriva dal client ma non ci fidiamo: deve essere https e un
+    // hostname semplice, così non si può far puntare il webhook altrove.
+    const site = String(body.siteUrl || '').trim().replace(/\/+$/, '');
+    if(!/^https:\/\/[A-Za-z0-9.-]+$/.test(site))
+      return json(400, { ok:false, error:'Indirizzo del sito non valido' });
+    const hookUrl = site + '/.netlify/functions/telegram-webhook';
+
+    try{
+      const r = await fetch(`https://api.telegram.org/bot${BOT}/setWebhook`, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({
+          url: hookUrl,
+          secret_token: HOOK,
+          allowed_updates: ['message','callback_query']
+        })
+      });
+      const d = await r.json().catch(()=>null);
+      if(d && d.ok) return json(200, { ok:true, url:hookUrl, description:d.description || 'Webhook registrato' });
+      return json(502, { ok:false, error:(d&&d.description) || 'Telegram ha rifiutato la registrazione' });
+    }catch(e){ return json(502, { ok:false, error:'Chiamata a Telegram fallita: '+e.message }); }
+  }
+
   // ── Azione: gestione credenziali admin (slot 1/2/3) ───────────────────────
   // Unico percorso autorizzato a scrivere email/password admin. Aggiorna SOLO
   // lo slot indicato, in scrittura-lettura sul valore più recente del server:

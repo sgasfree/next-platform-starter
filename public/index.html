@@ -562,9 +562,17 @@ tr:hover td{background:var(--green-pale);}
         <!-- Passo 2: inserisci il codice ricevuto -->
         <div id="login-socio-step2" style="display:none;">
           <div style="font-size:.85rem;color:var(--text-mid);text-align:center;margin-bottom:12px;">
-            📩 <span id="otp-sent-msg">Ti abbiamo inviato un codice su Telegram.</span><br>Inseriscilo qui sotto:
+            📩 <span id="otp-sent-msg">Ti abbiamo inviato un codice su Telegram.</span>
           </div>
-          <div class="field"><label>Codice a 6 cifre</label><input id="l-otp" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="••••••" style="letter-spacing:.4em;text-align:center;font-size:1.3rem;"></div>
+          <div style="background:rgba(74,140,76,.08);border-radius:12px;padding:14px;text-align:center;margin-bottom:14px;">
+            <div style="font-size:.85rem;color:var(--text-mid);line-height:1.45;">
+              Nel messaggio tocca <strong>✅ Sono io, entra</strong>:<br>l'app ti fa entrare da sola, senza copiare nulla.
+            </div>
+            <a class="btn btn-primary btn-block" href="https://t.me/infoSgas_bot" target="_blank" rel="noopener" style="margin-top:12px;text-decoration:none;">💬 Apri Telegram</a>
+            <div id="otp-wait-msg" style="font-size:.78rem;color:var(--text-light);margin-top:10px;">⏳ In attesa della conferma…</div>
+          </div>
+          <div style="text-align:center;font-size:.78rem;color:var(--text-light);margin-bottom:8px;">— oppure inserisci il codice ricevuto —</div>
+          <div class="field"><label>Codice a 6 cifre</label><input id="l-otp" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="••••••" oninput="onOtpInput(this)" style="letter-spacing:.4em;text-align:center;font-size:1.3rem;"></div>
           <button class="btn btn-primary btn-block" id="btn-verify-code" onclick="socioVerifyCode()">✅ Accedi</button>
           <div style="text-align:center;margin-top:10px;">
             <button onclick="socioResetLogin()" style="background:none;border:none;color:var(--green);font-size:.82rem;font-weight:700;cursor:pointer;text-decoration:underline;">↩ Cambia tessera o rinvia il codice</button>
@@ -2997,10 +3005,11 @@ let _otpTessera = '';
 // stato "codice inviato" e lo ripristiniamo al rientro, finché il codice è valido.
 const OTP_PENDING_KEY = 'sgas_otp_pending';
 
-function _saveOtpPending(tessera, cellulare, sentTo, expiresInSec){
+function _saveOtpPending(tessera, cellulare, sentTo, expiresInSec, pollToken){
   try{
     localStorage.setItem(OTP_PENDING_KEY, JSON.stringify({
       tessera: tessera||'', cellulare: cellulare||'', sentTo: sentTo||'',
+      pollToken: pollToken||'',
       exp: Date.now() + (Number(expiresInSec)>0 ? Number(expiresInSec)*1000 : 5*60*1000)
     }));
   }catch(e){}
@@ -3034,6 +3043,7 @@ function restoreOtpPending(){
   if(msg) msg.textContent = 'Codice inviato su '+(p.sentTo||'Telegram')+'.';
   s1.style.display='none';
   s2.style.display='';
+  startOtpApprovalPolling();   // il tap su Telegram vale anche dopo il reload
   return true;
 }
 
@@ -3077,21 +3087,35 @@ async function socioRequestCode(){
     const data=await res.json();
     if(!data.ok){toast('❌ '+(data.error||'Errore'));return;}
     _otpTessera=tess;
-    _saveOtpPending(tess, tel, data.sentTo, data.expiresInSec);
+    _saveOtpPending(tess, tel, data.sentTo, data.expiresInSec, data.pollToken);
     document.getElementById('otp-sent-msg').textContent='Codice inviato su '+(data.sentTo||'Telegram')+'.';
     document.getElementById('login-socio-step1').style.display='none';
     document.getElementById('login-socio-step2').style.display='';
-    document.getElementById('l-otp').focus();
+    startOtpApprovalPolling();
     toast('📩 Codice inviato su Telegram');
   }catch(e){toast('❌ Connessione non riuscita');}
   finally{btn.disabled=false;btn.textContent=_t;}
 }
 
+// Il codice è sempre numerico: ripulisce quanto digitato o incollato e, appena
+// arriva a 6 cifre, avvia la verifica senza dover premere "Accedi".
+function onOtpInput(el){
+  const clean=(el.value||'').replace(/\D/g,'').slice(0,6);
+  if(el.value!==clean) el.value=clean;
+  if(clean.length===6 && !_otpVerifying){
+    el.blur();   // chiude la tastiera su mobile durante la verifica
+    socioVerifyCode();
+  }
+}
+
 // Passo 2: verifica il codice e crea la sessione Supabase
+let _otpVerifying = false;
 async function socioVerifyCode(){
+  if(_otpVerifying) return;
   const code=document.getElementById('l-otp').value.trim();
   if(!/^\d{6}$/.test(code)){toast('❌ Inserisci il codice a 6 cifre');return;}
   const btn=document.getElementById('btn-verify-code');
+  _otpVerifying=true;
   btn.disabled=true; const _t=btn.textContent; btn.textContent='⏳ Verifica…';
   try{
     const res=await fetch('/.netlify/functions/auth-verify-code',{
@@ -3100,27 +3124,104 @@ async function socioVerifyCode(){
     });
     const data=await res.json();
     if(!data.ok){toast('❌ '+(data.error||'Codice errato'));return;}
-    // Scambia il token monouso per una sessione Supabase vera (abilita RLS)
-    const sb=getAuthSb();
-    if(sb && data.token_hash){
-      try{
-        const {error}=await sb.auth.verifyOtp({type:'magiclink',token_hash:data.token_hash});
-        if(error) console.warn('verifyOtp:',error.message);
-      }catch(e){ console.warn('verifyOtp ex:',e); }
-    }
-    // Carica i dati del socio dalla tabella Supabase, filtrando per l'id
-    // restituito dal server (evita di prendere una riga arbitraria quando
-    // il socio è anche admin, vedi _fetchOwnSocioFromSupabase).
-    const socio = await _fetchOwnSocioFromSupabase(sb, data.socioId) || (S.soci||[]).find(s=>(s.tessera||'').toUpperCase()===_otpTessera);
-    if(!socio){toast('❌ Tesserato non trovato');return;}
-    socioResetLogin();
-    // Se il server segnala che la tessera è admin (ADMIN_TESSERE), entra nella
-    // vista admin con permessi Supabase completi; altrimenti vista socio.
-    if(data.isAdmin) _enterAdminViaOtp(socio);
-    else _enterSocio(socio);
+    await _completeOtpLogin(data);
   }catch(e){toast('❌ Connessione non riuscita');}
-  finally{btn.disabled=false;btn.textContent=_t;}
+  finally{
+    _otpVerifying=false;
+    btn.disabled=false; btn.textContent=_t;
+    // Codice rifiutato: lascia il campo pronto per una nuova digitazione.
+    const otp=document.getElementById('l-otp');
+    const step2=document.getElementById('login-socio-step2');
+    if(otp && step2 && step2.style.display!=='none'){ otp.select(); }
+  }
 }
+
+// Apre la sessione e porta l'utente dentro l'app. Condiviso dalle due strade
+// di accesso: codice a 6 cifre digitato e conferma con un tap su Telegram.
+async function _completeOtpLogin(data){
+  // Scambia il token monouso per una sessione Supabase vera (abilita RLS)
+  const sb=getAuthSb();
+  if(sb && data.token_hash){
+    try{
+      const {error}=await sb.auth.verifyOtp({type:'magiclink',token_hash:data.token_hash});
+      if(error) console.warn('verifyOtp:',error.message);
+    }catch(e){ console.warn('verifyOtp ex:',e); }
+  }
+  // Carica i dati del socio dalla tabella Supabase, filtrando per l'id
+  // restituito dal server (evita di prendere una riga arbitraria quando
+  // il socio è anche admin, vedi _fetchOwnSocioFromSupabase).
+  const socio = await _fetchOwnSocioFromSupabase(sb, data.socioId) || (S.soci||[]).find(s=>(s.tessera||'').toUpperCase()===_otpTessera);
+  if(!socio){toast('❌ Tesserato non trovato');return false;}
+  socioResetLogin();
+  // Se il server segnala che la tessera è admin (ADMIN_TESSERE), entra nella
+  // vista admin con permessi Supabase completi; altrimenti vista socio.
+  if(data.isAdmin) _enterAdminViaOtp(socio);
+  else _enterSocio(socio);
+  return true;
+}
+
+// ── Accesso con un tap dal messaggio Telegram ────────────────────────────────
+// Il messaggio del codice contiene il bottone "✅ Sono io, entra": premendolo,
+// il webhook del bot approva la richiesta. Qui la pagina resta in ascolto e,
+// appena l'approvazione arriva, entra da sola — nessun codice da copiare.
+const OTP_POLL_MS = 3000;
+let _otpPollTimer = null;
+let _otpPollBusy  = false;
+
+function _setOtpWaitMsg(txt){
+  const el=document.getElementById('otp-wait-msg');
+  if(!el) return;
+  el.textContent = txt || '';
+  el.style.display = txt ? '' : 'none';
+}
+
+function stopOtpApprovalPolling(txt){
+  if(_otpPollTimer){ clearInterval(_otpPollTimer); _otpPollTimer=null; }
+  _otpPollBusy=false;
+  _setOtpWaitMsg(txt||'');
+}
+
+function startOtpApprovalPolling(){
+  stopOtpApprovalPolling();
+  const p=_readOtpPending();
+  if(!p || !p.pollToken) return;   // richieste vecchie: solo codice manuale
+  _setOtpWaitMsg('⏳ In attesa della conferma…');
+  _otpPollTimer=setInterval(_otpPollTick, OTP_POLL_MS);
+  _otpPollTick();
+}
+
+async function _otpPollTick(){
+  if(_otpPollBusy || _otpVerifying) return;
+  // A schermo spento o con l'app in background non ha senso interrogare il
+  // server: al rientro il primo tick riparte subito.
+  if(document.hidden) return;
+  const p=_readOtpPending();
+  if(!p || !p.pollToken){ stopOtpApprovalPolling('⏱ Richiesta scaduta: richiedi un nuovo codice.'); return; }
+  _otpPollBusy=true;
+  try{
+    const res=await fetch('/.netlify/functions/auth-poll-approval',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({tessera:p.tessera,pollToken:p.pollToken})
+    });
+    const data=await res.json();
+    if(!data.ok){                       // richiesta scaduta o non più valida
+      stopOtpApprovalPolling(res.status===410 ? '⏱ Richiesta scaduta: richiedi un nuovo codice.' : '');
+      return;
+    }
+    if(data.done){ stopOtpApprovalPolling(); return; }  // consumata altrove
+    if(data.approved){
+      stopOtpApprovalPolling('✅ Confermato, accesso in corso…');
+      _otpTessera=p.tessera;
+      const okLogin=await _completeOtpLogin(data);
+      if(okLogin) toast('✅ Accesso confermato su Telegram');
+    }
+  }catch(e){ /* rete assente: si riprova al tick successivo */ }
+  finally{ _otpPollBusy=false; }
+}
+
+// Al rientro nell'app (schermo riacceso, cambio di applicazione) controlla
+// subito, senza aspettare il tick successivo.
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && _otpPollTimer) _otpPollTick(); });
 
 function socioResetLogin(){
   const s2=document.getElementById('login-socio-step2');
@@ -3129,6 +3230,7 @@ function socioResetLogin(){
   if(s1) s1.style.display='';
   const otp=document.getElementById('l-otp'); if(otp) otp.value='';
   _otpTessera='';
+  stopOtpApprovalPolling();
   _clearOtpPending();
 }
 
@@ -7099,13 +7201,25 @@ INSERT INTO config (chiave,valore) VALUES ('sgas_app_state','{}');</pre>
         4️⃣ Ogni socio può ottenere il proprio Chat ID scrivendo a <b>@userinfobot</b> su Telegram
       </div>
       <div class="alert alert-info" style="font-size:.8rem;margin-bottom:10px;">🔒 Il Bot Token è protetto su Netlify (variabile d'ambiente <code>TELEGRAM_BOT_TOKEN</code>) — non va inserito qui.</div>
-      <div class="field"><label>💬 Chat ID Admin 1 (per ricevere ordini)</label><input id="s-tgadmin" type="text" value="\${S.config.tgAdminChatId||''}" placeholder="es. 123456789"></div>
-      <div class="field"><label>💬 Chat ID Admin 2 <span style="font-size:.75rem;color:var(--text-light);">(opzionale)</span></label><input id="s-tgadmin2" type="text" value="\${S.config.tgAdminChatId2||''}" placeholder="es. 987654321"></div>
-      <div class="field"><label>💬 Chat ID Admin 3 <span style="font-size:.75rem;color:var(--text-light);">(opzionale)</span></label><input id="s-tgadmin3" type="text" value="\${S.config.tgAdminChatId3||''}" placeholder="es. 111222333"></div>
+      <div class="field"><label>💬 Chat ID Admin 1 (per ricevere ordini)</label><input id="s-tgadmin" type="text" value="${S.config.tgAdminChatId||''}" placeholder="es. 123456789"></div>
+      <div class="field"><label>💬 Chat ID Admin 2 <span style="font-size:.75rem;color:var(--text-light);">(opzionale)</span></label><input id="s-tgadmin2" type="text" value="${S.config.tgAdminChatId2||''}" placeholder="es. 987654321"></div>
+      <div class="field"><label>💬 Chat ID Admin 3 <span style="font-size:.75rem;color:var(--text-light);">(opzionale)</span></label><input id="s-tgadmin3" type="text" value="${S.config.tgAdminChatId3||''}" placeholder="es. 111222333"></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;">
         <button class="btn btn-primary" onclick="saveTelegramConfig()">💾 Salva config Telegram</button>
         <button class="btn btn-secondary" onclick="testTelegramMsg()">🧪 Invia messaggio di test</button>
       </div>
+      <hr style="border:none;border-top:1px solid var(--green-light);margin:18px 0 14px;">
+      <h4 style="font-size:.95rem;margin-bottom:6px;">🔗 Accesso con un tap (webhook)</h4>
+      <p style="font-size:.8rem;color:var(--text-light);margin-bottom:12px;">
+        Serve una sola volta: collega il bot all'app perché il tesserato possa entrare
+        premendo il bottone nel messaggio Telegram, senza digitare il codice.
+        Token e secret restano sul server — non devi copiare nulla.
+      </p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="registraWebhookTelegram()">🔗 Attiva accesso con un tap</button>
+        <button class="btn btn-secondary" onclick="verificaWebhookTelegram()">🔍 Verifica stato</button>
+      </div>
+      <div id="tg-webhook-result" style="margin-top:12px;font-size:.85rem;"></div>
     </div>
     <div class="card" style="margin-bottom:16px;">
       <h3 style="font-family:var(--font-serif,serif);margin-bottom:6px;">🗂 Categorie Catalogo</h3>
@@ -7258,6 +7372,77 @@ function saveEmailJS(){
   S.config.emailjsPublicKey=document.getElementById('s-ejkey').value.trim();
   S.config.emailDest=document.getElementById('s-ejdest').value.trim();
   saveState(); toast('✅ EmailJS salvato');
+}
+
+// ── Webhook Telegram: registrazione e verifica dall'app ────────────────────
+// Il bot token e il secret restano sul server (env Netlify): qui inviamo solo
+// il token admin già in uso per le altre operazioni protette, così l'admin non
+// deve costruire a mano un URL con dentro il token del bot.
+function _tgWebhookMsg(html, kind){
+  const el = document.getElementById('tg-webhook-result');
+  if(!el) return;
+  const colori = { ok:['#e8f5e9','#2e7d32'], err:['#fdecea','#c62828'], info:['#e3f2fd','#1565c0'] };
+  const c = colori[kind] || colori.info;
+  el.innerHTML = '<div style="background:'+c[0]+';color:'+c[1]+';border-radius:8px;padding:10px 12px;line-height:1.5;">'+html+'</div>';
+}
+
+async function _tgWebhookCall(action){
+  const token = await _getStateToken();
+  if(!token){
+    _tgWebhookMsg('🔒 Non riesco ad autenticarmi col server. Esci e rientra, poi riprova.', 'err');
+    return null;
+  }
+  const res = await fetch('/.netlify/functions/state-save', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ action, token, siteUrl: window.location.origin })
+  });
+  const data = await res.json().catch(()=>null);
+  return { status: res.status, data };
+}
+
+async function registraWebhookTelegram(){
+  _tgWebhookMsg('⏳ Collegamento in corso…', 'info');
+  try{
+    const r = await _tgWebhookCall('telegram-setwebhook');
+    if(!r) return;
+    if(r.data && r.data.ok){
+      _tgWebhookMsg('✅ <strong>Accesso con un tap attivato.</strong><br>'
+        + 'Il bot è collegato a:<br><code style="font-size:.78rem;">'+escHtml(r.data.url||'')+'</code><br><br>'
+        + 'Prova a farti inviare un codice di accesso: nel messaggio Telegram comparirà il bottone per entrare direttamente.', 'ok');
+    } else {
+      _tgWebhookMsg('❌ <strong>Non è riuscito.</strong><br>'+escHtml((r.data&&r.data.error)||'Errore sconosciuto'), 'err');
+    }
+  }catch(e){
+    _tgWebhookMsg('❌ Problema di rete: '+escHtml(e.message), 'err');
+  }
+}
+
+async function verificaWebhookTelegram(){
+  _tgWebhookMsg('⏳ Controllo in corso…', 'info');
+  try{
+    const r = await _tgWebhookCall('telegram-webhookinfo');
+    if(!r) return;
+    if(!(r.data && r.data.ok)){
+      _tgWebhookMsg('❌ '+escHtml((r.data&&r.data.error)||'Errore sconosciuto'), 'err');
+      return;
+    }
+    const i = r.data.info || {};
+    if(!i.url){
+      _tgWebhookMsg('⚠️ <strong>Webhook non ancora attivo.</strong><br>Premi «Attiva accesso con un tap» qui sopra.', 'err');
+      return;
+    }
+    let html = '✅ <strong>Webhook attivo</strong><br><code style="font-size:.78rem;">'+escHtml(i.url)+'</code>';
+    if(i.pending_update_count) html += '<br>Messaggi in attesa: '+i.pending_update_count;
+    if(i.last_error_message){
+      html += '<br><br>⚠️ Ultimo errore segnalato da Telegram:<br><em>'+escHtml(i.last_error_message)+'</em>';
+      _tgWebhookMsg(html, 'err');
+    } else {
+      html += '<br>Nessun errore segnalato.';
+      _tgWebhookMsg(html, 'ok');
+    }
+  }catch(e){
+    _tgWebhookMsg('❌ Problema di rete: '+escHtml(e.message), 'err');
+  }
 }
 
 function saveTelegramConfig(){

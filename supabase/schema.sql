@@ -49,15 +49,21 @@ create index if not exists soci_tessera_idx on public.soci (tessera);
 -- Scritti/letti SOLO dalle Netlify Functions (service_role). Nessun accesso
 -- pubblico: RLS attivo senza policy = nessuno può leggerli dal client.
 create table if not exists public.otp_codes (
-  id         uuid primary key default gen_random_uuid(),
-  tessera    text not null,
-  code_hash  text not null,                     -- sha256(code + tessera)
-  expires_at timestamptz not null,
-  attempts   int not null default 0,
-  consumed   boolean not null default false,
-  created_at timestamptz not null default now()
+  id           uuid primary key default gen_random_uuid(),
+  tessera      text not null,
+  code_hash    text not null,                   -- sha256(code + tessera)
+  approve_hash text,                            -- sha256(token del bottone Telegram)
+  poll_hash    text,                            -- sha256(token della pagina che attende)
+  chat_id      text,                            -- chat a cui è stato inviato il codice
+  approved_at  timestamptz,                     -- tap su "✅ Sono io, entra"
+  expires_at   timestamptz not null,
+  attempts     int not null default 0,
+  consumed     boolean not null default false,
+  created_at   timestamptz not null default now()
 );
-create index if not exists otp_tessera_idx on public.otp_codes (tessera, created_at desc);
+create index if not exists otp_tessera_idx      on public.otp_codes (tessera, created_at desc);
+create index if not exists otp_approve_hash_idx on public.otp_codes (approve_hash);
+create index if not exists otp_poll_hash_idx    on public.otp_codes (poll_hash);
 
 -- ── Catalogo: categorie, fornitori, prodotti, raccolte ───────────────────────
 create table if not exists public.categorie (
