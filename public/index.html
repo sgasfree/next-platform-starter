@@ -564,7 +564,7 @@ tr:hover td{background:var(--green-pale);}
           <div style="font-size:.85rem;color:var(--text-mid);text-align:center;margin-bottom:12px;">
             📩 <span id="otp-sent-msg">Ti abbiamo inviato un codice su Telegram.</span><br>Inseriscilo qui sotto:
           </div>
-          <div class="field"><label>Codice a 6 cifre</label><input id="l-otp" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="••••••" style="letter-spacing:.4em;text-align:center;font-size:1.3rem;"></div>
+          <div class="field"><label>Codice a 6 cifre</label><input id="l-otp" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="••••••" oninput="onOtpInput(this)" style="letter-spacing:.4em;text-align:center;font-size:1.3rem;"></div>
           <button class="btn btn-primary btn-block" id="btn-verify-code" onclick="socioVerifyCode()">✅ Accedi</button>
           <div style="text-align:center;margin-top:10px;">
             <button onclick="socioResetLogin()" style="background:none;border:none;color:var(--green);font-size:.82rem;font-weight:700;cursor:pointer;text-decoration:underline;">↩ Cambia tessera o rinvia il codice</button>
@@ -3087,11 +3087,25 @@ async function socioRequestCode(){
   finally{btn.disabled=false;btn.textContent=_t;}
 }
 
+// Il codice è sempre numerico: ripulisce quanto digitato o incollato e, appena
+// arriva a 6 cifre, avvia la verifica senza dover premere "Accedi".
+function onOtpInput(el){
+  const clean=(el.value||'').replace(/\D/g,'').slice(0,6);
+  if(el.value!==clean) el.value=clean;
+  if(clean.length===6 && !_otpVerifying){
+    el.blur();   // chiude la tastiera su mobile durante la verifica
+    socioVerifyCode();
+  }
+}
+
 // Passo 2: verifica il codice e crea la sessione Supabase
+let _otpVerifying = false;
 async function socioVerifyCode(){
+  if(_otpVerifying) return;
   const code=document.getElementById('l-otp').value.trim();
   if(!/^\d{6}$/.test(code)){toast('❌ Inserisci il codice a 6 cifre');return;}
   const btn=document.getElementById('btn-verify-code');
+  _otpVerifying=true;
   btn.disabled=true; const _t=btn.textContent; btn.textContent='⏳ Verifica…';
   try{
     const res=await fetch('/.netlify/functions/auth-verify-code',{
@@ -3119,7 +3133,14 @@ async function socioVerifyCode(){
     if(data.isAdmin) _enterAdminViaOtp(socio);
     else _enterSocio(socio);
   }catch(e){toast('❌ Connessione non riuscita');}
-  finally{btn.disabled=false;btn.textContent=_t;}
+  finally{
+    _otpVerifying=false;
+    btn.disabled=false; btn.textContent=_t;
+    // Codice rifiutato: lascia il campo pronto per una nuova digitazione.
+    const otp=document.getElementById('l-otp');
+    const step2=document.getElementById('login-socio-step2');
+    if(otp && step2 && step2.style.display!=='none'){ otp.select(); }
+  }
 }
 
 function socioResetLogin(){
