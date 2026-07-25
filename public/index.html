@@ -2472,7 +2472,7 @@ function renderCatSidebarOspite(){
     '<button class="cat-btn'+(cat.id===ospiteTab?' active':'')+'" onclick="setTabOspite(\''+cat.id+'\')">'+
     '<span class="cat-ico">'+cat.ico+'</span>'+escHtml(cat.nome.replace(/(.{6})/g,'$1\u00AD'))+'</button>'
   ).join('')
-  +'<button class="cat-btn" onclick="showOspiteSection(\'chisiamo\');renderChiSiamo(\'ospite\')" style="margin-top:6px;border-top:1px solid var(--green-light);padding-top:8px;"><span class="cat-ico">ℹ️</span>Chi&#xAD;Sie&#xAD;mo</button>';
+  +'<button class="cat-btn" onclick="showOspiteSection(\'chisiamo\');renderChiSiamo(\'ospite\')" style="margin-top:6px;border-top:1px solid var(--green-light);padding-top:8px;"><span class="cat-ico">ℹ️</span>Chi Siamo</button>';
 }
 
 function setTabOspite(cat){
@@ -2645,6 +2645,11 @@ function showLoginView(){
   if(ospite) ospite.style.display = isAdmin ? 'none' : '';
   const adminLink = document.getElementById('login-admin-entry-link');
   if(adminLink) adminLink.style.display = isAdmin ? 'none' : '';
+
+  // Se c'è un codice OTP appena richiesto e ancora valido (es. l'app è stata
+  // ricaricata mentre si leggeva il codice su Telegram), riapri il passo 2
+  // invece di ripartire dalla schermata iniziale.
+  if(!isAdmin && typeof restoreOtpPending==='function') restoreOtpPending();
 }
 
 function gasNameHtml(){
@@ -2805,6 +2810,7 @@ async function recVerifyStep3(){
 
 function prefillLogin(tess, tel){
   showLoginView();
+  socioResetLogin();   // eventuale OTP pendente non deve coprire i dati recuperati
   document.getElementById('l-tessera').value=tess;
   document.getElementById('l-phone').value=tel;
   toast('✅ Credenziali inserite — premi Accedi!');
@@ -2984,6 +2990,53 @@ function getAuthSb(){
 
 let _otpTessera = '';
 
+// ── Persistenza del passo OTP ────────────────────────────────────────────────
+// Su mobile, uscire dall'app per leggere il codice su Telegram può far scaricare
+// e ricaricare la pagina dal sistema: senza persistenza si tornava al login
+// iniziale (passo 1) perdendo il codice appena ricevuto. Salviamo quindi lo
+// stato "codice inviato" e lo ripristiniamo al rientro, finché il codice è valido.
+const OTP_PENDING_KEY = 'sgas_otp_pending';
+
+function _saveOtpPending(tessera, cellulare, sentTo, expiresInSec){
+  try{
+    localStorage.setItem(OTP_PENDING_KEY, JSON.stringify({
+      tessera: tessera||'', cellulare: cellulare||'', sentTo: sentTo||'',
+      exp: Date.now() + (Number(expiresInSec)>0 ? Number(expiresInSec)*1000 : 5*60*1000)
+    }));
+  }catch(e){}
+}
+
+function _clearOtpPending(){
+  try{ localStorage.removeItem(OTP_PENDING_KEY); }catch(e){}
+}
+
+function _readOtpPending(){
+  try{
+    const raw = localStorage.getItem(OTP_PENDING_KEY);
+    if(!raw) return null;
+    const p = JSON.parse(raw);
+    if(!p || !p.tessera || !p.exp || Date.now() >= p.exp){ _clearOtpPending(); return null; }
+    return p;
+  }catch(e){ _clearOtpPending(); return null; }
+}
+
+// Ripristina il passo 2 (inserimento codice) dopo un ricaricamento della pagina.
+function restoreOtpPending(){
+  const p = _readOtpPending();
+  const s1 = document.getElementById('login-socio-step1');
+  const s2 = document.getElementById('login-socio-step2');
+  if(!s1 || !s2) return false;
+  if(!p){ s1.style.display=''; s2.style.display='none'; return false; }
+  _otpTessera = p.tessera;
+  const tes = document.getElementById('l-tessera'); if(tes) tes.value = p.tessera;
+  const tel = document.getElementById('l-phone');   if(tel && p.cellulare) tel.value = p.cellulare;
+  const msg = document.getElementById('otp-sent-msg');
+  if(msg) msg.textContent = 'Codice inviato su '+(p.sentTo||'Telegram')+'.';
+  s1.style.display='none';
+  s2.style.display='';
+  return true;
+}
+
 // Converte una riga snake_case della tabella `soci` nel formato camelCase usato dall'app.
 function _socioRowToBlob(row){
   return {
@@ -3024,6 +3077,7 @@ async function socioRequestCode(){
     const data=await res.json();
     if(!data.ok){toast('❌ '+(data.error||'Errore'));return;}
     _otpTessera=tess;
+    _saveOtpPending(tess, tel, data.sentTo, data.expiresInSec);
     document.getElementById('otp-sent-msg').textContent='Codice inviato su '+(data.sentTo||'Telegram')+'.';
     document.getElementById('login-socio-step1').style.display='none';
     document.getElementById('login-socio-step2').style.display='';
@@ -3075,6 +3129,7 @@ function socioResetLogin(){
   if(s1) s1.style.display='';
   const otp=document.getElementById('l-otp'); if(otp) otp.value='';
   _otpTessera='';
+  _clearOtpPending();
 }
 
 // Logica post-login condivisa (usata sia dall'OTP che dal metodo legacy)
@@ -3300,7 +3355,7 @@ function renderCatSidebar(){
     <button class="cat-btn${cat.id===currentTab?' active':''}" id="tab-${cat.id}" onclick="setTab('${cat.id}')">
       <span class="cat-ico">${cat.ico}</span>${escHtml(cat.nome.replace(/(.{6})/g,'$1­'))}
     </button>`).join('')
-  +'<button class="cat-btn" onclick="showSocioSection(\'chisiamo\');renderChiSiamo(\'socio\')" style="margin-top:6px;border-top:1px solid var(--green-light);padding-top:8px;"><span class="cat-ico">ℹ️</span>Chi&#xAD;Sie&#xAD;mo</button>';
+  +'<button class="cat-btn" onclick="showSocioSection(\'chisiamo\');renderChiSiamo(\'socio\')" style="margin-top:6px;border-top:1px solid var(--green-light);padding-top:8px;"><span class="cat-ico">ℹ️</span>Chi Siamo</button>';
 }
 
 function setTab(cat){
