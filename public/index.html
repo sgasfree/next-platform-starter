@@ -2472,7 +2472,7 @@ function renderCatSidebarOspite(){
     '<button class="cat-btn'+(cat.id===ospiteTab?' active':'')+'" onclick="setTabOspite(\''+cat.id+'\')">'+
     '<span class="cat-ico">'+cat.ico+'</span>'+escHtml(cat.nome.replace(/(.{6})/g,'$1\u00AD'))+'</button>'
   ).join('')
-  +'<button class="cat-btn" onclick="showOspiteSection(\'chisiamo\');renderChiSiamo(\'ospite\')" style="margin-top:6px;border-top:1px solid var(--green-light);padding-top:8px;"><span class="cat-ico">ℹ️</span>Chi&#xAD;Sie&#xAD;mo</button>';
+  +'<button class="cat-btn" onclick="showOspiteSection(\'chisiamo\');renderChiSiamo(\'ospite\')" style="margin-top:6px;border-top:1px solid var(--green-light);padding-top:8px;"><span class="cat-ico">ℹ️</span>Chi Siamo</button>';
 }
 
 function setTabOspite(cat){
@@ -3300,7 +3300,7 @@ function renderCatSidebar(){
     <button class="cat-btn${cat.id===currentTab?' active':''}" id="tab-${cat.id}" onclick="setTab('${cat.id}')">
       <span class="cat-ico">${cat.ico}</span>${escHtml(cat.nome.replace(/(.{6})/g,'$1­'))}
     </button>`).join('')
-  +'<button class="cat-btn" onclick="showSocioSection(\'chisiamo\');renderChiSiamo(\'socio\')" style="margin-top:6px;border-top:1px solid var(--green-light);padding-top:8px;"><span class="cat-ico">ℹ️</span>Chi&#xAD;Sie&#xAD;mo</button>';
+  +'<button class="cat-btn" onclick="showSocioSection(\'chisiamo\');renderChiSiamo(\'socio\')" style="margin-top:6px;border-top:1px solid var(--green-light);padding-top:8px;"><span class="cat-ico">ℹ️</span>Chi Siamo</button>';
 }
 
 function setTab(cat){
