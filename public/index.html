@@ -2518,7 +2518,11 @@ function renderCatSidebarOspite(){
     '<button class="cat-btn'+(cat.id===ospiteTab?' active':'')+'" onclick="setTabOspite(\''+cat.id+'\')">'+
     '<span class="cat-ico">'+cat.ico+'</span>'+escHtml(cat.nome.replace(/(.{6})/g,'$1\u00AD'))+'</button>'
   ).join('')
-  +'<button class="cat-btn" onclick="showOspiteSection(\'chisiamo\');renderChiSiamo(\'ospite\')" style="margin-top:6px;border-top:1px solid var(--green-light);padding-top:8px;"><span class="cat-ico">ℹ️</span>Chi Siamo</button>';
+  +'<button class="cat-btn" onclick="showOspiteSection(\'chisiamo\');renderChiSiamo(\'ospite\')" style="margin-top:6px;border-top:1px solid var(--green-light);padding-top:8px;"><span class="cat-ico">ℹ️</span>Chi Siamo</button>'
+  // Guida tesserato accessibile già dalla vetrina: chi sta esplorando capisce
+  // come funziona (accesso, ricerca, carrello, ordine) prima di richiedere la
+  // tessera, non solo dopo essere entrato.
+  +'<a class="cat-btn" href="guida-socio.html" style="text-decoration:none;"><span class="cat-ico">📖</span>Guida Tesserato</a>';
 }
 
 function setTabOspite(cat){
