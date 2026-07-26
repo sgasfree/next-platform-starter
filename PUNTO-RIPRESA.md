@@ -1,100 +1,120 @@
 # 📍 Punto di ripristino — SGAS Freeconomy
 
-_Snapshot al **15 luglio 2026** · branch `claude/review-sgas-freeconomy-GtDm6` · tutto mergiato su `main`_
+_Snapshot al **26 luglio 2026** · branch `claude/review-sgas-freeconomy-GtDm6` · tutto mergiato su `main`_
+
+> Snapshot precedente: 15 luglio 2026 (sicurezza pre-lancio, export ordini, PWA).
+> Questo documento lo sostituisce e ne riassume i contenuti.
 
 ---
 
-## ✅ STATO ATTUALE — pronto per l'apertura ai tesserati
+## ✅ STATO ATTUALE — app operativa
 
-Tutte le PR di questa fase (#82 → #94) sono **mergiate su `main`**. L'app è funzionante,
-con sicurezza pre-lancio chiusa, export ordini completi, e PWA installabile.
+Tutti i lavori sono **mergiati su `main`** e deployati. Login OTP e admin funzionanti.
 
-### Configurazioni manuali GIÀ FATTE (dall'utente)
-- ✅ **Token bot Telegram** rigenerato con @BotFather e aggiornato su Netlify (`TELEGRAM_BOT_TOKEN`)
-- ✅ **`STATE_TOKEN_SECRET`** impostato su Netlify (scope Builds/Functions/Runtime, tutti i contesti)
-- ✅ **Migrazione SQL** `lock_config_writes.sql` eseguita su Supabase → scritture `config` bloccate agli anonimi
-- ✅ **Password Admin 2** reimpostata (la vecchia era pubblica → compromessa)
-
-> ⚠️ Se in futuro si rigenera l'app con "Genera App per Netlify", il codice ora
-> rimuove automaticamente segreti e password in chiaro dal file esportato.
-
----
-
-## 📦 LAVORO SVOLTO (PR #82–#94, tutte merged)
-
-### 🔒 Sicurezza (pre-lancio, completata)
-| PR | Cosa |
-|----|------|
-| #88 | Rimossi dal file pubblico: password Admin 2 in chiaro, token bot, anagrafica soci; fix export che re-incorporava i segreti |
-| #89 | **Proxy autenticato** `netlify/functions/state-save.js` per le scritture `config` (verifica admin/tesserato, scrive con service_role) + migrazione SQL |
-| #91 | Azione `soci-list` nel proxy: admin email+password leggono i tesserati senza esporli nel file |
-| — | Migrazione `supabase/migrations/2026-07-05_lock_config_writes.sql` (eseguita) |
-
-**Verificato**: i segreti veri (service_role, bot token) NON sono nel sorgente; auth dati
-protetta lato server (OTP + RLS + proxy); input escapati (no XSS); resta solo il gate
-admin lato client + hash pbkdf2 incorporato (rischio moderato — hardening futuro opzionale).
-
-### 🧾 Export ordini (tutti i formati allineati)
-| PR | Cosa |
-|----|------|
-| #82 | CSV: **virgola** decimale, colonna TOTALE corretta, numeri allineati a destra |
-| #92/#93 | CSV singolo ordine allineato agli altri; ordini mostrano sempre la **tessera** (mai l'uid) |
-| #93 | CSV: **riepilogo cumulato per prodotto** (dettaglio per tesserato + totali da ordinare) |
-| #93 | Word: **virgola** decimale come i CSV |
-
-**8 export** (3 CSV + 4 Word + wrapper) verificati: virgola, tessera, codice, cumulo dove serve.
-
-### 📱 Mobile
-| PR | Cosa |
-|----|------|
-| #90 | Libreria Word (docx.js, 725 KB) estratta in `public/docx-lib.js`, caricata solo al primo export → index.html −24% |
-| #94 | **PWA**: `manifest.json` + `sw.js` + icone → installabile in home + catalogo offline |
-
-### 🐛 Fix vari
-| PR | Cosa |
-|----|------|
-| #92 | Vetrina servizi: conta/mostra tutti i prodotti come il catalogo (fix "0 prodotti") |
-| #94 | Ricerca: azzerata al cambio categoria (fix "categoria vuota dopo una ricerca") |
-| #86 | Fornitori duplicati (Tombea/whyfarm) rimossi + etichetta categoria admin |
-| #87 | Fix realtime che annullava i cambi password con 3 admin + rimosso OneSignal morto |
+### Configurazioni manuali già fatte (dall'utente)
+- ✅ Token bot Telegram ruotato → `TELEGRAM_BOT_TOKEN` su Netlify
+- ✅ `STATE_TOKEN_SECRET` su Netlify (proxy scritture)
+- ✅ `TELEGRAM_WEBHOOK_SECRET` su Netlify (accesso con un tap)
+- ✅ `ADMIN_TESSERE` su Netlify (chi entra via OTP diventa admin)
+- ✅ Migrazione SQL `lock_config_writes.sql` (scritture `config` bloccate agli anonimi)
+- ✅ Migrazione SQL `otp_tap_approval.sql` (colonne per l'accesso con un tap)
+- ✅ Credenziali admin **ripristinate sul server** via OTP (vedi incidente sotto)
 
 ---
 
-## 🔜 BACKLOG — cosa resta (tutto opzionale, l'app è già operativa)
+## 🔧 INCIDENTE RISOLTO — accesso bloccato (26/07)
+
+Vale la pena ricordarlo, perché la diagnosi è stata lunga.
+
+**Sintomi**: OTP non inviava più il codice; l'admin email+password non veniva
+autorizzato dal server ("Non riesco ad autenticarmi col server").
+
+**Tre cause distinte, tutte risolte**:
+1. **Funzioni non caricate** — le Netlify Functions usavano `import` ma
+   estensione `.js`: rinominate in `.mjs` (commit `c4eaba9`). Era la causa
+   principale del blocco OTP.
+2. **Ruolo admin mancante via OTP** — chi entra col codice Telegram si
+   identifica come *tesserato*: il proxy ora controlla `ADMIN_TESSERE` e
+   assegna il ruolo admin (PR #103).
+3. **Credenziali admin azzerate sul server** — danno residuo del vecchio bug
+   (corretto a suo tempo, ma i dati persi non erano stati ripristinati).
+   Sanato entrando via OTP e risalvando la password.
+
+⚠️ **Da ricordare**: se in futuro l'admin email+password non viene più
+riconosciuto, la via d'uscita è **entrare con OTP** e risalvare la password da
+Impostazioni → Configurazione GAS.
+
+---
+
+## 📦 LAVORO SVOLTO IN QUESTA SESSIONE
+
+### 🔐 Accesso e sicurezza
+| Cosa | Note |
+|------|------|
+| Fix perdita credenziali Admin 2/3 | Canale dedicato `admin-creds`; il salvataggio generico non trasporta più credenziali |
+| Salvataggi non più silenziosi | Un rifiuto del database ora produce un avviso, non un falso successo |
+| Blocco operazioni senza OTP | Tesserati/ordini/messaggi/prenotazioni: avviso esplicito se manca l'OTP |
+| Codice recupero password | Inviato anche ad Admin 3 (prima era escluso) |
+| Webhook Telegram dall'app | Impostazioni → Telegram → "Attiva accesso con un tap" (token mai esposto al browser) |
+| Fix campi Chat ID | Mostravano testo grezzo: salvandoli si rompevano le notifiche |
+
+### 📋 Funzionalità
+| Cosa | Note |
+|------|------|
+| Riepilogo per Tesserato | Tabella pivot in Ordini: tesserato → fornitore → prodotti, con subtotali, filtro raccolta ed export CSV |
+| Storico raccolte eliminate | Il nome resta nelle statistiche e negli ordini (niente più voce "Altra") |
+| Accesso con un tap | Bottone "✅ Sono io, entra" nel messaggio Telegram + verifica automatica alla 6ª cifra |
+
+### 📖 Guida tesserato
+| Cosa | Note |
+|------|------|
+| Installazione app (PWA) | Istruzioni per Android, iPhone e Desktop |
+| Terminologia | "Socio" → "Tesserato" in tutta la guida |
+| Logo reale | Al posto dell'emoji 🌼 nei mockup |
+| Login aggiornato | Accesso con un tap, verifica automatica, **codice valido 5 minuti** (diceva 10) |
+| **Ricerca prodotti** | Come usare le due barre: nome, **codice articolo**, zona, caratteristiche, unità |
+
+---
+
+## 🔜 BACKLOG — cosa resta (tutto opzionale)
 
 ### Sicurezza (minori)
-- **EmailJS**: attivare la restrizione per dominio nel pannello EmailJS (invii solo dal sito ufficiale).
-- **Scrittura concorrente admin** (last-write-wins): valutare avviso quando due admin editano la stessa sezione. Priorità in base all'uso reale.
-- **Hardening auth admin**: spostare tutto il login admin sul server (la function verifica già la password; si tratta di emettere il token di sessione admin lato server). Contenuto ma non banale. I dati sono già protetti, quindi bassa urgenza.
+- **EmailJS**: restrizione per dominio nel pannello EmailJS.
+- **Scrittura concorrente admin** (last-write-wins): valutare un avviso quando due admin editano la stessa sezione.
+- **Hardening login admin**: spostare del tutto la verifica sul server (oggi il gate email+password è client-side; i dati però sono già protetti dal proxy).
 
 ### Mobile (rifiniture)
 - **Tabelle admin a schede** su schermo piccolo (tesserati/ordini/prodotti).
 - **Breakpoint intermedio tablet** (tra 700px e 1024px oggi è desktop pieno).
 
 ### Qualità
-- **Test automatizzati** su percorsi critici (ordini, export, auth): committare una piccola suite headless (riuso quella usata a mano finora).
-- **Modularizzare il frontend** (oggi monolite in un file): refactor grosso e rischioso su un'app in produzione → per ultimo.
+- **Test automatizzati** committati sui percorsi critici (oggi le verifiche sono manuali, con Chromium headless).
+- **Modularizzare il frontend** (monolite in un file): refactor grosso, da valutare per ultimo.
+
+### Documenti
+- **Termini e Condizioni + Informativa Privacy**: mai scritti. Discussi i contenuti obbligatori (titolare, dati raccolti, finalità, servizi terzi — Supabase/Telegram/EmailJS —, conservazione, diritti). Da redigere prima di aprire a molti tesserati.
 
 ---
 
 ## 🧠 Note tecniche per ripartire
 
-- **File**: `public/index.html` (~8.000 righe dopo l'estrazione docx) + `public/docx-lib.js` (libreria Word).
-- **Stato `_emb`** (riga 9): blob JSON iniziale. `_embVer` triggera merge/aggiornamento.
-- **Flusso dati**: `_emb` → localStorage → `loadState()` → `initSupabase()` → `loadFromSupabase()`.
-- **Scritture `config`**: passano dal proxy `state-save` (token firmato al login) con fallback anon solo se il proxy è irraggiungibile; la RLS ora blocca le scritture anon dirette.
-- **Segreti veri**: solo nelle env di Netlify (`SUPABASE_SERVICE_ROLE_KEY`, `TELEGRAM_BOT_TOKEN`, `STATE_TOKEN_SECRET`), usati dalle Netlify Functions in `netlify/functions/`.
-- **Login tesserati**: OTP a 6 cifre via Telegram (server-side) → sessione Supabase con RLS. Metodo legacy tessera+cellulare come riserva.
-- **Login admin**: email+password (verifica client) OPPURE OTP Telegram (per le tessere in `ADMIN_TESSERE`).
-- **PWA**: `manifest.json` + `sw.js` (network-first HTML, cache-first asset, no intercept di Supabase/Functions). Icone `icon-192/512/maskable-512.png`.
+- **File**: `public/index.html` (SPA monolitica) + `public/docx-lib.js` (libreria Word, caricata solo al primo export) + `public/guida-socio.html`.
+- **Netlify Functions** (⚠️ estensione `.mjs`, non `.js`): `auth-request-code`, `auth-verify-code`, `auth-poll-approval`, `auth-recover-tessera`, `telegram`, `telegram-webhook`, `state-save`. Helper condivisi in `netlify/lib/otp-session.mjs`.
+- **`state-save.mjs`** è l'API admin autenticata: azioni `token`, `save`, `soci-list`, `admin-creds`, `telegram-setwebhook`, `telegram-webhookinfo`.
+- **Due percorsi di scrittura**:
+  - *Catalogo/raccolte/impostazioni* → blob `config` via proxy `state-save` (funziona con email+password **e** OTP).
+  - *Tesserati/ordini/messaggi/prenotazioni* → tabelle dedicate con RLS, **richiedono sessione OTP**.
+- **Login tesserati**: OTP a 6 cifre via Telegram (valido **5 minuti**, 30 s di attesa fra un invio e l'altro), oppure bottone "✅ Sono io, entra" nel messaggio.
+- **Segreti**: solo nelle env di Netlify. Mai nel file pubblico.
 - **Test**: server statico locale + Chromium headless in
-  `/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell`
-  (usato per verificare ogni modifica di questa sessione).
-- **Deploy**: Netlify collegato al repo → auto-deploy al merge su `main`.
+  `/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell`.
+- **Deploy**: Netlify collegato al repo → parte automaticamente al merge su `main`.
+- ⚠️ **Attenzione**: su questo branch lavora anche un'altra sessione. Controllare
+  `git log` prima di modifiche estese, per non sovrapporsi.
 
 ---
 
-## ▶️ Come ripartire la prossima volta
-1. L'app è **operativa e sicura**: si può aprire ai tesserati.
-2. Per nuovi lavori, partire da un elemento del **Backlog** sopra.
-3. Ogni modifica: sviluppo su `claude/review-sgas-freeconomy-GtDm6`, verifica headless, commit, push, PR.
+## ▶️ Come ripartire
+1. L'app è operativa: si può usare normalmente.
+2. Per nuovi lavori, scegliere una voce dal **Backlog**.
+3. Flusso: sviluppo sul branch → verifica headless → commit → push → PR.

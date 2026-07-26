@@ -2013,6 +2013,11 @@ function syncToSupabase(){
       // Anagrafica soci: vive solo nella tabella `soci` (RLS), non va mai
       // pubblicata nel blob `config` (lettura pubblica via anon key).
       delete payloadObj.soci;
+      // Carrello: è personale e locale ad ogni dispositivo. Non va MAI
+      // pubblicato sul blob condiviso, altrimenti ogni client che riceve
+      // l'aggiornamento (via loadFromSupabase/realtime) si ritrova il
+      // carrello di un altro tesserato al posto del proprio.
+      delete payloadObj.cart;
       // Rimuovi immagini base64 da fornitori e prodotti per ridurre il payload
       if(Array.isArray(payloadObj.fornitori)){
         payloadObj.fornitori = payloadObj.fornitori.map(f=>{
@@ -2110,7 +2115,11 @@ async function loadFromSupabase(){
       _prevState.prodotti.forEach(p=>{if(p.id&&p.foto) _fotoMap[p.id]=p.foto;});
       S.prodotti.forEach(p=>{if(_fotoMap[p.id]) p.foto=_fotoMap[p.id];});
     }
-    if(!S.cart) S.cart = {raccoltaId:'', items:[]};
+    // Il carrello è personale: non arriva mai dal blob remoto (vedi
+    // syncToSupabase). Se un blob remoto storico lo contiene ancora,
+    // ignoralo comunque e mantieni quello già presente su questo dispositivo.
+    S.cart = (_prevState.cart && typeof _prevState.cart==='object' && Array.isArray(_prevState.cart.items))
+      ? _prevState.cart : {raccoltaId:'', items:[]};
     // Deduplicazione dopo caricamento Supabase
     if(S.fornitori){ const _fornBefore=S.fornitori.length; const _seenId={}; const _seenNm={}; const _dedupRemap={}; S.fornitori=S.fornitori.filter(f=>{ if(!f.id)return false; if(_seenId[f.id])return false; _seenId[f.id]=true; const k=_normNome(f.nome); if(k&&_seenNm[k]){ _dedupRemap[f.id]=_seenNm[k]; return false; } if(k)_seenNm[k]=f.id; return true; }); if(Array.isArray(S.prodotti)&&Object.keys(_dedupRemap).length){ S.prodotti.forEach(p=>{ if(p.fornitorId&&_dedupRemap[p.fornitorId]) p.fornitorId=_dedupRemap[p.fornitorId]; }); } if(S.fornitori.length<_fornBefore){ setTimeout(()=>syncToSupabase(),2000); } }
     if(S.prodotti){ const _seenP={}; S.prodotti=S.prodotti.filter(p=>{ const k=_prodKey(p); if(_seenP[k])return false; _seenP[k]=true; return true; }); }
@@ -2210,6 +2219,10 @@ function _subscribeSupabaseRealtime(){
           const _rtImgForn={}, _rtImgProd={};
           (S.fornitori||[]).forEach(f=>{if(f.id&&(f.logo||f.banner)) _rtImgForn[f.id]={logo:f.logo||null,banner:f.banner||null};});
           (S.prodotti||[]).forEach(p=>{if(p.id&&p.foto) _rtImgProd[p.id]=p.foto;});
+          // Carrello: personale, mai remoto (vedi syncToSupabase). Conservalo
+          // prima di sovrascrivere S, altrimenti un aggiornamento in tempo
+          // reale da un altro tesserato ti pianta il SUO carrello nel tuo.
+          const _rtCart = (S.cart && Array.isArray(S.cart.items)) ? S.cart : null;
           S = remote;
           S.config.supabasePaused = _prev.supabasePaused===true;
           S.config.supabaseUrl    = _prev.supabaseUrl||'';
@@ -2226,7 +2239,7 @@ function _subscribeSupabaseRealtime(){
           // Ripristina immagini locali (non viaggiano su Supabase)
           (S.fornitori||[]).forEach(f=>{if(_rtImgForn[f.id]){if(_rtImgForn[f.id].logo) f.logo=_rtImgForn[f.id].logo; if(_rtImgForn[f.id].banner) f.banner=_rtImgForn[f.id].banner;}});
           (S.prodotti||[]).forEach(p=>{if(_rtImgProd[p.id]) p.foto=_rtImgProd[p.id];});
-          if(!S.cart) S.cart = {raccoltaId:'', items:[]};
+          S.cart = _rtCart || {raccoltaId:'', items:[]};
           localStorage.setItem('sgas_state', JSON.stringify(S));
           // Aggiorna UI admin in tempo reale
           if(currentUser && currentUser.type==='admin' && window._currentAdminSec){
@@ -3974,8 +3987,19 @@ function submitOrder(){
     return;
   }
   S.cart.raccoltaId=raccId;
+  // Scarta righe che puntano a prodotti non più esistenti (es. catalogo
+  // aggiornato nel frattempo): un ordine non deve MAI poter risultare a
+  // totale zero per una riga silenziosamente ignorata nel calcolo.
+  const validItems=S.cart.items.filter(i=>S.prodotti.some(x=>x.id===i.prodottoId));
+  if(validItems.length!==S.cart.items.length){
+    S.cart.items=validItems;
+    toast('⚠️ Alcuni prodotti nel carrello non sono più disponibili e sono stati rimossi.');
+    renderCart();
+    if(!validItems.length) return;
+  }
   let total=0;
   S.cart.items.forEach(i=>{const p=S.prodotti.find(x=>x.id===i.prodottoId);if(p)total+=p.prezzo*i.qty;});
+  if(total<=0){toast('⛔ Impossibile inviare: totale non valido.');renderCart();return;}
   const ord={id:'ORD-'+uid().toUpperCase().slice(0,6),socioId:currentUser.id,socioTessera:currentUser.tessera||'',socioNome:currentUser.nome,socioCognome:currentUser.cognome||'',socioCellulare:currentUser.cellulare||currentUser.telefono||'',socioTelegram:currentUser.telegram||'',raccoltaId:raccId,raccoltaNome:(raccSel&&raccSel.nome)||'',items:[...S.cart.items],totale:total,data:new Date().toISOString()};
   S.ordini.push(ord);
   S.cart.items=[];
