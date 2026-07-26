@@ -48,7 +48,9 @@
               font-weight:700; font-size:15px; display:flex; align-items:center; justify-content:center;
               flex-shrink:0; }
   .step-body { flex:1; }
-  .step-body strong { display:block; font-size:15px; margin-bottom:3px; }
+  /* Solo il titolo del passo (figlio diretto) va a blocco: il grassetto usato
+     dentro i paragrafi deve restare in linea col testo. */
+  .step-body > strong { display:block; font-size:15px; margin-bottom:3px; }
   .step-body p { font-size:14px; color:var(--muted); line-height:1.5; }
 
   /* ── MOCKUP PHONE ── */
@@ -583,6 +585,67 @@
 
   <div class="alert ok">🔄 <strong>Il carrello si salva da solo:</strong> puoi chiudere l'app e tornare dopo — trovi tutto come l'avevi lasciato. Per modificare: ✕ rimuove un prodotto, «🗑 Svuota carrello» cancella tutto.</div>
 
+  <!-- ══ TROVARE UN PRODOTTO CON LA RICERCA ══ -->
+  <hr style="border:none;border-top:2px solid var(--green-pale);margin:28px 0 20px;">
+  <div class="sec-title" style="font-size:18px;">🔍 Trovare in fretta un prodotto</div>
+  <div class="sec-sub">Due barre di ricerca: una per i fornitori, una dentro il fornitore</div>
+
+  <div class="alert ok" style="margin-bottom:16px;">💡 Non serve sapere <em>chi</em> vende cosa: scrivi il <strong>nome del prodotto</strong> o il suo <strong>codice</strong> nella barra in alto e l'app ti mostra il fornitore che ce l'ha.</div>
+
+  <!-- Barra 1 -->
+  <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Barra 1 — In cima al catalogo</div>
+  <div class="mock" style="max-width:330px;">
+    <div class="mock-body" style="padding:12px;">
+      <div class="m-field focus" style="border-radius:24px;margin-bottom:6px;">🔍 miele<span class="tag" style="font-size:11px;">← scrivi qui</span></div>
+      <div style="font-size:10px;color:#757575;margin-bottom:8px;">Cerca fornitore...</div>
+      <div class="m-forn" style="margin-top:0;">
+        <div class="fi">🍯</div>
+        <div><div class="fn">Apicoltura Rossi</div><div class="fd">📍 Legnano (MI) · 15 prodotti</div></div>
+      </div>
+      <div style="font-size:10px;color:var(--green);font-weight:700;text-align:center;margin-top:8px;">↑ trovato grazie ai suoi prodotti</div>
+    </div>
+  </div>
+
+  <div class="step"><div class="step-num">🔎</div><div class="step-body">
+    <strong>Cosa puoi scrivere qui</strong>
+    <p>Questa barra guarda dentro <em>tutto</em>: nome del fornitore, zona, descrizione, caratteristiche… <strong>e anche i prodotti che vende</strong>.</p>
+  </div></div>
+
+  <table class="tbl">
+    <thead><tr><th>Se scrivi…</th><th>Trovi</th></tr></thead>
+    <tbody>
+      <tr><td><code>miele</code></td><td>I fornitori che hanno prodotti col miele</td></tr>
+      <tr><td><code>PC3</code></td><td>Il fornitore che ha quel <strong>codice articolo</strong></td></tr>
+      <tr><td><code>legnano</code></td><td>I fornitori di quella <strong>zona</strong></td></tr>
+      <tr><td><code>biologico</code></td><td>Chi ha quella <strong>caratteristica</strong></td></tr>
+      <tr><td><code>kg</code></td><td>Chi vende prodotti in quella <strong>unità di misura</strong></td></tr>
+    </tbody>
+  </table>
+
+  <!-- Barra 2 -->
+  <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:24px 0 8px;">Barra 2 — Dentro la scheda del fornitore</div>
+  <div class="mock" style="max-width:330px;">
+    <div class="mock-body" style="padding:12px;">
+      <div class="m-field focus" style="border-radius:20px;margin-bottom:8px;">🔍 acacia<span class="tag" style="font-size:11px;">← filtra i prodotti</span></div>
+      <div style="font-size:10px;color:#757575;margin-bottom:8px;">Cerca prodotto o codice...</div>
+      <div class="m-prod">
+        <span class="pn">Miele di Acacia 500g <span style="font-family:monospace;background:#e8f5e9;color:#1b5e20;font-size:9px;padding:1px 5px;border-radius:4px;">cod. M12</span></span>
+        <span class="pp">€8.50</span>
+        <div class="m-qty"><span class="qb">−</span><span class="qn">0</span><span class="qb plus">+</span></div>
+      </div>
+      <div style="font-size:10px;color:#757575;text-align:center;margin-top:8px;">Gli altri prodotti restano nascosti finché non svuoti la ricerca</div>
+    </div>
+  </div>
+
+  <div class="step"><div class="step-num">🔎</div><div class="step-body">
+    <strong>Filtra la lista di quel fornitore</strong>
+    <p>Utile quando un fornitore ha molti articoli. Puoi scrivere il <strong>nome</strong>, il <strong>codice</strong> (es. <code>M12</code>), una parola della <strong>descrizione</strong> o l'<strong>unità</strong> (es. <code>vasetto</code>).</p>
+  </div></div>
+
+  <div class="alert info">📋 <strong>Il codice articolo</strong> è la sigla accanto al nome del prodotto (es. <code>cod. M12</code>): è lo stesso che compare sull'ordine, quindi è il modo più veloce e sicuro per ritrovare un articolo preciso.</div>
+
+  <div class="alert warn">🧹 Per rivedere tutto l'elenco <strong>svuota la barra</strong> di ricerca. Cambiando categoria (🥗 Alimentari, 🧴 Igiene…) la ricerca si azzera da sola.</div>
+
   <div class="gif-card">
     <h3>🎞️ Flusso completo ordine</h3>
     <img src="guide/gif-ordine.gif" alt="GIF ordine" loading="lazy">
@@ -738,6 +801,7 @@
       <tr><td>📲 Installare l'app</td><td>Android: menu ⋮ → Installa · iPhone: Condividi → Aggiungi a Home · PC: icona ⊕ nella barra indirizzo</td></tr>
       <tr><td>🛒 Vedere raccolte aperte</td><td>Tab <strong>«🛒 Raccolte»</strong> nella barra laterale</td></tr>
       <tr><td>📦 Ordinare</td><td><strong>Raccolte → tocca fornitore → + prodotti → 🛒 → Invia</strong></td></tr>
+      <tr><td>🔍 Trovare un prodotto</td><td>Scrivi <strong>nome o codice</strong> nella barra in alto: trova anche il fornitore che lo vende</td></tr>
       <tr><td>💾 Modificare l'ordine</td><td>🛒 Carrello (si salva da solo)</td></tr>
       <tr><td>💬 Scrivere all'admin</td><td>Icona 💬 in alto</td></tr>
       <tr><td>📋 Prenotare</td><td>Icona 📅 → quantità → Prenota</td></tr>
