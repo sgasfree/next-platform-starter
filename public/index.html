@@ -1891,6 +1891,7 @@ function _persistAdminCreds(){
 let _supaClient = null;
 let _supaUrlUsed = '';
 let _supaSubscribed = false;
+let _lastRtToast = 0;
 
 function getSupabase(){
   const url = (S.config && S.config.supabaseUrl||'').trim();
@@ -2245,7 +2246,14 @@ function _subscribeSupabaseRealtime(){
           if(currentUser && currentUser.type==='admin' && window._currentAdminSec){
             setTimeout(()=>{ try{ adminNav(window._currentAdminSec); }catch(e){} }, 200);
           }
-          toast('🔄 Dati aggiornati in tempo reale');
+          // Un burst di scritture ravvicinate (es. più ordini inviati in
+          // rapida sequenza) genera un evento realtime per ciascuna: senza
+          // un limite l'avviso "sembra" apparire in loop continuo.
+          const _nowRt = Date.now();
+          if(!_lastRtToast || _nowRt - _lastRtToast > 4000){
+            _lastRtToast = _nowRt;
+            toast('🔄 Dati aggiornati in tempo reale');
+          }
         }catch(e){ console.warn('Realtime parse error',e); }
       })
       .subscribe((status)=>{
@@ -2510,7 +2518,11 @@ function renderCatSidebarOspite(){
     '<button class="cat-btn'+(cat.id===ospiteTab?' active':'')+'" onclick="setTabOspite(\''+cat.id+'\')">'+
     '<span class="cat-ico">'+cat.ico+'</span>'+escHtml(cat.nome.replace(/(.{6})/g,'$1\u00AD'))+'</button>'
   ).join('')
-  +'<button class="cat-btn" onclick="showOspiteSection(\'chisiamo\');renderChiSiamo(\'ospite\')" style="margin-top:6px;border-top:1px solid var(--green-light);padding-top:8px;"><span class="cat-ico">ℹ️</span>Chi Siamo</button>';
+  +'<button class="cat-btn" onclick="showOspiteSection(\'chisiamo\');renderChiSiamo(\'ospite\')" style="margin-top:6px;border-top:1px solid var(--green-light);padding-top:8px;"><span class="cat-ico">ℹ️</span>Chi Siamo</button>'
+  // Guida tesserato accessibile già dalla vetrina: chi sta esplorando capisce
+  // come funziona (accesso, ricerca, carrello, ordine) prima di richiedere la
+  // tessera, non solo dopo essere entrato.
+  +'<a class="cat-btn" href="guida-socio.html" style="text-decoration:none;"><span class="cat-ico">📖</span>Guida Tesserato</a>';
 }
 
 function setTabOspite(cat){
