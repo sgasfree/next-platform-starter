@@ -1891,6 +1891,7 @@ function _persistAdminCreds(){
 let _supaClient = null;
 let _supaUrlUsed = '';
 let _supaSubscribed = false;
+let _lastRtToast = 0;
 
 function getSupabase(){
   const url = (S.config && S.config.supabaseUrl||'').trim();
@@ -2245,7 +2246,14 @@ function _subscribeSupabaseRealtime(){
           if(currentUser && currentUser.type==='admin' && window._currentAdminSec){
             setTimeout(()=>{ try{ adminNav(window._currentAdminSec); }catch(e){} }, 200);
           }
-          toast('🔄 Dati aggiornati in tempo reale');
+          // Un burst di scritture ravvicinate (es. più ordini inviati in
+          // rapida sequenza) genera un evento realtime per ciascuna: senza
+          // un limite l'avviso "sembra" apparire in loop continuo.
+          const _nowRt = Date.now();
+          if(!_lastRtToast || _nowRt - _lastRtToast > 4000){
+            _lastRtToast = _nowRt;
+            toast('🔄 Dati aggiornati in tempo reale');
+          }
         }catch(e){ console.warn('Realtime parse error',e); }
       })
       .subscribe((status)=>{
