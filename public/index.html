@@ -8147,8 +8147,13 @@ if(_isAdminPath){
   if(!S.config.setupDone){
     showView('wizard');
   } else {
+    // #vetrina: rientro dalla guida (o link diretto alla vetrina pubblica).
+    // Se c'è una sessione valida la si ripristina comunque — chi è già entrato
+    // torna alla propria area, non viene buttato fuori; chi sta solo guardando
+    // la vetrina ci ritorna senza passare dalla schermata di accesso.
     if(!restoreSession()){
-      showLoginView();
+      if(window.location.hash==='#vetrina') loginOspite();
+      else showLoginView();
     }
   }
 }
