@@ -2492,6 +2492,15 @@ function backToCatalogo(){
   setInterval(_updateFab,400);
 })();
 
+// Prodotti di un fornitore in ordine alfabetico, come nell'elenco admin
+// (renderProdotti_admin): il tesserato e l'ospite devono ritrovare le voci
+// nello stesso ordine con cui l'admin le vede e le gestisce.
+function _prodottiOrdinati(fornitorId){
+  return S.prodotti
+    .filter(p=>p.fornitorId===fornitorId)
+    .sort((a,b)=>(a.nome||'').toLowerCase().localeCompare((b.nome||'').toLowerCase(),'it'));
+}
+
 // ════════════════════ OSPITE (VETRINA) ════════════════════
 let ospiteTab='';
 
@@ -2577,7 +2586,7 @@ function renderFornitoriOspite(){
 function openFornitoreOspite(id){
   const f=S.fornitori.find(x=>x.id===id);
   if(!f) return;
-  const prods=S.prodotti.filter(p=>p.fornitorId===id); // vetrina: mostra tutti i prodotti offerti (come il catalogo)
+  const prods=_prodottiOrdinati(id); // vetrina: mostra tutti i prodotti offerti (come il catalogo)
   const chars=f.caratteristiche||[];
   const logoHtml=(f.banner||f.logo)
     ?'<div style="margin-bottom:0;overflow:hidden;border-radius:14px 14px 0 0;"><img src="'+(f.banner||f.logo)+'" style="width:100%;max-height:180px;object-fit:cover;display:block;" alt="'+escHtml(f.nome)+'"></div>'
@@ -3735,7 +3744,7 @@ function openFornitore(id){
   currentFornId=id;
   const f=S.fornitori.find(x=>x.id===id);
   if(!f) return;
-  const prods=S.prodotti.filter(p=>p.fornitorId===id);
+  const prods=_prodottiOrdinati(id);
   const chars=f.caratteristiche||[];
   const logoHtml=(f.banner||f.logo)
     ?`<div style="margin-bottom:0;overflow:hidden;border-radius:14px 14px 0 0;"><img src="${f.banner||f.logo}" style="width:100%;max-height:180px;object-fit:cover;display:block;" alt="${escHtml(f.nome)}"></div>`
