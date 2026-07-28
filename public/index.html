@@ -5794,21 +5794,68 @@ function _riepilogoTesseratiHTML(){
     + '</table></div>';
 }
 
-// Export CSV del riepilogo (stessa struttura della tabella a schermo).
-function exportRiepilogoTesseratiCSV(){
-  const gruppi = _buildRiepilogoTesserati(_riepFiltroRacc);
-  const racc = _riepFiltroRacc ? S.raccolte.find(r=>r.id===_riepFiltroRacc) : null;
-  const rows = [['Tesserato','Fornitore','Codice','Prodotto','Q.tà','Importo']];
-  let totQty=0, totImp=0;
-  gruppi.forEach(g=>{
-    totQty += g.qty; totImp += g.tot;
-    g.fornitori.forEach(f=>{
-      f.righe.forEach(r=>rows.push([g.label, f.nome, r.codice||'', r.nome, r.qty, r.tot]));
+// Nominativo del tesserato: nome e cognome insieme (senza tessera).
+// Usato nell'export CSV, dove la colonna richiesta è il nominativo puro;
+// la tabella a schermo continua a mostrare tessera + nome (_ordSocioLabel).
+function _ordSocioNominativo(o){
+  const s=(S.soci||[]).find(x=>x.id===o.socioId);
+  const nome = s ? ((s.nome||'')+(s.cognome?' '+s.cognome:'')).trim()
+                 : [((o.socioNome&&o.socioNome!==o.socioId)?o.socioNome:''), o.socioCognome||'']
+                     .filter(Boolean).join(' ').trim();
+  return nome || ((s&&s.tessera)||o.socioTessera||'—');
+}
+
+// Righe di dettaglio per l'export: una riga per ogni articolo di ogni ordine.
+// A differenza della tabella a schermo (che aggrega per prodotto) qui la data
+// va riportata, quindi le righe non vengono fuse fra ordini diversi.
+// Ordinamento: tesserato → data → fornitore → prodotto.
+function _buildRigheTesserati(raccoltaId){
+  const ordini = raccoltaId ? S.ordini.filter(o=>o.raccoltaId===raccoltaId) : S.ordini;
+  const righe = [];
+  ordini.forEach(o=>{
+    (o.items||[]).forEach(i=>{
+      const p = S.prodotti.find(x=>x.id===i.prodottoId);
+      if(!p) return;
+      const f = S.fornitori.find(x=>x.id===p.fornitorId);
+      righe.push({
+        nominativo: _ordSocioNominativo(o),
+        data:       o.data,
+        fornitore:  f ? f.nome : '—',
+        codice:     p.codice||'',
+        prodotto:   p.nome||'',
+        prezzo:     p.prezzo||0,
+        qty:        i.qty,
+        tot:        (p.prezzo||0)*i.qty
+      });
     });
-    rows.push(['','','','TOTALE '+g.label, g.qty, g.tot]);
-    rows.push([]);
   });
-  rows.push(['','','','TOTALE GENERALE', totQty, totImp]);
+  return righe.sort((a,b)=>
+       a.nominativo.localeCompare(b.nominativo,'it')
+    || String(a.data).localeCompare(String(b.data))
+    || a.fornitore.localeCompare(b.fornitore,'it')
+    || a.prodotto.localeCompare(b.prodotto,'it'));
+}
+
+// Export CSV del riepilogo per tesserato, in formato dettaglio riga per riga.
+function exportRiepilogoTesseratiCSV(){
+  const righe = _buildRigheTesserati(_riepFiltroRacc);
+  const racc = _riepFiltroRacc ? S.raccolte.find(r=>r.id===_riepFiltroRacc) : null;
+  const rows = [['Nominativo','Data','Fornitore','Codice fornitore','Prodotto','Prezzo','Q.tà','Importo']];
+  let totQty=0, totImp=0, subQty=0, subImp=0, corrente=null;
+  const chiudiSub = ()=>{
+    if(corrente===null) return;
+    rows.push(['','','','','TOTALE '+corrente,'',String(subQty), subImp]);
+    rows.push([]);
+    subQty=0; subImp=0;
+  };
+  righe.forEach(r=>{
+    if(r.nominativo!==corrente){ chiudiSub(); corrente=r.nominativo; }
+    rows.push([r.nominativo, new Date(r.data).toLocaleDateString('it-IT'), r.fornitore,
+               r.codice, r.prodotto, r.prezzo, String(r.qty), r.tot]);
+    subQty+=r.qty; subImp+=r.tot; totQty+=r.qty; totImp+=r.tot;
+  });
+  chiudiSub();
+  rows.push(['','','','','TOTALE GENERALE','',String(totQty), totImp]);
   const fname = 'riepilogo_tesserati_'+((racc?racc.nome:'tutte').replace(/\s/g,'_'))+'.csv';
   _downloadCSV(rows, fname);
   toast('📥 Riepilogo per tesserato scaricato');
