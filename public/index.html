@@ -2263,13 +2263,19 @@ function _subscribeSupabaseRealtime(){
 }
 
 // ════════ TELEGRAM NOTIFICATIONS ════════
+// Invio di una notifica Telegram. Il server accetta come destinatari solo i
+// chat ID che conosce: quelli degli admin sempre, quelli dei tesserati solo
+// con un token valido. Qui il token si allega quando disponibile; nei flussi
+// non autenticati (recupero password, che scrive solo agli admin) resta vuoto.
 async function sendTelegramMsg(chatId, text){
   if(!chatId) return;
+  let tok = null;
+  try{ tok = await _getStateToken(); }catch(e){}
   try{
     await fetch('/.netlify/functions/telegram',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({chat_id:chatId, text:text, parse_mode:'HTML'})
+      body:JSON.stringify({chat_id:chatId, text:text, parse_mode:'HTML', token:tok||undefined})
     });
   }catch(e){ console.warn('Telegram notify error:',e); }
 }
@@ -7568,9 +7574,12 @@ async function testTelegramMsg(){
   const chatId=(document.getElementById('s-tgadmin').value||'').trim();
   if(!chatId){toast('❌ Inserisci prima il Chat ID Admin');return;}
   try{
+    // Il Chat ID in prova può non essere ancora salvato: il server lo accetta
+    // solo perché il token è di un admin.
+    const tok=await _getStateToken();
     const res=await fetch('/.netlify/functions/telegram',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({chat_id:chatId,text:'✅ <b>Test S-GAS Freeconomy</b>\n\nBot Telegram configurato correttamente! 🎉',parse_mode:'HTML'})
+      body:JSON.stringify({chat_id:chatId,text:'✅ <b>Test S-GAS Freeconomy</b>\n\nBot Telegram configurato correttamente! 🎉',parse_mode:'HTML',token:tok||undefined})
     });
     const data=await res.json();
     if(data.ok) toast('✅ Messaggio di test inviato!');
