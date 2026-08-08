@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Note legali — SGAS Freeconomy</title>
+<style>
+  :root {
+    --green: #2e7d32;
+    --green-dark: #1b5e20;
+    --green-light: #4caf50;
+    --green-pale: #e8f5e9;
+    --accent: #ff6f00;
+    --red: #e53935;
+    --bg: #f5f5f5;
+    --card: #fff;
+    --text: #212121;
+    --muted: #757575;
+    --shadow: 0 2px 12px rgba(0,0,0,.12);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+         background: var(--bg); color: var(--text); }
+
+  .hdr { background: var(--green); color: #fff; padding: 16px 20px; position: sticky; top:0; z-index:100;
+         display:flex; align-items:center; gap:12px; box-shadow: var(--shadow); }
+  .hdr a { color:#fff; text-decoration:none; font-size:22px; }
+  .hdr h1 { font-size:18px; font-weight:600; }
+  .hdr small { display:block; font-size:12px; opacity:.8; }
+
+  .nav { display:flex; gap:8px; overflow-x:auto; padding:12px 16px; background:#fff;
+         border-bottom:2px solid var(--green-pale); position:sticky; top:57px; z-index:90; }
+  .nav a { white-space:nowrap; text-decoration:none; background:var(--green-pale); color:var(--green);
+           padding:6px 14px; border-radius:20px; font-size:13px; font-weight:500; transition:.2s; }
+  .nav a:hover, .nav a.active { background:var(--green); color:#fff; }
+
+  .sec { padding:20px 16px 32px; max-width:620px; margin:0 auto; }
+  .sec-title { font-size:22px; font-weight:700; color:var(--green); margin-bottom:4px;
+               display:flex; align-items:center; gap:8px; }
+  .sec-sub { color:var(--muted); font-size:14px; margin-bottom:20px; }
+  .divider { border:none; border-top:2px solid var(--green-pale); margin:32px 0; }
+
+  h2.art { font-size:16px; color:var(--green-dark); margin:24px 0 8px; }
+  h3.sub { font-size:14px; color:var(--text); margin:16px 0 6px; }
+  p, li { font-size:14px; line-height:1.6; color:#424242; }
+  p { margin-bottom:10px; }
+  ul, ol { margin:0 0 12px 20px; }
+  li { margin-bottom:5px; }
+
+  .alert { border-radius:10px; padding:12px 14px; font-size:14px; margin:14px 0; }
+  .alert.ok   { background:#e8f5e9; border-left:4px solid var(--green); color:#1b5e20; }
+  .alert.warn { background:#fff3e0; border-left:4px solid var(--accent); color:#e65100; }
+  .alert.info { background:#e3f2fd; border-left:4px solid #1976d2; color:#0d47a1; }
+
+  .tbl { width:100%; border-collapse:collapse; font-size:13px; margin:12px 0; display:block; overflow-x:auto; }
+  .tbl th { background:var(--green); color:#fff; padding:8px 10px; text-align:left; }
+  .tbl td { padding:8px 10px; border-bottom:1px solid #e0e0e0; vertical-align:top; }
+
+  .fill { background:#fff3e0; border:1px dashed var(--accent); border-radius:4px;
+          padding:1px 7px; font-weight:700; color:#e65100; font-size:13px; }
+
+  .meta { font-size:12px; color:var(--muted); border-top:1px solid #e0e0e0;
+          padding-top:12px; margin-top:24px; }
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <a href="javascript:history.back()">←</a>
+  <div>
+    <h1>⚖️ Note legali</h1>
+    <small>SGAS Freeconomy — condizioni d'uso e trattamento dei dati</small>
+  </div>
+</header>
+
+<nav class="nav">
+  <a href="#termini">📜 Termini e Condizioni</a>
+  <a href="#privacy">🔐 Privacy</a>
+  <a href="index.html#vetrina">🏠 Torna Vetrina</a>
+</nav>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!--  TERMINI E CONDIZIONI                                  -->
+<!-- ══════════════════════════════════════════════════════ -->
+<section class="sec" id="termini">
+  <div class="sec-title">📜 Termini e Condizioni d'uso</div>
+  <div class="sec-sub">Le regole di funzionamento dell'applicazione SGAS Freeconomy.</div>
+
+  <div class="alert warn">
+    ⚠️ <strong>Da completare prima della pubblicazione.</strong> Le parti evidenziate in
+    <span class="fill">arancione</span> vanno compilate. Vedi in fondo la nota sullo stato giuridico del gruppo.
+  </div>
+
+  <h2 class="art">1. Che cos'è questa applicazione</h2>
+  <p>
+    SGAS Freeconomy è uno strumento interno che serve a organizzare <strong>acquisti collettivi</strong>
+    fra le persone tesserate del gruppo. Permette di consultare i fornitori e i loro prodotti,
+    raccogliere gli ordini in periodi definiti ("raccolte"), e comunicare con chi gestisce il gruppo.
+  </p>
+  <div class="alert info">
+    ℹ️ <strong>Non è un negozio online.</strong> Attraverso l'applicazione non avviene alcuna vendita
+    e <strong>non si effettua alcun pagamento</strong>. L'app raccoglie e somma le richieste dei
+    tesserati; l'acquisto vero e proprio, il pagamento e il ritiro avvengono fuori dall'applicazione,
+    secondo le modalità concordate volta per volta nel gruppo.
+  </div>
+
+  <h2 class="art">2. Chi può usarla</h2>
+  <ul>
+    <li><strong>Vetrina pubblica:</strong> chiunque può consultare fornitori e prodotti, senza ordinare.</li>
+    <li><strong>Area tesserati:</strong> riservata a chi ha una tessera attiva rilasciata dal gruppo.</li>
+    <li>L'accesso è consentito a persone <strong>maggiorenni</strong>.</li>
+  </ul>
+
+  <h2 class="art">3. Accesso e credenziali</h2>
+  <p>
+    L'accesso avviene indicando il numero di tessera e il cellulare, e confermando con un codice
+    temporaneo ricevuto su Telegram. Il codice è <strong>personale</strong>, vale 5 minuti e non va
+    comunicato a nessuno. Chi gestisce il gruppo non chiederà mai il codice.
+  </p>
+  <p>
+    Chi possiede una tessera è responsabile dell'uso che viene fatto del proprio accesso e deve
+    segnalare tempestivamente qualsiasi utilizzo anomalo.
+  </p>
+
+  <h2 class="art">4. Come funziona un ordine</h2>
+  <ol>
+    <li>Chi amministra apre una <strong>raccolta</strong>, indicando la scadenza.</li>
+    <li>Il tesserato aggiunge i prodotti al carrello e invia l'ordine entro la scadenza.</li>
+    <li>Alla chiusura gli ordini vengono sommati e trasmessi ai fornitori.</li>
+    <li>Consegna, pagamento e ritiro seguono le modalità comunicate dal gruppo.</li>
+  </ol>
+  <div class="alert warn">
+    ⚠️ L'invio dell'ordine è un <strong>impegno verso il gruppo</strong>: gli ordini vengono aggregati
+    e trasmessi ai fornitori. Dopo la chiusura della raccolta la rinuncia non è più garantita, perché
+    la merce potrebbe essere già stata ordinata.
+  </div>
+
+  <h2 class="art">5. Prezzi e disponibilità</h2>
+  <p>
+    I prezzi indicati sono quelli comunicati dai fornitori e vengono applicati
+    <strong>senza alcun ricarico</strong>. Possono variare, e alcuni prodotti possono risultare non
+    disponibili al momento della consegna: in tal caso il gruppo ne dà comunicazione.
+  </p>
+
+  <h2 class="art">6. Responsabilità sui prodotti</h2>
+  <p>
+    I prodotti sono realizzati e forniti dai <strong>fornitori</strong>, che restano gli unici
+    responsabili della loro qualità, conformità, etichettatura e sicurezza. Il gruppo svolge una
+    funzione di organizzazione e non assume la veste di venditore.
+  </p>
+
+  <h2 class="art">7. Uso corretto dell'applicazione</h2>
+  <p>Chi utilizza l'applicazione si impegna a:</p>
+  <ul>
+    <li>fornire dati veritieri e tenerli aggiornati;</li>
+    <li>non cedere ad altri le proprie credenziali di accesso;</li>
+    <li>non tentare di accedere a dati altrui o di alterare il funzionamento del servizio;</li>
+    <li>usare i messaggi interni in modo rispettoso.</li>
+  </ul>
+  <p>
+    In caso di violazione, l'accesso può essere sospeso.
+  </p>
+
+  <h2 class="art">8. Disponibilità del servizio</h2>
+  <p>
+    L'applicazione è offerta "così com'è", senza garanzia di funzionamento continuo. Può essere
+    sospesa per manutenzione, aggiornamenti o cause non dipendenti dal gruppo (guasti dei servizi
+    esterni utilizzati, interruzioni di rete).
+  </p>
+
+  <h2 class="art">9. Modifiche</h2>
+  <p>
+    Questi termini possono essere aggiornati. Le modifiche rilevanti vengono comunicate ai tesserati;
+    l'uso dell'applicazione dopo l'aggiornamento vale come presa visione.
+  </p>
+
+  <h2 class="art">10. Legge applicabile e contatti</h2>
+  <p>
+    Si applica la legge italiana. Per qualsiasi comunicazione:
+    <span class="fill">indirizzo email di riferimento</span>.
+  </p>
+
+  <div class="alert warn">
+    ⚠️ <strong>Stato giuridico del gruppo.</strong> Allo stato attuale SGAS non è costituito come
+    associazione. Ciò significa che non esiste un soggetto giuridico distinto dalle persone fisiche
+    che lo animano: obblighi e responsabilità ricadono direttamente su chi agisce.
+    Vedi la nota conclusiva in fondo alla pagina.
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!--  INFORMATIVA PRIVACY                                   -->
+<!-- ══════════════════════════════════════════════════════ -->
+<section class="sec" id="privacy">
+  <div class="sec-title">🔐 Informativa sul trattamento dei dati</div>
+  <div class="sec-sub">Ai sensi degli articoli 13 e 14 del Regolamento UE 2016/679 (GDPR).</div>
+
+  <h2 class="art">1. Chi tratta i dati (titolare)</h2>
+  <p>
+    Titolare del trattamento è <span class="fill">nome e cognome</span>,
+    domiciliato in <span class="fill">indirizzo</span>,
+    contattabile a <span class="fill">indirizzo email</span>.
+  </p>
+  <div class="alert warn">
+    ⚠️ Non essendo il gruppo costituito in associazione, il titolare non può essere "SGAS":
+    dev'essere indicata la <strong>persona fisica</strong> che decide finalità e modalità del
+    trattamento. È il motivo principale per cui conviene costituire l'associazione.
+  </div>
+
+  <h2 class="art">2. Quali dati vengono trattati</h2>
+  <table class="tbl">
+    <thead><tr><th>Categoria</th><th>Dati</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Identificativi</strong></td>
+          <td>Nome, cognome, numero di tessera, date di emissione e scadenza</td></tr>
+      <tr><td><strong>Contatto</strong></td>
+          <td>Numero di cellulare, nome utente Telegram, identificativo della chat Telegram</td></tr>
+      <tr><td><strong>Attività nel gruppo</strong></td>
+          <td>Ordini effettuati (prodotti, quantità, importi, date), prenotazioni, messaggi scambiati con chi amministra</td></tr>
+      <tr><td><strong>Tecnici</strong></td>
+          <td>Codici di accesso temporanei (conservati solo in forma cifrata), identificativi di sessione</td></tr>
+    </tbody>
+  </table>
+  <div class="alert ok">
+    ✅ <strong>Non vengono usati cookie di profilazione né strumenti di tracciamento pubblicitario.</strong>
+    Non viene svolta alcuna attività di marketing e non vengono adottate decisioni automatizzate
+    o di profilazione.
+  </div>
+
+  <h2 class="art">3. Perché vengono trattati e con quale base giuridica</h2>
+  <table class="tbl">
+    <thead><tr><th>Finalità</th><th>Base giuridica</th></tr></thead>
+    <tbody>
+      <tr><td>Gestire l'adesione al gruppo e la tessera</td>
+          <td>Esecuzione del rapporto in essere (art. 6.1.b)</td></tr>
+      <tr><td>Raccogliere e trasmettere gli ordini collettivi</td>
+          <td>Esecuzione del rapporto in essere (art. 6.1.b)</td></tr>
+      <tr><td>Verificare l'identità all'accesso e proteggere il servizio</td>
+          <td>Legittimo interesse alla sicurezza (art. 6.1.f)</td></tr>
+      <tr><td>Inviare comunicazioni di servizio (conferme d'ordine, avvisi sulle raccolte)</td>
+          <td>Esecuzione del rapporto in essere (art. 6.1.b)</td></tr>
+      <tr><td>Adempiere a obblighi di legge, ove applicabili</td>
+          <td>Obbligo legale (art. 6.1.c)</td></tr>
+    </tbody>
+  </table>
+  <p>
+    Il conferimento dei dati è necessario per partecipare agli acquisti collettivi: senza di essi
+    non è possibile emettere la tessera né gestire gli ordini.
+  </p>
+
+  <h2 class="art">4. A chi vengono comunicati</h2>
+  <p>
+    I dati non vengono diffusi né ceduti a terzi per finalità proprie. Sono trattati da chi
+    amministra il gruppo e dai seguenti fornitori di servizi, che agiscono come responsabili del
+    trattamento:
+  </p>
+  <table class="tbl">
+    <thead><tr><th>Servizio</th><th>Ruolo</th><th>Dati coinvolti</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Supabase</strong></td><td>Banca dati e autenticazione</td>
+          <td>Tutti i dati sopra elencati</td></tr>
+      <tr><td><strong>Netlify</strong></td><td>Pubblicazione del sito e funzioni server</td>
+          <td>Dati in transito durante l'uso</td></tr>
+      <tr><td><strong>Telegram</strong></td><td>Invio dei codici di accesso e delle notifiche</td>
+          <td>Identificativo chat e testo del messaggio (che include il riepilogo dell'ordine)</td></tr>
+      <tr><td><strong>EmailJS</strong></td><td>Invio all'amministratore dell'email di riepilogo ordine</td>
+          <td>Nome, cognome, cellulare, contatto Telegram, dettaglio dell'ordine</td></tr>
+    </tbody>
+  </table>
+  <p>
+    Inoltre, i fornitori dei prodotti ricevono l'elenco aggregato di quanto ordinato, con i dati
+    strettamente necessari alla preparazione e alla consegna.
+  </p>
+
+  <h2 class="art">5. Trasferimenti fuori dall'Unione Europea</h2>
+  <p>
+    Alcuni dei servizi indicati hanno sede o infrastrutture fuori dall'Unione Europea. In tal caso
+    il trasferimento avviene sulla base delle <strong>clausole contrattuali standard</strong>
+    approvate dalla Commissione Europea o di altra garanzia adeguata prevista dal Capo V del GDPR.
+  </p>
+  <div class="alert warn">
+    ⚠️ Da verificare e specificare: la <strong>regione</strong> in cui è ospitata la banca dati
+    (impostazione del progetto Supabase) e le condizioni contrattuali di ciascun servizio.
+  </div>
+
+  <h2 class="art">6. Per quanto tempo vengono conservati</h2>
+  <table class="tbl">
+    <thead><tr><th>Dato</th><th>Conservazione</th></tr></thead>
+    <tbody>
+      <tr><td>Dati della persona tesserata</td>
+          <td>Per tutta la durata dell'adesione e <span class="fill">n.</span> mesi dopo la cessazione</td></tr>
+      <tr><td>Ordini e prenotazioni</td>
+          <td><span class="fill">n. anni</span>, anche per eventuali esigenze amministrative</td></tr>
+      <tr><td>Messaggi con l'amministrazione</td>
+          <td>Per la durata dell'adesione</td></tr>
+      <tr><td>Codici di accesso temporanei</td>
+          <td>Scadono dopo 5 minuti; conservati solo in forma cifrata</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="art">7. Come sono protetti</h2>
+  <ul>
+    <li>Collegamento cifrato (HTTPS) obbligatorio.</li>
+    <li>Accesso con codice temporaneo monouso, valido 5 minuti e limitato a 5 tentativi.</li>
+    <li>Le password amministrative sono conservate solo come impronta cifrata (PBKDF2).</li>
+    <li>Regole di accesso a livello di banca dati, che limitano ciò che ciascuno può leggere.</li>
+  </ul>
+
+  <h2 class="art">8. Quali diritti hai</h2>
+  <p>Puoi in qualsiasi momento chiedere di:</p>
+  <ul>
+    <li>sapere quali dati vengono trattati e ottenerne copia (art. 15);</li>
+    <li>correggere dati inesatti o incompleti (art. 16);</li>
+    <li>cancellare i dati, quando non sussistono obblighi di conservazione (art. 17);</li>
+    <li>limitare il trattamento o opporti ad esso (artt. 18 e 21);</li>
+    <li>ricevere i tuoi dati in formato leggibile da un computer (art. 20);</li>
+    <li>revocare un consenso eventualmente prestato, senza effetti su quanto già fatto.</li>
+  </ul>
+  <p>
+    Le richieste vanno inviate a <span class="fill">indirizzo email del titolare</span> e ricevono
+    risposta entro un mese. Se ritieni che il trattamento violi la normativa, puoi presentare reclamo
+    al <strong>Garante per la protezione dei dati personali</strong> (www.garanteprivacy.it).
+  </p>
+
+  <div class="meta">
+    Versione del <span class="fill">data</span>. Le modifiche sostanziali vengono comunicate ai tesserati.
+  </div>
+</section>
+
+<hr class="divider">
+
+<section class="sec">
+  <div class="sec-title">📌 Nota per chi amministra</div>
+  <div class="sec-sub">Questa sezione va rimossa prima della pubblicazione.</div>
+
+  <div class="alert warn">
+    <strong>Questi testi sono una bozza, non un parere legale.</strong> Vanno fatti verificare da
+    una persona competente prima di pubblicarli, in particolare per la parte fiscale.
+  </div>
+
+  <h2 class="art">Perché conviene costituire l'associazione</h2>
+  <p>
+    Finché il gruppo non è costituito, tre conseguenze concrete:
+  </p>
+  <ul>
+    <li><strong>Il titolare del trattamento è una persona fisica.</strong> Responsabilità e sanzioni
+        in materia di dati personali ricadono su di lei, non su un ente.</li>
+    <li><strong>Le obbligazioni ricadono su chi agisce.</strong> Impegni presi verso i fornitori
+        gravano personalmente su chi li assume.</li>
+    <li><strong>Non si può invocare la disciplina dei GAS.</strong> La legge 244/2007 (art. 1,
+        commi 266-268) definisce i gruppi di acquisto solidale come <em>soggetti associativi senza
+        scopo di lucro</em>, e a queste condizioni l'acquisto collettivo rivenduto ai soli aderenti
+        senza ricarico non è considerato attività commerciale. Senza forma associativa questo
+        inquadramento non è disponibile, e l'attività rischia di essere letta diversamente sul piano
+        fiscale.</li>
+  </ul>
+  <p>
+    Costituire un'associazione non riconosciuta (artt. 36-38 codice civile) richiede un atto
+    costitutivo e uno statuto scritti, senza notaio. È il passo che rende coerente tutto il resto:
+    a quel punto il titolare del trattamento diventa l'associazione e queste note vanno aggiornate
+    di conseguenza.
+  </p>
+
+  <h2 class="art">Da completare nei testi</h2>
+  <ul>
+    <li>Dati del titolare: nome, domicilio, email di contatto.</li>
+    <li>Tempi di conservazione di dati anagrafici e ordini.</li>
+    <li>Regione di hosting della banca dati e garanzie per i trasferimenti extra-UE.</li>
+    <li>Data di versione dei documenti.</li>
+  </ul>
+
+  <h2 class="art">Da sistemare nell'applicazione</h2>
+  <ul>
+    <li>Cancellazione automatica dei codici di accesso scaduti (oggi restano in archivio).</li>
+    <li>Collegamento a questa pagina dalla schermata di accesso e dalla vetrina.</li>
+    <li>Registrazione del momento in cui ciascun tesserato prende visione di questi documenti.</li>
+  </ul>
+</section>
+
+</body>
+</html>
