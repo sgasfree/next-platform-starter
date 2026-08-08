@@ -256,6 +256,37 @@ export const handler = async (event) => {
     }catch(e){ return json(502, { ok:false, error:'Chiamata a Telegram fallita: '+e.message }); }
   }
 
+  // ── Azione: primo avvio, creazione del primo amministratore ───────────────
+  // La procedura guidata crea l'admin quando non ne esiste ancora nessuno:
+  // non può quindi presentare un token, perché non c'è ancora nessuno che
+  // possa rilasciarglielo. Questa azione è l'unica senza autenticazione, e si
+  // chiude da sola nel momento in cui un amministratore esiste: da lì in poi
+  // le credenziali si cambiano solo con 'admin-creds', cioè da autenticati.
+  if(action === 'admin-bootstrap'){
+    const state = await readConfigState(SUPA_URL, SUPA_KEY) || { config:{} };
+    if(!state.config) state.config = {};
+    const creds = await readAdminCreds(SUPA_URL, SUPA_KEY);
+    const esisteAdmin =
+      ['adminPassword','adminPassword2','adminPassword3'].some(k => creds[k] || state.config[k]) ||
+      ['adminEmail','adminEmail2','adminEmail3'].some(k => state.config[k]);
+    if(esisteAdmin)
+      return json(409, { ok:false, error:'Un amministratore è già configurato: usa l\'accesso normale' });
+
+    const email = String(body.email || '').trim().toLowerCase();
+    const passwordHash = String(body.passwordHash || '');
+    if(!email || !email.includes('@')) return json(400, { ok:false, error:'Email non valida' });
+    if(!passwordHash.startsWith('pbkdf2:')) return json(400, { ok:false, error:'Password non hashata' });
+
+    state.config.adminEmail = email;
+    state.config.adminPassword = '';
+    const resCreds = await upsertConfigRow(SUPA_URL, SUPA_KEY, CREDS_KEY, { adminPassword: passwordHash });
+    if(!resCreds.ok) return json(502, { ok:false, error:'Scrittura credenziali fallita' });
+    const resState = await upsertConfigRow(SUPA_URL, SUPA_KEY, STATE_KEY, state);
+    if(!resState.ok) return json(502, { ok:false, error:'Scrittura stato fallita' });
+
+    return json(200, { ok:true, token: signToken(SECRET, { role:'admin', sub:email, exp: Date.now()+TOKEN_TTL_MS }) });
+  }
+
   // ── Azione: gestione credenziali admin (slot 1/2/3) ───────────────────────
   // Unico percorso autorizzato a scrivere email/password admin. Aggiorna SOLO
   // lo slot indicato, in scrittura-lettura sul valore più recente del server:

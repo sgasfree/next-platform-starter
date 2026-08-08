@@ -2688,10 +2688,38 @@ function wizNext(step){
   });
 }
 async function wizComplete(){
-  if(S.config.adminPassword && !S.config.adminPassword.startsWith('pbkdf2:'))
-    S.config.adminPassword = await hashPassword(S.config.adminPassword);
+  // Il primo amministratore va registrato sul SERVER: da lì in poi è il server
+  // a verificare gli accessi, e una password salvata solo su questo dispositivo
+  // non permetterebbe di entrare da nessuna parte.
+  const email = (S.config.adminEmail||'').trim().toLowerCase();
+  const pw    = S.config.adminPassword||'';
+  if(!email || !pw){ toast('❌ Email e password sono obbligatorie'); return; }
+
+  const hash = pw.startsWith('pbkdf2:') ? pw : await hashPassword(pw);
+  let esito;
+  try{
+    const res = await fetch('/.netlify/functions/state-save',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'admin-bootstrap', email, passwordHash: hash})
+    });
+    esito = await res.json().catch(()=>null) || {};
+  }catch(e){ esito = {offline:true}; }
+
+  if(esito.offline){
+    toast('📡 Server non raggiungibile: serve la connessione per creare l\'amministratore.');
+    return;
+  }
+  if(!esito.ok){
+    toast('❌ '+(esito.error||'Creazione dell\'amministratore non riuscita'));
+    return;
+  }
+
+  _setStateAuth({kind:'admin', email, password: pw});
+  _storeStateToken(esito.token);
+  S.config.adminPassword = '';   // sul dispositivo non resta nulla
   S.config.setupDone=true;
   saveState(); _persistAdminCreds();
+  toast('✅ Amministratore creato: ora puoi accedere');
   showLoginView();
 }
 
