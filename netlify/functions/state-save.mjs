@@ -15,6 +15,12 @@
 import { pbkdf2Sync, createHmac, timingSafeEqual } from 'node:crypto';
 
 const STATE_KEY = 'sgas_app_state';
+// Le password admin NON possono stare nel blob 'sgas_app_state': quella riga è
+// leggibile pubblicamente (policy config_read), quindi chiunque potrebbe
+// scaricarne l'impronta e provare a forzarla offline. Vivono invece in una
+// riga separata, che nessuna policy espone: si legge solo con la service_role,
+// cioè solo da qui.
+const CREDS_KEY = 'sgas_admin_creds';
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;   // 24 ore
 const MAX_PAYLOAD_BYTES = 4 * 1024 * 1024;  // 4 MB (il blob senza immagini è molto più piccolo)
 
@@ -90,6 +96,39 @@ async function readConfigState(url, key){
   try{ return JSON.parse(rows[0].valore); }catch(e){ return null; }
 }
 
+const upsertConfigRow = (url, key, chiave, valore) =>
+  sbFetch(url, key, `/rest/v1/config?on_conflict=chiave`, {
+    method: 'POST',
+    prefer: 'resolution=merge-duplicates,return=minimal',
+    body: JSON.stringify({ chiave, valore: JSON.stringify(valore), updated_at: new Date().toISOString() })
+  });
+
+// Impronte delle password admin, dalla riga riservata.
+// Forma: { adminPassword, adminPassword2, adminPassword3 }
+async function readAdminCreds(url, key){
+  const res = await sbFetch(url, key, `/rest/v1/config?chiave=eq.${CREDS_KEY}&select=valore`);
+  if(!res.ok) return {};
+  const rows = await res.json().catch(()=> null);
+  if(!Array.isArray(rows) || !rows[0]) return {};
+  try{ return JSON.parse(rows[0].valore) || {}; }catch(e){ return {}; }
+}
+
+// Migrazione automatica: le installazioni precedenti tengono le impronte nel
+// blob pubblico. Al primo accesso riuscito le si sposta nella riga riservata e
+// le si cancella da quello pubblico, senza chiedere niente all'amministratore.
+async function migraCredsDalBlob(url, key, state){
+  const cfg = (state && state.config) || {};
+  const creds = {};
+  let daMigrare = false;
+  ['adminPassword','adminPassword2','adminPassword3'].forEach(k => {
+    if(cfg[k]){ creds[k] = cfg[k]; cfg[k] = ''; daMigrare = true; }
+  });
+  if(!daMigrare) return;
+  const attuali = await readAdminCreds(url, key);
+  await upsertConfigRow(url, key, CREDS_KEY, { ...creds, ...attuali });
+  await upsertConfigRow(url, key, STATE_KEY, state);
+}
+
 export const handler = async (event) => {
   if (event.httpMethod !== 'POST') return json(405, { ok:false, error:'Method Not Allowed' });
 
@@ -116,13 +155,19 @@ export const handler = async (event) => {
       if(!email || !pass) return json(400, { ok:false, error:'Credenziali mancanti' });
       const state = await readConfigState(SUPA_URL, SUPA_KEY);
       const cfg = (state && state.config) || {};
+      // Le email restano nel blob (servono al client), le impronte no.
+      const creds = await readAdminCreds(SUPA_URL, SUPA_KEY);
+      const hash = k => creds[k] || cfg[k] || '';   // cfg = residuo pre-migrazione
       const pairs = [
-        [cfg.adminEmail,  cfg.adminPassword],
-        [cfg.adminEmail2, cfg.adminPassword2],
-        [cfg.adminEmail3, cfg.adminPassword3],
+        [cfg.adminEmail,  hash('adminPassword')],
+        [cfg.adminEmail2, hash('adminPassword2')],
+        [cfg.adminEmail3, hash('adminPassword3')],
       ];
       const ok = pairs.some(([e,h]) => e && String(e).toLowerCase() === email && verifyPbkdf2(pass, h));
       if(!ok) return json(401, { ok:false, error:'Credenziali admin non valide' });
+      // Accesso riuscito: se le impronte erano ancora nel blob pubblico, spostale
+      // ora. Un errore qui non deve impedire l'accesso già verificato.
+      try{ await migraCredsDalBlob(SUPA_URL, SUPA_KEY, state); }catch(e){}
       return json(200, { ok:true, token: signToken(SECRET, { role:'admin', sub:email, exp: Date.now()+TOKEN_TTL_MS }) });
     }
     if(kind === 'socio'){
@@ -233,14 +278,22 @@ export const handler = async (event) => {
 
     const emailKey = slot===1 ? 'adminEmail' : `adminEmail${slot}`;
     const passKey  = slot===1 ? 'adminPassword' : `adminPassword${slot}`;
-    state.config[emailKey] = email;
-    state.config[passKey]  = passwordHash;
 
-    const res = await sbFetch(SUPA_URL, SUPA_KEY, `/rest/v1/config?on_conflict=chiave`, {
-      method: 'POST',
-      prefer: 'resolution=merge-duplicates,return=minimal',
-      body: JSON.stringify({ chiave: STATE_KEY, valore: JSON.stringify(state), updated_at: new Date().toISOString() })
-    });
+    // L'email resta nel blob pubblico (il client la usa per riconoscere lo
+    // slot); l'impronta della password va nella riga riservata, e viene
+    // rimossa dal blob se vi era rimasta da prima.
+    state.config[emailKey] = email;
+    state.config[passKey]  = '';
+
+    const creds = await readAdminCreds(SUPA_URL, SUPA_KEY);
+    creds[passKey] = passwordHash;
+
+    const resCreds = await upsertConfigRow(SUPA_URL, SUPA_KEY, CREDS_KEY, creds);
+    if(!resCreds.ok){
+      const txt = await resCreds.text().catch(()=> '');
+      return json(502, { ok:false, error:'Scrittura credenziali fallita', detail: txt.slice(0,200) });
+    }
+    const res = await upsertConfigRow(SUPA_URL, SUPA_KEY, STATE_KEY, state);
     if(!res.ok){
       const txt = await res.text().catch(()=> '');
       return json(502, { ok:false, error:'Scrittura fallita', detail: txt.slice(0,200) });
