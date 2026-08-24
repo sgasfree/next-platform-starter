@@ -4207,7 +4207,8 @@ function exportOrderWord(ord){
   children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:40},
     children:[new TextRun({text:'Tesserato: '+ord.socioNome+' '+ord.socioCognome+(tessera?' — Tessera: '+tessera:''),size:22,font:'Arial'})]}));
   children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:280},
-    children:[new TextRun({text:'Cellulare: '+(ord.socioCellulare||'—'),size:22,font:'Arial'})]}));
+    children:[new TextRun({text:'Cellulare: '+(ord.socioCellulare||'—')
+      +'   ·   Telegram: '+(ord.socioTelegram?'@'+ord.socioTelegram:'—'),size:22,font:'Arial'})]}));
   children.push(mainTable);
   children.push(new Paragraph({spacing:{before:200},
     children:[new TextRun({text:'Grazie per il tuo ordine! Riceverai conferma via Telegram.',size:18,font:'Arial',color:'555555',italics:true})]}));
