@@ -4201,7 +4201,7 @@ function exportOrderWord(ord){
   children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:40},
     children:[new TextRun({text:'N° Ordine: '+ord.id,bold:true,size:22,font:'Arial'})]}));
   children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:40},
-    children:[new TextRun({text:'Data: '+new Date(ord.data).toLocaleDateString('it-IT'),size:22,font:'Arial'})]}));
+    children:[new TextRun({text:'Data: '+_ordDataOra(ord.data),size:22,font:'Arial'})]}));
   children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:40},
     children:[new TextRun({text:'Raccolta: '+(racc?racc.nome:ord.raccoltaId),size:22,font:'Arial'})]}));
   children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:40},
@@ -5746,6 +5746,16 @@ function _ordSocioLabel(o){
 // nome perso, e più raccolte eliminate si fondevano insieme).
 // Fallback in ordine: raccolte attuali → nome salvato sull'ordine → storico
 // dei nomi delle raccolte eliminate → '—'.
+// Data e ora di un ordine, per i documenti: "26/07/2026 — ore 14:35".
+// L'ora è utile quando nella stessa giornata un tesserato invia più ordini,
+// o per capire se è arrivato prima o dopo la chiusura della raccolta.
+function _ordDataOra(iso){
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('it-IT')
+    + ' — ore ' + d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+}
+
 function _ordRaccoltaNome(o){
   if(!o) return '—';
   const r=(S.raccolte||[]).find(x=>x.id===o.raccoltaId);
@@ -6039,7 +6049,7 @@ function exportSingleOrderWord(oid){
   children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:40},
     children:[new TextRun({text:'Raccolta: '+(racc?racc.nome:o.raccoltaId),size:22,font:'Arial'})]}));
   children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:280},
-    children:[new TextRun({text:'Data: '+new Date(o.data).toLocaleDateString('it-IT'),size:22,font:'Arial'})]}));
+    children:[new TextRun({text:'Data: '+_ordDataOra(o.data),size:22,font:'Arial'})]}));
   children.push(mainTable);
   const doc = new Document({sections:[{
     properties:{page:{size:{width:11906,height:16838},margin:{top:1134,right:1134,bottom:1134,left:1134}}},
