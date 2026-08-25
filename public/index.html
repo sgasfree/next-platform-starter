@@ -2080,7 +2080,10 @@ async function sincronizzaRaccolte(){
     if(ok) console.log('📦 '+nelBlob.length+' raccolte trasferite nella tabella dedicata');
     return ok;
   }
-  S.raccolte = [];
+  // Tabella vuota e nessun admin collegato: NON azzerare quelle in memoria.
+  // Sono i dati ancora da trasferire — chi apre l'app dalla schermata di
+  // accesso arriva qui prima di identificarsi, e cancellarle significherebbe
+  // perdere proprio ciò che il primo accesso admin deve copiare.
   return true;
 }
 
@@ -2149,6 +2152,23 @@ async function _persistiCatalogo(tabella, riga){
 // Allinea fornitori e prodotti con le tabelle. Se le tabelle sono vuote ma il
 // blob contiene dati (installazione che non ha ancora fatto il passaggio), li
 // copia una volta sola.
+// Riallinea raccolte e catalogo dopo un accesso admin.
+//
+// Le due sincronizzazioni girano all'avvio, dentro initSupabase(). Chi arriva
+// dalla schermata di accesso però in quel momento non è ancora collegato, e la
+// copia iniziale dal blob alle tabelle richiede un admin: senza questa chiamata
+// il trasferimento non avverrebbe mai, se non ricaricando la pagina a sessione
+// già attiva.
+async function allineaDatiCondivisiDopoLogin(){
+  try{ await sincronizzaRaccolte(); }catch(e){ console.warn('sincronizzaRaccolte:', e); }
+  try{ await sincronizzaCatalogo(); }catch(e){ console.warn('sincronizzaCatalogo:', e); }
+  try{ chiudiRaccolteScadute(); }catch(e){}
+  try{
+    if(currentUser && currentUser.type==='admin' && window._currentAdminSec)
+      adminNav(window._currentAdminSec);
+  }catch(e){}
+}
+
 async function sincronizzaCatalogo(){
   const sb = getSupabase();
   if(!sb) return false;
@@ -3586,6 +3606,7 @@ function _enterAdminViaOtp(socio){
   applyLogo();
   showView('admin');
   adminNav('dashboard');
+  allineaDatiCondivisiDopoLogin();
   toast('✅ Accesso admin effettuato');
 }
 
@@ -3722,6 +3743,7 @@ async function loginAdmin(){
     applyLogo();
     showView('admin');
     adminNav('dashboard');
+    allineaDatiCondivisiDopoLogin();
   } else {
     _setStateAuth(null);
     const attempts = (st.attempts||0) + 1;
