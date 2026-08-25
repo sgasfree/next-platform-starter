@@ -2084,6 +2084,99 @@ async function sincronizzaRaccolte(){
   return true;
 }
 
+// ════════ CATALOGO — fornitori e prodotti su tabelle dedicate ════════
+// Stesso principio delle raccolte: una riga per record. Salvare un prodotto
+// tocca solo quel prodotto, così due admin che lavorano insieme non si
+// sovrascrivono — cosa che accadeva quando il catalogo viveva nel blob
+// condiviso, riscritto per intero a ogni salvataggio.
+// Le immagini (logo, banner, foto) ora viaggiano con il record: prima
+// restavano solo sul dispositivo di chi le aveva caricate.
+
+const _fornitoreDaRiga = f => ({
+  id:f.id, nome:f.nome||'', categoria:f.categoria||'', emoji:f.emoji||'',
+  zona:f.zona||'', descrizione:f.descrizione||'', vision:f.vision||'',
+  caratteristiche: Array.isArray(f.caratteristiche)?f.caratteristiche:[],
+  attivo: f.attivo!==false, contattodiretto: f.contattodiretto===true,
+  nomeContatto:f.nome_contatto||null, telefono:f.telefono||null,
+  whatsapp:f.whatsapp||null, emailContatto:f.email_contatto||null,
+  telegramContatto:f.telegram_contatto||null, indirizzoContatto:f.indirizzo_contatto||null,
+  logo:f.logo||null, banner:f.banner||null
+});
+
+const _prodottoDaRiga = p => ({
+  id:p.id, fornitorId:p.fornitor_id||'', nome:p.nome||'',
+  prezzo: typeof p.prezzo==='number'?p.prezzo:parseFloat(p.prezzo)||0,
+  unita:p.unita||'', codice:p.codice||'', descrizione:p.descrizione||'',
+  disponibile: p.disponibile!==false, foto:p.foto||null
+});
+
+// Salva uno o più record del catalogo. `tabella` è 'fornitori' o 'prodotti'.
+async function _salvaCatalogoSulServer(tabella, righe){
+  const lista = Array.isArray(righe) ? righe : [righe];
+  if(!lista.length) return true;
+  const token = await _getStateToken();
+  if(!token) return false;
+  try{
+    const res = await fetch('/.netlify/functions/state-save',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'catalogo-upsert', token, tabella, righe: lista})
+    });
+    return res.ok;
+  }catch(e){ return false; }
+}
+
+async function _eliminaCatalogoSulServer(tabella, ids){
+  const lista = Array.isArray(ids) ? ids : [ids];
+  if(!lista.length) return true;
+  const token = await _getStateToken();
+  if(!token) return false;
+  try{
+    const res = await fetch('/.netlify/functions/state-save',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'catalogo-delete', token, tabella, ids: lista})
+    });
+    return res.ok;
+  }catch(e){ return false; }
+}
+
+// Salva un record e avvisa se è rimasto solo in locale.
+async function _persistiCatalogo(tabella, riga){
+  const ok = await _salvaCatalogoSulServer(tabella, riga);
+  if(!ok) toast('⚠️ Salvato solo su questo dispositivo — riprova tra poco.');
+  return ok;
+}
+
+// Allinea fornitori e prodotti con le tabelle. Se le tabelle sono vuote ma il
+// blob contiene dati (installazione che non ha ancora fatto il passaggio), li
+// copia una volta sola.
+async function sincronizzaCatalogo(){
+  const sb = getSupabase();
+  if(!sb) return false;
+  let righeF, righeP;
+  try{
+    const rf = await sb.from('fornitori').select('*');
+    const rp = await sb.from('prodotti').select('*');
+    if(rf.error || rp.error || !Array.isArray(rf.data) || !Array.isArray(rp.data)) return false;
+    righeF = rf.data; righeP = rp.data;
+  }catch(e){ console.warn('Lettura catalogo fallita:', e); return false; }
+
+  if(righeF.length || righeP.length){
+    S.fornitori = righeF.map(_fornitoreDaRiga);
+    S.prodotti  = righeP.map(_prodottoDaRiga);
+    return true;
+  }
+  // Tabelle vuote: trasferisci quanto c'è nel blob (solo un admin può scrivere)
+  const fBlob = (S.fornitori||[]).filter(f=>f && f.id && f.nome);
+  const pBlob = (S.prodotti ||[]).filter(p=>p && p.id && p.nome);
+  if((fBlob.length || pBlob.length) && currentUser && currentUser.type==='admin'){
+    const okF = await _salvaCatalogoSulServer('fornitori', fBlob);
+    const okP = await _salvaCatalogoSulServer('prodotti',  pBlob);
+    if(okF && okP) console.log('📦 Catalogo trasferito: '+fBlob.length+' fornitori, '+pBlob.length+' prodotti');
+    return okF && okP;
+  }
+  return true;
+}
+
 function syncToSupabase(){
   if(S.config && S.config.supabasePaused) return; // sync in standby
   clearTimeout(_syncTimeout);
@@ -2123,17 +2216,11 @@ function syncToSupabase(){
       // rimetterebbe in piedi il difetto che si vuole eliminare — un
       // dispositivo con dati vecchi che riscrive il blob le cancellerebbe.
       delete payloadObj.raccolte;
-      // Rimuovi immagini base64 da fornitori e prodotti per ridurre il payload
-      if(Array.isArray(payloadObj.fornitori)){
-        payloadObj.fornitori = payloadObj.fornitori.map(f=>{
-          const {logo,banner,...rest}=f; return rest;
-        });
-      }
-      if(Array.isArray(payloadObj.prodotti)){
-        payloadObj.prodotti = payloadObj.prodotti.map(p=>{
-          const {foto,...rest}=p; return rest;
-        });
-      }
+      // Catalogo: stessa ragione. Fornitori e prodotti hanno tabelle proprie.
+      delete payloadObj.fornitori;
+      delete payloadObj.prodotti;
+      // (Le immagini viaggiano ora con il record nelle tabelle dedicate: non
+      //  serve più toglierle da qui, perché qui il catalogo non passa più.)
       const payload = JSON.stringify(payloadObj);
       // 1) Percorso preferito: proxy autenticato (scrive con service_role).
       //    Se il token è scaduto (401) se ne richiede uno nuovo e si riprova una volta.
@@ -2187,8 +2274,11 @@ async function loadFromSupabase(){
         if(local._savedAt && remote._savedAt && local._savedAt >= remote._savedAt) return false;
       }catch(e){}
     }
-    // Le raccolte non stanno più nel blob: conservale prima di sostituire S.
+    // Raccolte e catalogo non stanno più nel blob: conservali prima di
+    // sostituire S, altrimenti un blob remoto storico li riporterebbe indietro.
     const _raccPrima = Array.isArray(S.raccolte) ? S.raccolte : null;
+    const _fornPrima = Array.isArray(S.fornitori) && S.fornitori.length ? S.fornitori : null;
+    const _prodPrima = Array.isArray(S.prodotti)  && S.prodotti.length  ? S.prodotti  : null;
     S = remote;
     // Preserva dati locali: logo, credenziali Supabase, stato pausa
     const _prevConf = (()=>{ try{ return JSON.parse(localStorage.getItem('sgas_state')||'{}').config||{}; }catch(e){ return {}; } })();
@@ -2232,6 +2322,8 @@ async function loadFromSupabase(){
     // comunque riallineate da sincronizzaRaccolte().
     if(Array.isArray(_raccPrima) && _raccPrima.length) S.raccolte = _raccPrima;
     else if(!Array.isArray(S.raccolte)) S.raccolte = Array.isArray(_prevState.raccolte) ? _prevState.raccolte : [];
+    if(_fornPrima) S.fornitori = _fornPrima;
+    if(_prodPrima) S.prodotti  = _prodPrima;
     // Deduplicazione dopo caricamento Supabase
     if(S.fornitori){ const _fornBefore=S.fornitori.length; const _seenId={}; const _seenNm={}; const _dedupRemap={}; S.fornitori=S.fornitori.filter(f=>{ if(!f.id)return false; if(_seenId[f.id])return false; _seenId[f.id]=true; const k=_normNome(f.nome); if(k&&_seenNm[k]){ _dedupRemap[f.id]=_seenNm[k]; return false; } if(k)_seenNm[k]=f.id; return true; }); if(Array.isArray(S.prodotti)&&Object.keys(_dedupRemap).length){ S.prodotti.forEach(p=>{ if(p.fornitorId&&_dedupRemap[p.fornitorId]) p.fornitorId=_dedupRemap[p.fornitorId]; }); } if(S.fornitori.length<_fornBefore){ setTimeout(()=>syncToSupabase(),2000); } }
     if(S.prodotti){ const _seenP={}; S.prodotti=S.prodotti.filter(p=>{ const k=_prodKey(p); if(_seenP[k])return false; _seenP[k]=true; return true; }); }
@@ -2292,8 +2384,9 @@ async function loadFromSupabase(){
 
 async function initSupabase(){
   const loaded = await loadFromSupabase();
-  // Le raccolte hanno una tabella propria: vanno lette da lì, non dal blob.
+  // Raccolte e catalogo hanno tabelle proprie: vanno letti da lì, non dal blob.
   try{ await sincronizzaRaccolte(); }catch(e){ console.warn('sincronizzaRaccolte:', e); }
+  try{ await sincronizzaCatalogo(); }catch(e){ console.warn('sincronizzaCatalogo:', e); }
   // Anche se la lettura è fallita (server irraggiungibile, sync in pausa, o
   // stato remoto assente) il tentativo è stato fatto: da qui le automazioni
   // possono ripartire, altrimenti resterebbero bloccate per sempre.
@@ -5463,7 +5556,7 @@ function modalEditFornitore(id){
     </div>`);
 }
 
-function saveFornitore(editId){
+async function saveFornitore(editId){
   const nome=document.getElementById('m-fnome').value.trim();
   if(!nome){toast('Nome obbligatorio');return;}
   const prev=document.getElementById('m-flogo-preview');
@@ -5491,26 +5584,33 @@ function saveFornitore(editId){
     telegramContatto:document.getElementById('m-ftelegram')?.value.trim()||null,
     indirizzoContatto:document.getElementById('m-findirizzo')?.value.trim()||null
   };
-  if(editId){Object.assign(S.fornitori.find(x=>x.id===editId),data);}
-  else {S.fornitori.push({id:'f'+uid(),...data});}
+  let forn;
+  if(editId){ forn=S.fornitori.find(x=>x.id===editId); if(forn) Object.assign(forn,data); }
+  else { forn={id:'f'+uid(),...data}; S.fornitori.push(forn); }
   _fornLogo=null;_fornBanner=null;
   saveState(); closeModal(); renderFornitori_admin(); toast('✅ Fornitore salvato');
+  if(forn) await _persistiCatalogo('fornitori', forn);
 }
 
-function toggleFornitore(id){
+async function toggleFornitore(id){
   const f=S.fornitori.find(x=>x.id===id);if(!f)return;
   f.attivo=f.attivo===false;
   saveState(); renderFornitori_admin();
+  await _persistiCatalogo('fornitori', f);
 }
 
 function deleteFornitore(id){
   if(!currentUser||currentUser.type!=='admin'){toast('❌ Accesso negato');return;}
   if(!confirm('Eliminare questo fornitore e tutti i suoi prodotti?')) return;
+  const prodottiDelForn=S.prodotti.filter(p=>p.fornitorId===id).map(p=>p.id);
   S.fornitori=S.fornitori.filter(f=>f.id!==id);
   S.prodotti=S.prodotti.filter(p=>p.fornitorId!==id);
   if(!S.deletedFornitori) S.deletedFornitori=[];
   if(!S.deletedFornitori.includes(id)) S.deletedFornitori.push(id);
   saveState(); renderFornitori_admin(); toast('Fornitore eliminato');
+  _eliminaCatalogoSulServer('prodotti', prodottiDelForn)
+    .then(()=>_eliminaCatalogoSulServer('fornitori', id))
+    .then(ok=>{ if(!ok) toast('⚠️ Eliminato solo su questo dispositivo — riprova tra poco.'); });
 }
 
 // ════════════════════ ADMIN — PRODOTTI ════════════════════
@@ -5616,14 +5716,16 @@ function modalEditProdotto(id){
     </div>`);
 }
 
-function saveProdotto(editId){
+async function saveProdotto(editId){
   const nome=document.getElementById('m-pnome').value.trim();
   if(!nome){toast('Nome obbligatorio');return;}
   const codEl=document.getElementById('m-pcod');
   const data={fornitorId:document.getElementById('m-pforn').value,nome,prezzo:parseFloat(document.getElementById('m-ppr').value)||0,unita:document.getElementById('m-pun').value.trim(),codice:codEl?codEl.value.trim():''};
-  if(editId){Object.assign(S.prodotti.find(x=>x.id===editId),data);}
-  else{S.prodotti.push({id:'p'+uid(),...data});}
+  let prod;
+  if(editId){ prod=S.prodotti.find(x=>x.id===editId); if(prod) Object.assign(prod,data); }
+  else{ prod={id:'p'+uid(),...data}; S.prodotti.push(prod); }
   saveState(); closeModal(); renderProdotti_admin(); toast('✅ Prodotto salvato');
+  if(prod) await _persistiCatalogo('prodotti', prod);
 }
 
 function deleteProdotto(id){
@@ -5631,12 +5733,16 @@ function deleteProdotto(id){
   if(!confirm('Eliminare questo prodotto?')) return;
   S.prodotti=S.prodotti.filter(p=>p.id!==id);
   saveState(); renderProdotti_admin(); toast('Prodotto eliminato');
+  _eliminaCatalogoSulServer('prodotti', id).then(ok=>{
+    if(!ok) toast('⚠️ Eliminato solo su questo dispositivo — riprova tra poco.');
+  });
 }
 
-function toggleDisponibile(id){
+async function toggleDisponibile(id){
   const p=S.prodotti.find(x=>x.id===id); if(!p) return;
   p.disponibile = p.disponibile === false ? true : false;
   saveState(); renderProdotti_admin();
+  await _persistiCatalogo('prodotti', p);
   toast(p.disponibile===false ? '⛔ Prodotto segnato come non disponibile' : '✅ Prodotto nuovamente disponibile');
 }
 
