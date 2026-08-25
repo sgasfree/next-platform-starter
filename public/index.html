@@ -1893,6 +1893,11 @@ let _supaClient = null;
 let _supaUrlUsed = '';
 let _supaSubscribed = false;
 let _lastRtToast = 0;
+// Diventa true dopo il PRIMO tentativo di lettura dello stato dal server
+// (riuscito o meno). Finché è false nessuna automazione deve modificare e
+// risincronizzare lo stato: rischierebbe di sovrascrivere il server con una
+// copia locale vecchia. Vedi chiudiRaccolteScadute().
+let _statoRemotoValutato = false;
 
 function getSupabase(){
   const url = (S.config && S.config.supabaseUrl||'').trim();
@@ -2178,6 +2183,9 @@ async function loadFromSupabase(){
     // Rimuovi doppioni fornitori storici anche dal blob remoto e ri-sincronizza
     try{ if(_fixLegacyFornDupes()) setTimeout(()=>syncToSupabase(),2500); }catch(e){}
     localStorage.setItem('sgas_state', JSON.stringify(S));
+    // Da qui in poi lo stato in memoria è quello del server: le automazioni
+    // possono agire senza rischiare di sovrascriverlo con dati vecchi.
+    _statoRemotoValutato = true;
     // Richiudi subito eventuali raccolte scadute riaperte dal blob remoto
     try{ if(typeof chiudiRaccolteScadute==='function') chiudiRaccolteScadute(); }catch(e){}
     return true;
@@ -2186,6 +2194,10 @@ async function loadFromSupabase(){
 
 async function initSupabase(){
   const loaded = await loadFromSupabase();
+  // Anche se la lettura è fallita (server irraggiungibile, sync in pausa, o
+  // stato remoto assente) il tentativo è stato fatto: da qui le automazioni
+  // possono ripartire, altrimenti resterebbero bloccate per sempre.
+  _statoRemotoValutato = true;
   if(loaded){
     applyLogo();
     applyAppLink();
@@ -5654,7 +5666,15 @@ function raccoltaScaduta(r){
 
 // Chiude tutte le raccolte aperte la cui chiusura è passata.
 // Ritorna true se qualcosa è cambiato (e sincronizza).
+//
+// ⚠️ NON deve girare prima di aver letto lo stato dal server. Girando su dati
+// locali vecchi chiudeva una raccolta scaduta e chiamava saveState(), che
+// aggiorna `_savedAt`: a quel punto loadFromSupabase considerava il locale più
+// recente del remoto e NON lo caricava, mentre la sincronizzazione spingeva sul
+// server la copia vecchia. Risultato: le raccolte create nel frattempo da altri
+// sparivano per tutti. Da qui la guardia sotto.
 function chiudiRaccolteScadute(){
+  if(!_statoRemotoValutato) return false;
   let changed=false;
   (S.raccolte||[]).forEach(r=>{
     if(r.aperta && raccoltaScaduta(r)){
