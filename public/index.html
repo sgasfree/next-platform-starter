@@ -2104,7 +2104,7 @@ const _fornitoreDaRiga = f => ({
 });
 
 const _prodottoDaRiga = p => ({
-  id:p.id, fornitorId:p.fornitor_id||'', nome:p.nome||'',
+  id:p.id, fornitorId:p.fornitore_id||'', nome:p.nome||'',
   prezzo: typeof p.prezzo==='number'?p.prezzo:parseFloat(p.prezzo)||0,
   unita:p.unita||'', codice:p.codice||'', descrizione:p.descrizione||'',
   disponibile: p.disponibile!==false, foto:p.foto||null
