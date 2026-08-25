@@ -3539,6 +3539,7 @@ function logout(){
   stopInactivityTimer();
   const wasAdmin = currentUser && currentUser.type === 'admin';
   const wasViaOtp = currentUser && currentUser.viaOtp;
+  _ordiniPropri = null;   // niente ordini di chi era collegato prima
   currentUser=null;
   _setStateAuth(null); // revoca il token di scrittura del proxy
   saveSession();
@@ -4239,7 +4240,55 @@ function exportOrderWord(ord){
 
 // ════════════════════ PROFILO ════════════════════
 
+// Ordini del tesserato collegato, letti dalla tabella dedicata `ordini`.
+//
+// Il profilo si basava solo su S.ordini, che arriva dallo stato condiviso: se
+// quello viene sovrascritto da un dispositivo con dati vecchi, il tesserato non
+// vede più i propri ordini pur essendo salvi nella tabella. Qui li rileggiamo
+// alla fonte.
+//
+// ⚠️ Non tocca S.ordini di proposito: la RLS restituisce al tesserato solo i
+// propri, e sostituire l'elenco condiviso con quello ridotto cancellerebbe gli
+// ordini altrui al primo salvataggio. Il filtro esplicito su socio_id serve
+// all'admin in Vista Tesserato, che altrimenti vedrebbe gli ordini di tutti
+// attribuiti a sé.
+let _ordiniPropri = null;   // { uid, lista }
+
+async function _ordiniPropriDaSupabase(){
+  const sb = getAuthSb();
+  if(!sb || !currentUser || !currentUser.id) return null;
+  let session;
+  try{ session = (await sb.auth.getSession()).data.session; }catch(e){}
+  if(!session) return null;
+  try{
+    const { data, error } = await sb.from('ordini')
+      .select('*').eq('socio_id', currentUser.id).order('created_at',{ascending:false});
+    if(error || !Array.isArray(data)) return null;
+    return data.map(o=>({
+      id:            o.id,
+      socioId:       currentUser.id,
+      socioTessera:  currentUser.tessera||'',
+      socioNome:     currentUser.nome||'',
+      socioCognome:  currentUser.cognome||'',
+      raccoltaId:    o.raccolta_id||'',
+      raccoltaNome:  (S.ordini||[]).find(x=>x.id===o.id)?.raccoltaNome || '',
+      items:         Array.isArray(o.items) ? o.items : [],
+      totale:        typeof o.totale==='number' ? o.totale : 0,
+      stato:         o.stato||'inviato',
+      data:          o.created_at||new Date().toISOString()
+    }));
+  }catch(e){ console.warn('Lettura ordini propri fallita:', e); return null; }
+}
+
 function renderProfilo(){
+  // Rilegge in background e ridisegna appena i dati arrivano.
+  _ordiniPropriDaSupabase().then(lista=>{
+    if(lista){ _ordiniPropri={uid:currentUser.id, lista}; _renderProfiloBody(); }
+  }).catch(()=>{});
+  _renderProfiloBody();
+}
+
+function _renderProfiloBody(){
   const s=currentUser;
   const today=new Date(); today.setHours(0,0,0,0);
   const scad=s.scadenza?new Date(s.scadenza):null;
@@ -4249,7 +4298,11 @@ function renderProfilo(){
     if(diff<0){semClass='sem-red';semLabel='Tessera scaduta';}
     else if(diff<=30){semClass='sem-yellow';semLabel='In scadenza (ultimi 30 giorni)';}
   }
-  const ordiniSocio=S.ordini.filter(o=>o.socioId===s.id);
+  // Preferisci gli ordini letti dalla tabella dedicata (fonte autorevole);
+  // ricadi sullo stato condiviso finché non sono disponibili.
+  const ordiniSocio = (_ordiniPropri && _ordiniPropri.uid===s.id)
+    ? _ordiniPropri.lista
+    : S.ordini.filter(o=>o.socioId===s.id);
   const totaleSpeso=ordiniSocio.reduce((a,o)=>a+o.totale,0);
 
   // --- chart data ---
@@ -4278,10 +4331,14 @@ function renderProfilo(){
     const d=new Date(o.data);
     const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
     const label=d.toLocaleDateString('it-IT',{month:'short',year:'2-digit'});
-    if(!mensile[key]) mensile[key]={label,val:0};
+    if(!mensile[key]) mensile[key]={key,label,val:0};
     mensile[key].val+=o.totale;
   });
-  const mensileArr=Object.values(mensile).sort((a,b)=>a.label<b.label?-1:1).slice(-6);
+  // Ordina per chiave AAAA-MM, non per etichetta: le abbreviazioni italiane in
+  // ordine alfabetico (ago, apr, dic, feb, gen…) non hanno nulla a che vedere
+  // con la successione dei mesi, e con più di sei mesi di storico l'ultimo
+  // ".slice(-6)" finiva per scartare proprio i mesi più recenti.
+  const mensileArr=Object.values(mensile).sort((a,b)=>a.key<b.key?-1:1).slice(-6);
 
   const ordHtml=ordiniSocio.slice().reverse().map(o=>{
     const _rn=_ordRaccoltaNome(o);
