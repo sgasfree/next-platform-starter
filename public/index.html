@@ -1998,6 +1998,185 @@ async function _saveAdminCredsToProxy(slot, email, passwordHash){
   }
 }
 
+// ════════ RACCOLTE — tabella dedicata ════════
+// Ogni raccolta è una riga a sé: creare, modificare o chiudere una raccolta
+// tocca solo quella riga. Finché vivevano nel blob condiviso, un dispositivo
+// con dati vecchi poteva riscrivere l'intero documento e far sparire per tutti
+// le raccolte create nel frattempo da altri.
+// Le letture sono pubbliche (anon key); le scritture passano dal proxy, così
+// funzionano anche per l'admin con email+password, che non ha sessione Supabase.
+
+const _raccoltaDaRiga = r => ({
+  id:           r.id,
+  nome:         r.nome || '',
+  aperta:       r.aperta !== false,
+  dataCreazione:r.data_creazione || '',
+  dataChiusura: r.data_chiusura  || null,
+  oraChiusura:  r.ora_chiusura   || null,
+  ritiroData:   r.ritiro_data    || null,
+  ritiroOra:    r.ritiro_ora     || null,
+  ritiroLuogo:  r.ritiro_luogo   || null,
+  fornitori:    Array.isArray(r.fornitori) ? r.fornitori : []
+});
+
+// Legge le raccolte dalla tabella. Ritorna l'elenco, oppure null se la lettura
+// non è possibile (tabella non ancora creata, rete assente): in quel caso il
+// chiamante tiene quelle già in memoria.
+async function loadRaccolteFromSupabase(){
+  const sb = getSupabase();
+  if(!sb) return null;
+  try{
+    const { data, error } = await sb.from('raccolte').select('*');
+    if(error || !Array.isArray(data)) return null;
+    return data.map(_raccoltaDaRiga)
+      .sort((a,b)=> String(b.dataCreazione||'').localeCompare(String(a.dataCreazione||'')));
+  }catch(e){ console.warn('Lettura raccolte fallita:', e); return null; }
+}
+
+// Salva una o più raccolte sulla tabella, via proxy.
+async function _salvaRaccolteSulServer(raccolte){
+  const lista = Array.isArray(raccolte) ? raccolte : [raccolte];
+  if(!lista.length) return true;
+  const token = await _getStateToken();
+  if(!token) return false;
+  try{
+    const res = await fetch('/.netlify/functions/state-save',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'raccolte-upsert', token, raccolte: lista})
+    });
+    return res.ok;
+  }catch(e){ return false; }
+}
+
+async function _eliminaRaccoltaSulServer(id){
+  const token = await _getStateToken();
+  if(!token) return false;
+  try{
+    const res = await fetch('/.netlify/functions/state-save',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'raccolte-delete', token, id})
+    });
+    return res.ok;
+  }catch(e){ return false; }
+}
+
+// Salva una raccolta e avvisa se è rimasta solo in locale.
+async function _persistiRaccolta(r){
+  const ok = await _salvaRaccolteSulServer(r);
+  if(!ok) toast('⚠️ Raccolta salvata solo su questo dispositivo — riprova tra poco.');
+  return ok;
+}
+
+// Allinea le raccolte con la tabella. Se la tabella è vuota ma il blob ne
+// contiene (installazione che non ha ancora fatto il passaggio), le copia una
+// volta sola nella tabella.
+async function sincronizzaRaccolte(){
+  const daTabella = await loadRaccolteFromSupabase();
+  if(daTabella === null) return false;          // tabella non leggibile: tieni quelle in memoria
+  if(daTabella.length){ S.raccolte = daTabella; return true; }
+  const nelBlob = (S.raccolte || []).filter(r => r && r.id && r.nome);
+  if(nelBlob.length && currentUser && currentUser.type === 'admin'){
+    const ok = await _salvaRaccolteSulServer(nelBlob);
+    if(ok) console.log('📦 '+nelBlob.length+' raccolte trasferite nella tabella dedicata');
+    return ok;
+  }
+  S.raccolte = [];
+  return true;
+}
+
+// ════════ CATALOGO — fornitori e prodotti su tabelle dedicate ════════
+// Stesso principio delle raccolte: una riga per record. Salvare un prodotto
+// tocca solo quel prodotto, così due admin che lavorano insieme non si
+// sovrascrivono — cosa che accadeva quando il catalogo viveva nel blob
+// condiviso, riscritto per intero a ogni salvataggio.
+// Le immagini (logo, banner, foto) ora viaggiano con il record: prima
+// restavano solo sul dispositivo di chi le aveva caricate.
+
+const _fornitoreDaRiga = f => ({
+  id:f.id, nome:f.nome||'', categoria:f.categoria||'', emoji:f.emoji||'',
+  zona:f.zona||'', descrizione:f.descrizione||'', vision:f.vision||'',
+  caratteristiche: Array.isArray(f.caratteristiche)?f.caratteristiche:[],
+  attivo: f.attivo!==false, contattodiretto: f.contattodiretto===true,
+  nomeContatto:f.nome_contatto||null, telefono:f.telefono||null,
+  whatsapp:f.whatsapp||null, emailContatto:f.email_contatto||null,
+  telegramContatto:f.telegram_contatto||null, indirizzoContatto:f.indirizzo_contatto||null,
+  logo:f.logo||null, banner:f.banner||null
+});
+
+const _prodottoDaRiga = p => ({
+  id:p.id, fornitorId:p.fornitor_id||'', nome:p.nome||'',
+  prezzo: typeof p.prezzo==='number'?p.prezzo:parseFloat(p.prezzo)||0,
+  unita:p.unita||'', codice:p.codice||'', descrizione:p.descrizione||'',
+  disponibile: p.disponibile!==false, foto:p.foto||null
+});
+
+// Salva uno o più record del catalogo. `tabella` è 'fornitori' o 'prodotti'.
+async function _salvaCatalogoSulServer(tabella, righe){
+  const lista = Array.isArray(righe) ? righe : [righe];
+  if(!lista.length) return true;
+  const token = await _getStateToken();
+  if(!token) return false;
+  try{
+    const res = await fetch('/.netlify/functions/state-save',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'catalogo-upsert', token, tabella, righe: lista})
+    });
+    return res.ok;
+  }catch(e){ return false; }
+}
+
+async function _eliminaCatalogoSulServer(tabella, ids){
+  const lista = Array.isArray(ids) ? ids : [ids];
+  if(!lista.length) return true;
+  const token = await _getStateToken();
+  if(!token) return false;
+  try{
+    const res = await fetch('/.netlify/functions/state-save',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'catalogo-delete', token, tabella, ids: lista})
+    });
+    return res.ok;
+  }catch(e){ return false; }
+}
+
+// Salva un record e avvisa se è rimasto solo in locale.
+async function _persistiCatalogo(tabella, riga){
+  const ok = await _salvaCatalogoSulServer(tabella, riga);
+  if(!ok) toast('⚠️ Salvato solo su questo dispositivo — riprova tra poco.');
+  return ok;
+}
+
+// Allinea fornitori e prodotti con le tabelle. Se le tabelle sono vuote ma il
+// blob contiene dati (installazione che non ha ancora fatto il passaggio), li
+// copia una volta sola.
+async function sincronizzaCatalogo(){
+  const sb = getSupabase();
+  if(!sb) return false;
+  let righeF, righeP;
+  try{
+    const rf = await sb.from('fornitori').select('*');
+    const rp = await sb.from('prodotti').select('*');
+    if(rf.error || rp.error || !Array.isArray(rf.data) || !Array.isArray(rp.data)) return false;
+    righeF = rf.data; righeP = rp.data;
+  }catch(e){ console.warn('Lettura catalogo fallita:', e); return false; }
+
+  if(righeF.length || righeP.length){
+    S.fornitori = righeF.map(_fornitoreDaRiga);
+    S.prodotti  = righeP.map(_prodottoDaRiga);
+    return true;
+  }
+  // Tabelle vuote: trasferisci quanto c'è nel blob (solo un admin può scrivere)
+  const fBlob = (S.fornitori||[]).filter(f=>f && f.id && f.nome);
+  const pBlob = (S.prodotti ||[]).filter(p=>p && p.id && p.nome);
+  if((fBlob.length || pBlob.length) && currentUser && currentUser.type==='admin'){
+    const okF = await _salvaCatalogoSulServer('fornitori', fBlob);
+    const okP = await _salvaCatalogoSulServer('prodotti',  pBlob);
+    if(okF && okP) console.log('📦 Catalogo trasferito: '+fBlob.length+' fornitori, '+pBlob.length+' prodotti');
+    return okF && okP;
+  }
+  return true;
+}
+
 function syncToSupabase(){
   if(S.config && S.config.supabasePaused) return; // sync in standby
   clearTimeout(_syncTimeout);
@@ -2033,17 +2212,15 @@ function syncToSupabase(){
       // l'aggiornamento (via loadFromSupabase/realtime) si ritrova il
       // carrello di un altro tesserato al posto del proprio.
       delete payloadObj.cart;
-      // Rimuovi immagini base64 da fornitori e prodotti per ridurre il payload
-      if(Array.isArray(payloadObj.fornitori)){
-        payloadObj.fornitori = payloadObj.fornitori.map(f=>{
-          const {logo,banner,...rest}=f; return rest;
-        });
-      }
-      if(Array.isArray(payloadObj.prodotti)){
-        payloadObj.prodotti = payloadObj.prodotti.map(p=>{
-          const {foto,...rest}=p; return rest;
-        });
-      }
+      // Raccolte: vivono nella tabella dedicata `raccolte`. Lasciarle anche qui
+      // rimetterebbe in piedi il difetto che si vuole eliminare — un
+      // dispositivo con dati vecchi che riscrive il blob le cancellerebbe.
+      delete payloadObj.raccolte;
+      // Catalogo: stessa ragione. Fornitori e prodotti hanno tabelle proprie.
+      delete payloadObj.fornitori;
+      delete payloadObj.prodotti;
+      // (Le immagini viaggiano ora con il record nelle tabelle dedicate: non
+      //  serve più toglierle da qui, perché qui il catalogo non passa più.)
       const payload = JSON.stringify(payloadObj);
       // 1) Percorso preferito: proxy autenticato (scrive con service_role).
       //    Se il token è scaduto (401) se ne richiede uno nuovo e si riprova una volta.
@@ -2097,6 +2274,11 @@ async function loadFromSupabase(){
         if(local._savedAt && remote._savedAt && local._savedAt >= remote._savedAt) return false;
       }catch(e){}
     }
+    // Raccolte e catalogo non stanno più nel blob: conservali prima di
+    // sostituire S, altrimenti un blob remoto storico li riporterebbe indietro.
+    const _raccPrima = Array.isArray(S.raccolte) ? S.raccolte : null;
+    const _fornPrima = Array.isArray(S.fornitori) && S.fornitori.length ? S.fornitori : null;
+    const _prodPrima = Array.isArray(S.prodotti)  && S.prodotti.length  ? S.prodotti  : null;
     S = remote;
     // Preserva dati locali: logo, credenziali Supabase, stato pausa
     const _prevConf = (()=>{ try{ return JSON.parse(localStorage.getItem('sgas_state')||'{}').config||{}; }catch(e){ return {}; } })();
@@ -2135,6 +2317,13 @@ async function loadFromSupabase(){
     // ignoralo comunque e mantieni quello già presente su questo dispositivo.
     S.cart = (_prevState.cart && typeof _prevState.cart==='object' && Array.isArray(_prevState.cart.items))
       ? _prevState.cart : {raccoltaId:'', items:[]};
+    // Le raccolte vivono nella tabella dedicata: quelle eventualmente presenti
+    // in un blob storico non devono sostituire quelle già caricate. Verranno
+    // comunque riallineate da sincronizzaRaccolte().
+    if(Array.isArray(_raccPrima) && _raccPrima.length) S.raccolte = _raccPrima;
+    else if(!Array.isArray(S.raccolte)) S.raccolte = Array.isArray(_prevState.raccolte) ? _prevState.raccolte : [];
+    if(_fornPrima) S.fornitori = _fornPrima;
+    if(_prodPrima) S.prodotti  = _prodPrima;
     // Deduplicazione dopo caricamento Supabase
     if(S.fornitori){ const _fornBefore=S.fornitori.length; const _seenId={}; const _seenNm={}; const _dedupRemap={}; S.fornitori=S.fornitori.filter(f=>{ if(!f.id)return false; if(_seenId[f.id])return false; _seenId[f.id]=true; const k=_normNome(f.nome); if(k&&_seenNm[k]){ _dedupRemap[f.id]=_seenNm[k]; return false; } if(k)_seenNm[k]=f.id; return true; }); if(Array.isArray(S.prodotti)&&Object.keys(_dedupRemap).length){ S.prodotti.forEach(p=>{ if(p.fornitorId&&_dedupRemap[p.fornitorId]) p.fornitorId=_dedupRemap[p.fornitorId]; }); } if(S.fornitori.length<_fornBefore){ setTimeout(()=>syncToSupabase(),2000); } }
     if(S.prodotti){ const _seenP={}; S.prodotti=S.prodotti.filter(p=>{ const k=_prodKey(p); if(_seenP[k])return false; _seenP[k]=true; return true; }); }
@@ -2186,18 +2375,24 @@ async function loadFromSupabase(){
     // Da qui in poi lo stato in memoria è quello del server: le automazioni
     // possono agire senza rischiare di sovrascriverlo con dati vecchi.
     _statoRemotoValutato = true;
-    // Richiudi subito eventuali raccolte scadute riaperte dal blob remoto
-    try{ if(typeof chiudiRaccolteScadute==='function') chiudiRaccolteScadute(); }catch(e){}
+    // La chiusura delle raccolte scadute avviene dopo sincronizzaRaccolte()
+    // (vedi initSupabase): qui i dati verrebbero comunque rimpiazzati da quelli
+    // della tabella, quindi chiuderle adesso non servirebbe a nulla.
     return true;
   }catch(e){ console.warn('Supabase load error:', e); return false; }
 }
 
 async function initSupabase(){
   const loaded = await loadFromSupabase();
+  // Raccolte e catalogo hanno tabelle proprie: vanno letti da lì, non dal blob.
+  try{ await sincronizzaRaccolte(); }catch(e){ console.warn('sincronizzaRaccolte:', e); }
+  try{ await sincronizzaCatalogo(); }catch(e){ console.warn('sincronizzaCatalogo:', e); }
   // Anche se la lettura è fallita (server irraggiungibile, sync in pausa, o
   // stato remoto assente) il tentativo è stato fatto: da qui le automazioni
   // possono ripartire, altrimenti resterebbero bloccate per sempre.
   _statoRemotoValutato = true;
+  // Ora che le raccolte sono quelle della tabella, chiudi quelle scadute.
+  try{ chiudiRaccolteScadute(); }catch(e){}
   if(loaded){
     applyLogo();
     applyAppLink();
@@ -2245,6 +2440,8 @@ function _subscribeSupabaseRealtime(){
           // prima di sovrascrivere S, altrimenti un aggiornamento in tempo
           // reale da un altro tesserato ti pianta il SUO carrello nel tuo.
           const _rtCart = (S.cart && Array.isArray(S.cart.items)) ? S.cart : null;
+          // Le raccolte vivono nella tabella dedicata, non nel blob.
+          const _rtRacc = Array.isArray(S.raccolte) ? S.raccolte : null;
           S = remote;
           S.config.supabasePaused = _prev.supabasePaused===true;
           S.config.supabaseUrl    = _prev.supabaseUrl||'';
@@ -2262,7 +2459,10 @@ function _subscribeSupabaseRealtime(){
           (S.fornitori||[]).forEach(f=>{if(_rtImgForn[f.id]){if(_rtImgForn[f.id].logo) f.logo=_rtImgForn[f.id].logo; if(_rtImgForn[f.id].banner) f.banner=_rtImgForn[f.id].banner;}});
           (S.prodotti||[]).forEach(p=>{if(_rtImgProd[p.id]) p.foto=_rtImgProd[p.id];});
           S.cart = _rtCart || {raccoltaId:'', items:[]};
+          if(_rtRacc) S.raccolte = _rtRacc;
           localStorage.setItem('sgas_state', JSON.stringify(S));
+          // Le raccolte non arrivano più dal blob: riallineale alla tabella.
+          try{ sincronizzaRaccolte().then(()=>{ if(currentUser&&currentUser.type==='admin'&&window._currentAdminSec==='raccolte') renderRaccolte(); }); }catch(e){}
           // Aggiorna UI admin in tempo reale
           if(currentUser && currentUser.type==='admin' && window._currentAdminSec){
             setTimeout(()=>{ try{ adminNav(window._currentAdminSec); }catch(e){} }, 200);
@@ -5356,7 +5556,7 @@ function modalEditFornitore(id){
     </div>`);
 }
 
-function saveFornitore(editId){
+async function saveFornitore(editId){
   const nome=document.getElementById('m-fnome').value.trim();
   if(!nome){toast('Nome obbligatorio');return;}
   const prev=document.getElementById('m-flogo-preview');
@@ -5384,26 +5584,33 @@ function saveFornitore(editId){
     telegramContatto:document.getElementById('m-ftelegram')?.value.trim()||null,
     indirizzoContatto:document.getElementById('m-findirizzo')?.value.trim()||null
   };
-  if(editId){Object.assign(S.fornitori.find(x=>x.id===editId),data);}
-  else {S.fornitori.push({id:'f'+uid(),...data});}
+  let forn;
+  if(editId){ forn=S.fornitori.find(x=>x.id===editId); if(forn) Object.assign(forn,data); }
+  else { forn={id:'f'+uid(),...data}; S.fornitori.push(forn); }
   _fornLogo=null;_fornBanner=null;
   saveState(); closeModal(); renderFornitori_admin(); toast('✅ Fornitore salvato');
+  if(forn) await _persistiCatalogo('fornitori', forn);
 }
 
-function toggleFornitore(id){
+async function toggleFornitore(id){
   const f=S.fornitori.find(x=>x.id===id);if(!f)return;
   f.attivo=f.attivo===false;
   saveState(); renderFornitori_admin();
+  await _persistiCatalogo('fornitori', f);
 }
 
 function deleteFornitore(id){
   if(!currentUser||currentUser.type!=='admin'){toast('❌ Accesso negato');return;}
   if(!confirm('Eliminare questo fornitore e tutti i suoi prodotti?')) return;
+  const prodottiDelForn=S.prodotti.filter(p=>p.fornitorId===id).map(p=>p.id);
   S.fornitori=S.fornitori.filter(f=>f.id!==id);
   S.prodotti=S.prodotti.filter(p=>p.fornitorId!==id);
   if(!S.deletedFornitori) S.deletedFornitori=[];
   if(!S.deletedFornitori.includes(id)) S.deletedFornitori.push(id);
   saveState(); renderFornitori_admin(); toast('Fornitore eliminato');
+  _eliminaCatalogoSulServer('prodotti', prodottiDelForn)
+    .then(()=>_eliminaCatalogoSulServer('fornitori', id))
+    .then(ok=>{ if(!ok) toast('⚠️ Eliminato solo su questo dispositivo — riprova tra poco.'); });
 }
 
 // ════════════════════ ADMIN — PRODOTTI ════════════════════
@@ -5509,14 +5716,16 @@ function modalEditProdotto(id){
     </div>`);
 }
 
-function saveProdotto(editId){
+async function saveProdotto(editId){
   const nome=document.getElementById('m-pnome').value.trim();
   if(!nome){toast('Nome obbligatorio');return;}
   const codEl=document.getElementById('m-pcod');
   const data={fornitorId:document.getElementById('m-pforn').value,nome,prezzo:parseFloat(document.getElementById('m-ppr').value)||0,unita:document.getElementById('m-pun').value.trim(),codice:codEl?codEl.value.trim():''};
-  if(editId){Object.assign(S.prodotti.find(x=>x.id===editId),data);}
-  else{S.prodotti.push({id:'p'+uid(),...data});}
+  let prod;
+  if(editId){ prod=S.prodotti.find(x=>x.id===editId); if(prod) Object.assign(prod,data); }
+  else{ prod={id:'p'+uid(),...data}; S.prodotti.push(prod); }
   saveState(); closeModal(); renderProdotti_admin(); toast('✅ Prodotto salvato');
+  if(prod) await _persistiCatalogo('prodotti', prod);
 }
 
 function deleteProdotto(id){
@@ -5524,12 +5733,16 @@ function deleteProdotto(id){
   if(!confirm('Eliminare questo prodotto?')) return;
   S.prodotti=S.prodotti.filter(p=>p.id!==id);
   saveState(); renderProdotti_admin(); toast('Prodotto eliminato');
+  _eliminaCatalogoSulServer('prodotti', id).then(ok=>{
+    if(!ok) toast('⚠️ Eliminato solo su questo dispositivo — riprova tra poco.');
+  });
 }
 
-function toggleDisponibile(id){
+async function toggleDisponibile(id){
   const p=S.prodotti.find(x=>x.id===id); if(!p) return;
   p.disponibile = p.disponibile === false ? true : false;
   saveState(); renderProdotti_admin();
+  await _persistiCatalogo('prodotti', p);
   toast(p.disponibile===false ? '⛔ Prodotto segnato come non disponibile' : '✅ Prodotto nuovamente disponibile');
 }
 
@@ -5664,7 +5877,7 @@ function toggleAllFornChk(val){
   document.querySelectorAll('.m-forn-chk').forEach(el=>el.checked=val);
 }
 
-function saveRaccolta(){
+async function saveRaccolta(){
   const nome=document.getElementById('m-rnome').value.trim();
   if(!nome){toast('Nome obbligatorio');return;}
   const fornIds=Array.from(document.querySelectorAll('.m-forn-chk:checked')).map(el=>el.value);
@@ -5674,17 +5887,21 @@ function saveRaccolta(){
   const ritiroLuogo=document.getElementById('m-rluogo')?.value.trim()||null;
   const dataChiusura=document.getElementById('m-rchiusura')?.value||null;
   const oraChiusura=document.getElementById('m-rorachiusura')?.value||null;
+  let raccolta;
   if(editId){
     const r=S.raccolte.find(x=>x.id===editId);
     if(r){r.nome=nome;r.fornitori=fornIds;r.ritiroData=ritiroData;r.ritiroOra=ritiroOra;r.ritiroLuogo=ritiroLuogo;r.dataChiusura=dataChiusura;r.oraChiusura=oraChiusura;}
+    raccolta=r;
   } else {
-    S.raccolte.unshift({id:'r'+uid(),nome,aperta:true,dataCreazione:new Date().toISOString().slice(0,10),fornitori:fornIds,ritiroData,ritiroOra,ritiroLuogo,dataChiusura,oraChiusura});
+    raccolta={id:'r'+uid(),nome,aperta:true,dataCreazione:new Date().toISOString().slice(0,10),fornitori:fornIds,ritiroData,ritiroOra,ritiroLuogo,dataChiusura,oraChiusura};
+    S.raccolte.unshift(raccolta);
     sendPush('🛒 Nuova raccolta aperta!', nome+' — Accedi all\'app per ordinare.', window.location.origin);
   }
   saveState(); closeModal(); renderRaccolte(); toast('✅ Raccolta salvata');
+  if(raccolta) await _persistiRaccolta(raccolta);
 }
 
-function toggleRaccolta(id){
+async function toggleRaccolta(id){
   const r=S.raccolte.find(x=>x.id===id);if(!r)return;
   r.aperta=!r.aperta;
   if(r.aperta && raccoltaScaduta(r)){
@@ -5697,6 +5914,7 @@ function toggleRaccolta(id){
     sendPush('⏰ Raccolta in chiusura!', r.nome+' — Ultima occasione per ordinare prima della chiusura.', window.location.origin);
   }
   saveState(); renderRaccolte();
+  await _persistiRaccolta(r);
 }
 
 // ── Chiusura automatica raccolte: calendario e ora ufficiale italiana ──
@@ -5733,13 +5951,21 @@ function raccoltaScaduta(r){
 function chiudiRaccolteScadute(){
   if(!_statoRemotoValutato) return false;
   let changed=false;
+  const chiuse=[];
   (S.raccolte||[]).forEach(r=>{
     if(r.aperta && raccoltaScaduta(r)){
       r.aperta=false;
       changed=true;
+      chiuse.push(r);
       console.log('⏰ Raccolta "'+r.nome+'" chiusa automaticamente (scadenza '+r.dataChiusura+' '+(r.oraChiusura||'23:59')+' ora italiana)');
     }
   });
+  // La chiusura viene registrata sul server solo da un admin: un tesserato non
+  // ha i permessi per scrivere sulla tabella. Sul suo dispositivo la raccolta
+  // risulta comunque chiusa, quindi non può ordinare oltre la scadenza.
+  if(chiuse.length && currentUser && currentUser.type==='admin'){
+    _salvaRaccolteSulServer(chiuse).catch(()=>{});
+  }
   if(changed){
     saveState();
     // Aggiorna le viste aperte in questo momento
@@ -5800,6 +6026,9 @@ function deleteRaccolta(id){
   if(_r&&_r.nome){ if(!S.raccolteStorico) S.raccolteStorico={}; S.raccolteStorico[id]=_r.nome; }
   S.raccolte=S.raccolte.filter(r=>r.id!==id);
   saveState(); renderRaccolte(); toast('Raccolta eliminata');
+  _eliminaRaccoltaSulServer(id).then(ok=>{
+    if(!ok) toast('⚠️ Eliminata solo su questo dispositivo — riprova tra poco.');
+  });
 }
 
 // ════════════════════ ADMIN — ORDINI ════════════════════

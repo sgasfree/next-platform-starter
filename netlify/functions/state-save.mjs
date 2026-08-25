@@ -256,6 +256,139 @@ export const handler = async (event) => {
     }catch(e){ return json(502, { ok:false, error:'Chiamata a Telegram fallita: '+e.message }); }
   }
 
+  // ── Azioni: catalogo (fornitori e prodotti, tabelle dedicate) ─────────────
+  // Stessa logica delle raccolte: una riga per record, così salvare un
+  // prodotto non tocca gli altri e due admin non si sovrascrivono a vicenda.
+  if(action === 'catalogo-upsert' || action === 'catalogo-delete'){
+    const payload = verifyToken(SECRET, body.token);
+    if(!payload) return json(401, { ok:false, error:'Token non valido o scaduto' });
+    if(payload.role !== 'admin') return json(403, { ok:false, error:'Riservato agli admin' });
+
+    const tabella = String(body.tabella || '');
+    if(tabella !== 'fornitori' && tabella !== 'prodotti')
+      return json(400, { ok:false, error:'Tabella non valida' });
+
+    if(action === 'catalogo-delete'){
+      const ids = (Array.isArray(body.ids) ? body.ids : [body.id])
+        .map(x => String(x || '').trim()).filter(Boolean);
+      if(!ids.length) return json(400, { ok:false, error:'Id mancante' });
+      const lista = ids.map(encodeURIComponent).join(',');
+      const res = await sbFetch(SUPA_URL, SUPA_KEY,
+        `/rest/v1/${tabella}?id=in.(${lista})`, { method:'DELETE', prefer:'return=minimal' });
+      if(!res.ok) return json(502, { ok:false, error:'Eliminazione fallita' });
+      return json(200, { ok:true, eliminati: ids.length });
+    }
+
+    const lista = Array.isArray(body.righe) ? body.righe : (body.riga ? [body.riga] : []);
+    if(!lista.length) return json(400, { ok:false, error:'Niente da salvare' });
+
+    const orNull = v => (v === '' || v === undefined) ? null : v;
+    const righe = [];
+    for(const r of lista){
+      const id = String((r && r.id) || '').trim();
+      const nome = String((r && r.nome) || '').trim();
+      if(!id || !nome) return json(400, { ok:false, error:'Record senza id o nome' });
+      righe.push(tabella === 'fornitori' ? {
+        id, nome,
+        categoria:          orNull(r.categoria),
+        emoji:              orNull(r.emoji),
+        zona:               orNull(r.zona),
+        descrizione:        orNull(r.descrizione),
+        vision:             orNull(r.vision),
+        caratteristiche:    Array.isArray(r.caratteristiche) ? r.caratteristiche : [],
+        attivo:             r.attivo !== false,
+        contattodiretto:    r.contattodiretto === true,
+        nome_contatto:      orNull(r.nomeContatto),
+        telefono:           orNull(r.telefono),
+        whatsapp:           orNull(r.whatsapp),
+        email_contatto:     orNull(r.emailContatto),
+        telegram_contatto:  orNull(r.telegramContatto),
+        indirizzo_contatto: orNull(r.indirizzoContatto),
+        logo:               orNull(r.logo),
+        banner:             orNull(r.banner),
+        updated_at:         new Date().toISOString()
+      } : {
+        id, nome,
+        fornitor_id: orNull(r.fornitorId),
+        prezzo:      Number(r.prezzo) || 0,
+        unita:       orNull(r.unita),
+        codice:      orNull(r.codice),
+        descrizione: orNull(r.descrizione),
+        disponibile: r.disponibile !== false,
+        foto:        orNull(r.foto),
+        updated_at:  new Date().toISOString()
+      });
+    }
+
+    const res = await sbFetch(SUPA_URL, SUPA_KEY, `/rest/v1/${tabella}?on_conflict=id`, {
+      method: 'POST',
+      prefer: 'resolution=merge-duplicates,return=minimal',
+      body: JSON.stringify(righe)
+    });
+    if(!res.ok){
+      const txt = await res.text().catch(()=> '');
+      return json(502, { ok:false, error:'Salvataggio catalogo fallito', detail: txt.slice(0,200) });
+    }
+    return json(200, { ok:true, salvate: righe.length });
+  }
+
+  // ── Azioni: raccolte ordini (tabella dedicata) ────────────────────────────
+  // Le raccolte hanno una riga ciascuna: scrivere una raccolta non tocca le
+  // altre. La tabella non ha policy di scrittura, quindi si passa da qui con la
+  // service_role: così anche l'admin con email+password (privo di sessione
+  // Supabase) può gestirle, come faceva quando stavano nel blob.
+  if(action === 'raccolte-upsert' || action === 'raccolte-delete'){
+    const payload = verifyToken(SECRET, body.token);
+    if(!payload) return json(401, { ok:false, error:'Token non valido o scaduto' });
+    if(payload.role !== 'admin') return json(403, { ok:false, error:'Riservato agli admin' });
+
+    if(action === 'raccolte-delete'){
+      const id = String(body.id || '').trim();
+      if(!id) return json(400, { ok:false, error:'Id mancante' });
+      const res = await sbFetch(SUPA_URL, SUPA_KEY,
+        `/rest/v1/raccolte?id=eq.${encodeURIComponent(id)}`, { method:'DELETE', prefer:'return=minimal' });
+      if(!res.ok) return json(502, { ok:false, error:'Eliminazione fallita' });
+      return json(200, { ok:true });
+    }
+
+    // upsert: accetta una o più raccolte (la migrazione iniziale ne manda molte)
+    const lista = Array.isArray(body.raccolte) ? body.raccolte
+                : (body.raccolta ? [body.raccolta] : []);
+    if(!lista.length) return json(400, { ok:false, error:'Nessuna raccolta da salvare' });
+
+    const orNull = v => (v === '' || v === undefined) ? null : v;
+    const righe = [];
+    for(const r of lista){
+      const id = String((r && r.id) || '').trim();
+      const nome = String((r && r.nome) || '').trim();
+      if(!id || !nome) return json(400, { ok:false, error:'Raccolta senza id o nome' });
+      righe.push({
+        id,
+        nome,
+        aperta:         r.aperta !== false,
+        data_creazione: orNull(r.dataCreazione),
+        data_chiusura:  orNull(r.dataChiusura),
+        ora_chiusura:   orNull(r.oraChiusura),
+        ritiro_data:    orNull(r.ritiroData),
+        ritiro_ora:     orNull(r.ritiroOra),
+        ritiro_luogo:   orNull(r.ritiroLuogo),
+        fornitori:      Array.isArray(r.fornitori) ? r.fornitori : [],
+        updated_at:     new Date().toISOString()
+      });
+    }
+
+    const res = await sbFetch(SUPA_URL, SUPA_KEY, `/rest/v1/raccolte?on_conflict=id`, {
+      method: 'POST',
+      prefer: 'resolution=merge-duplicates,return=minimal',
+      body: JSON.stringify(righe)
+    });
+    if(!res.ok){
+      const txt = await res.text().catch(()=> '');
+      return json(502, { ok:false, error:'Salvataggio raccolte fallito', detail: txt.slice(0,200) });
+    }
+    return json(200, { ok:true, salvate: righe.length });
+  }
+
   // ── Azione: primo avvio, creazione del primo amministratore ───────────────
   // La procedura guidata crea l'admin quando non ne esiste ancora nessuno:
   // non può quindi presentare un token, perché non c'è ancora nessuno che
