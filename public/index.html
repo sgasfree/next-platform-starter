@@ -1898,6 +1898,12 @@ let _lastRtToast = 0;
 // risincronizzare lo stato: rischierebbe di sovrascrivere il server con una
 // copia locale vecchia. Vedi chiudiRaccolteScadute().
 let _statoRemotoValutato = false;
+// True solo se lo stato è stato letto DAVVERO dal server. Se resta false i dati
+// in memoria possono essere quelli incorporati nel file (i valori di esempio) o
+// una copia locale vecchia: non vanno mai promossi nelle tabelle, altrimenti
+// sostituirebbero i dati veri di tutti — è così che il 25/08 la "Raccolta
+// Giugno 2026" incorporata ha preso il posto di quella di luglio.
+let _blobRemotoLetto = false;
 
 function getSupabase(){
   const url = (S.config && S.config.supabaseUrl||'').trim();
@@ -2075,7 +2081,7 @@ async function sincronizzaRaccolte(){
   if(daTabella === null) return false;          // tabella non leggibile: tieni quelle in memoria
   if(daTabella.length){ S.raccolte = daTabella; return true; }
   const nelBlob = (S.raccolte || []).filter(r => r && r.id && r.nome);
-  if(nelBlob.length && currentUser && currentUser.type === 'admin'){
+  if(nelBlob.length && _blobRemotoLetto && currentUser && currentUser.type === 'admin'){
     const ok = await _salvaRaccolteSulServer(nelBlob);
     if(ok) console.log('📦 '+nelBlob.length+' raccolte trasferite nella tabella dedicata');
     return ok;
@@ -2188,7 +2194,7 @@ async function sincronizzaCatalogo(){
   // Tabelle vuote: trasferisci quanto c'è nel blob (solo un admin può scrivere)
   const fBlob = (S.fornitori||[]).filter(f=>f && f.id && f.nome);
   const pBlob = (S.prodotti ||[]).filter(p=>p && p.id && p.nome);
-  if((fBlob.length || pBlob.length) && currentUser && currentUser.type==='admin'){
+  if((fBlob.length || pBlob.length) && _blobRemotoLetto && currentUser && currentUser.type==='admin'){
     const okF = await _salvaCatalogoSulServer('fornitori', fBlob);
     const okP = await _salvaCatalogoSulServer('prodotti',  pBlob);
     if(okF && okP) console.log('📦 Catalogo trasferito: '+fBlob.length+' fornitori, '+pBlob.length+' prodotti');
@@ -2232,13 +2238,20 @@ function syncToSupabase(){
       // l'aggiornamento (via loadFromSupabase/realtime) si ritrova il
       // carrello di un altro tesserato al posto del proprio.
       delete payloadObj.cart;
-      // Raccolte: vivono nella tabella dedicata `raccolte`. Lasciarle anche qui
-      // rimetterebbe in piedi il difetto che si vuole eliminare — un
-      // dispositivo con dati vecchi che riscrive il blob le cancellerebbe.
-      delete payloadObj.raccolte;
-      // Catalogo: stessa ragione. Fornitori e prodotti hanno tabelle proprie.
-      delete payloadObj.fornitori;
-      delete payloadObj.prodotti;
+      // Raccolte e catalogo vivono nelle tabelle dedicate: da lì vengono letti,
+      // e solo lì contano. Nel blob resta però una COPIA DI RISERVA, senza
+      // immagini per non farlo crescere.
+      //
+      // Non è una contraddizione: il blob non viene più letto per questi dati,
+      // quindi un dispositivo con dati vecchi che lo riscrive non fa più danno.
+      // Serve invece come rete di sicurezza finché le tabelle non sono
+      // popolate. Toglierla del tutto significava restare senza alcuna copia
+      // nell'intervallo fra il deploy e il primo trasferimento — ed è
+      // esattamente così che il 25/08 è andata persa la raccolta di luglio.
+      if(Array.isArray(payloadObj.fornitori))
+        payloadObj.fornitori = payloadObj.fornitori.map(f=>{ const {logo,banner,...r}=f; return r; });
+      if(Array.isArray(payloadObj.prodotti))
+        payloadObj.prodotti = payloadObj.prodotti.map(p=>{ const {foto,...r}=p; return r; });
       // (Le immagini viaggiano ora con il record nelle tabelle dedicate: non
       //  serve più toglierle da qui, perché qui il catalogo non passa più.)
       const payload = JSON.stringify(payloadObj);
@@ -2340,10 +2353,16 @@ async function loadFromSupabase(){
     // Le raccolte vivono nella tabella dedicata: quelle eventualmente presenti
     // in un blob storico non devono sostituire quelle già caricate. Verranno
     // comunque riallineate da sincronizzaRaccolte().
-    if(Array.isArray(_raccPrima) && _raccPrima.length) S.raccolte = _raccPrima;
-    else if(!Array.isArray(S.raccolte)) S.raccolte = Array.isArray(_prevState.raccolte) ? _prevState.raccolte : [];
-    if(_fornPrima) S.fornitori = _fornPrima;
-    if(_prodPrima) S.prodotti  = _prodPrima;
+    // Priorità ai dati appena letti dal SERVER. Quelli locali si usano solo se
+    // il blob remoto non ne porta: sono la copia di questo dispositivo, che può
+    // essere vecchia o addirittura essere quella di esempio incorporata nel
+    // file — ed è così che il 25/08 la "Raccolta Giugno 2026" incorporata ha
+    // preso il posto di quella di luglio, finendo poi anche nella tabella.
+    if(!Array.isArray(S.raccolte) || !S.raccolte.length)
+      S.raccolte = (_raccPrima && _raccPrima.length) ? _raccPrima
+                 : (Array.isArray(_prevState.raccolte) ? _prevState.raccolte : []);
+    if((!Array.isArray(S.fornitori) || !S.fornitori.length) && _fornPrima) S.fornitori = _fornPrima;
+    if((!Array.isArray(S.prodotti)  || !S.prodotti.length)  && _prodPrima) S.prodotti  = _prodPrima;
     // Deduplicazione dopo caricamento Supabase
     if(S.fornitori){ const _fornBefore=S.fornitori.length; const _seenId={}; const _seenNm={}; const _dedupRemap={}; S.fornitori=S.fornitori.filter(f=>{ if(!f.id)return false; if(_seenId[f.id])return false; _seenId[f.id]=true; const k=_normNome(f.nome); if(k&&_seenNm[k]){ _dedupRemap[f.id]=_seenNm[k]; return false; } if(k)_seenNm[k]=f.id; return true; }); if(Array.isArray(S.prodotti)&&Object.keys(_dedupRemap).length){ S.prodotti.forEach(p=>{ if(p.fornitorId&&_dedupRemap[p.fornitorId]) p.fornitorId=_dedupRemap[p.fornitorId]; }); } if(S.fornitori.length<_fornBefore){ setTimeout(()=>syncToSupabase(),2000); } }
     if(S.prodotti){ const _seenP={}; S.prodotti=S.prodotti.filter(p=>{ const k=_prodKey(p); if(_seenP[k])return false; _seenP[k]=true; return true; }); }
@@ -2395,6 +2414,7 @@ async function loadFromSupabase(){
     // Da qui in poi lo stato in memoria è quello del server: le automazioni
     // possono agire senza rischiare di sovrascriverlo con dati vecchi.
     _statoRemotoValutato = true;
+    _blobRemotoLetto = true;   // i dati in memoria vengono dal server
     // La chiusura delle raccolte scadute avviene dopo sincronizzaRaccolte()
     // (vedi initSupabase): qui i dati verrebbero comunque rimpiazzati da quelli
     // della tabella, quindi chiuderle adesso non servirebbe a nulla.
