@@ -4685,7 +4685,11 @@ function _renderProfiloBody(){
               borderColor:CHART_PALETTE[0],
               borderWidth:2,
               borderRadius:8,
-              borderSkipped:false
+              borderSkipped:false,
+              // Un mese con una spesa piccola accanto a uno grande produce una
+              // barra alta meno di un pixel: sembra che l'ordine non ci sia.
+              // Con un'altezza minima resta visibile e cliccabile.
+              minBarLength:6
             }]
           },
           options:{
