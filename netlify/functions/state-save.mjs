@@ -309,7 +309,7 @@ export const handler = async (event) => {
         updated_at:         new Date().toISOString()
       } : {
         id, nome,
-        fornitor_id: orNull(r.fornitorId),
+        fornitore_id: orNull(r.fornitorId),
         prezzo:      Number(r.prezzo) || 0,
         unita:       orNull(r.unita),
         codice:      orNull(r.codice),
