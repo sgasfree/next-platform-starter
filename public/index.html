@@ -514,6 +514,7 @@ tr:hover td{background:var(--green-pale);}
       <h1 id="login-gas-name">S-GAS <span>Freeconomy</span></h1>
       <p>Produttori etici a KM zero</p>
       <div id="login-clock" style="margin-top:12px;font-size:.95rem;color:#c8e6c9;letter-spacing:.04em;font-variant-numeric:tabular-nums;"></div>
+      <div id="login-build" style="margin-top:4px;font-size:.7rem;color:#a5d6a7;opacity:.75;"></div>
       <div id="login-app-link-wrap" style="margin-top:10px;display:none;">
         <a id="login-app-link" href="#" target="_blank" style="color:#a5d6a7;font-size:.78rem;text-decoration:underline;word-break:break-all;"></a>
       </div>
@@ -1887,6 +1888,12 @@ function _persistAdminCreds(){
     }));
   }catch(e){}
 }
+
+// Versione dell'app effettivamente in esecuzione. Serve a capire in un colpo
+// d'occhio se un dispositivo — tipicamente il telefono, dove l'app installata
+// puo restare aperta per giorni — sta ancora usando una copia vecchia invece
+// dell'ultima pubblicata.
+const APP_BUILD = '2026-08-26 · 4';
 
 // ════════ SUPABASE INTEGRATION ════════
 let _supaClient = null;
@@ -8657,7 +8664,10 @@ setInterval(()=>{ try{ chiudiRaccolteScadute(); }catch(e){} }, 60000);
   }
   tick();
   setInterval(tick, 1000);
+  const bd = document.getElementById('login-build');
+  if(bd) bd.textContent = 'versione ' + APP_BUILD;
 })();
+console.log('%cSGAS versione ' + APP_BUILD, 'color:#2e7d32;font-weight:700');
 
 const _isAdminPath = window.location.hash==='#admin' || window.location.pathname==='/admin';
 
