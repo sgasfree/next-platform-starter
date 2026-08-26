@@ -3171,8 +3171,8 @@ function prefillLogin(tess, tel){
 }
 
 // ── Admin recovery: email + codice ──
-let _adminRecCode = null;
-let _adminRecIdx = 1; // slot (1/2/3) dell'admin che sta facendo il recupero
+let _adminRecCode = null;    // codice digitato, verificato dal server
+let _adminRecEmail = null;   // email per cui è in corso il recupero
 
 function adminRecStep1(){
   const rc=document.getElementById('recovery-content');
@@ -3180,40 +3180,24 @@ function adminRecStep1(){
     '<div style="text-align:center;margin-bottom:18px;">'    +'<div style="font-size:2.2rem;margin-bottom:8px;">🔑</div>'    +'<h3 style="font-family:\'DM Serif Display\',serif;font-size:1.2rem;">Reset password Admin</h3>'    +'<p style="font-size:.82rem;color:var(--text-mid);margin-top:6px;">Inserisci la tua email admin: riceverai un codice di verifica via Telegram.</p>'    +'</div>'    +'<div class="field"><label>Email Admin</label><input id="rec-adm-email" type="email" placeholder="tua@email.it"></div>'    +'<div id="rec-adm-msg" style="margin:10px 0;"></div>'    +'<button class="btn btn-terra btn-block" onclick="adminRecSendCode()">📧 Invia codice via Telegram</button>'    +'<div style="text-align:center;margin-top:16px;">'    +'<button onclick="showLoginView()" style="background:none;border:none;color:var(--text-light);font-size:.82rem;cursor:pointer;">← Torna al login</button>'    +'</div>';
 }
 
-function adminRecSendCode(){
+async function adminRecSendCode(){
   const email=(document.getElementById('rec-adm-email').value||'').trim().toLowerCase();
   const msg=document.getElementById('rec-adm-msg');
-  const isAdmin1=email===S.config.adminEmail.toLowerCase();
-  const isAdmin2=S.config.adminEmail2 && email===S.config.adminEmail2.toLowerCase();
-  const isAdmin3=S.config.adminEmail3 && email===S.config.adminEmail3.toLowerCase();
-  if(!isAdmin1 && !isAdmin2 && !isAdmin3){
-    msg.innerHTML='<div class="alert alert-info">❌ Email non riconosciuta.</div>';
-    return;
-  }
-  // Generate 6-digit code, valid 15 min — NON mostrare il codice nel DOM
-  _adminRecCode={
-    code:Math.floor(100000+Math.random()*900000).toString(),
-    expires:Date.now()+15*60*1000,
-    attempts:0,
-    adminIndex: isAdmin1 ? 1 : isAdmin2 ? 2 : 3
-  };
-  // Invia il codice via Telegram agli admin (non mostrato a schermo).
-  // L'invio passa dalla Netlify Function /telegram che possiede il bot token
-  // lato server: basta quindi avere i Chat ID, il token client non serve.
-  const tgChat1 = (S.config.tgAdminChatId||'').trim();
-  const tgChat2 = (S.config.tgAdminChatId2||'').trim();
-  const tgChat3 = (S.config.tgAdminChatId3||'').trim();
-  const tgMsg = '🔐 SGAS — Codice reset password admin:\n\n*'+_adminRecCode.code+'*\n\n⏱ Scade tra 15 minuti.\nSe non hai richiesto questo codice, ignora questo messaggio.';
-  if(tgChat1) sendTelegramMsg(tgChat1, tgMsg);
-  if(tgChat2) sendTelegramMsg(tgChat2, tgMsg);
-  if(tgChat3) sendTelegramMsg(tgChat3, tgMsg);
-  const hasTg = !!(tgChat1||tgChat2||tgChat3);
-  msg.innerHTML='<div class="alert alert-success" style="padding:16px;text-align:center;">'
-    +(hasTg
-      ?'<div style="font-size:.85rem;">📬 Codice inviato via <strong>Telegram</strong> agli admin.<br><span style="font-size:.78rem;color:var(--text-light);">⏱ Scade tra 15 minuti</span></div>'
-      :'<div style="font-size:.85rem;color:#e53935;">⚠️ Telegram non configurato. Configura il bot nelle Impostazioni per ricevere il codice.</div>')
-    +'<button class="btn btn-terra" style="margin-top:14px;width:100%;" onclick="adminRecStep2()">Inserisci il codice →</button>'
-    +'</div>';
+  if(!email){ msg.innerHTML='<div class="alert alert-info">❌ Inserisci la tua email admin.</div>'; return; }
+  msg.innerHTML='<div class="alert alert-info">⏳ Invio in corso…</div>';
+  // Il codice viene generato e conservato dal SERVER: nel browser non passa mai,
+  // e la risposta è identica anche per un'email non registrata, così non si può
+  // scoprire quali email siano admin provandole una per una.
+  try{
+    const res=await fetch('/.netlify/functions/state-save',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'admin-recover-request', email})
+    });
+    if(!res.ok){ msg.innerHTML='<div class="alert alert-info">❌ Servizio non disponibile. Riprova tra poco.</div>'; return; }
+  }catch(e){ msg.innerHTML='<div class="alert alert-info">📡 Server non raggiungibile.</div>'; return; }
+  _adminRecEmail = email;
+  msg.innerHTML='<div class="alert alert-success">✅ Se l\'email è registrata, il codice è stato inviato su Telegram ai referenti.</div>';
+  setTimeout(()=>adminRecStep2(),1400);
 }
 
 function adminRecStep2(){
@@ -3226,26 +3210,13 @@ function adminRecStep2(){
 function adminRecVerifyCode(){
   const code=(document.getElementById('rec-adm-code').value||'').trim();
   const msg=document.getElementById('rec-adm-msg2');
-  if(!_adminRecCode){msg.innerHTML='<div class="alert alert-info">❌ Nessun codice attivo. Ricomincia.</div>';return;}
-  if(Date.now()>_adminRecCode.expires){
-    msg.innerHTML='<div class="alert alert-info">⏱ Codice scaduto. Richiedi un nuovo codice.</div>';
-    _adminRecCode=null;
-    setTimeout(()=>adminRecStep1(),1500);
-    return;
+  if(!/^[0-9]{6}$/.test(code)){
+    msg.innerHTML='<div class="alert alert-info">❌ Inserisci le 6 cifre ricevute.</div>'; return;
   }
-  if(code!==_adminRecCode.code){
-    _adminRecCode.attempts = (_adminRecCode.attempts||0) + 1;
-    if(_adminRecCode.attempts >= 3){
-      _adminRecCode=null;
-      msg.innerHTML='<div class="alert alert-info">🔒 Troppi tentativi. Richiedi un nuovo codice.</div>';
-      setTimeout(()=>adminRecStep1(), 2000);
-      return;
-    }
-    msg.innerHTML='<div class="alert alert-info">❌ Codice errato. '+(3-_adminRecCode.attempts)+' tentativi rimasti.</div>';
-    return;
-  }
-  _adminRecIdx = _adminRecCode.adminIndex || 1; // salva slot PRIMA di azzerare
-  _adminRecCode=null;
+  // Il codice lo verifica il server insieme alla nuova password: qui lo teniamo
+  // solo da parte. Verificarlo nel browser non proteggerebbe nulla, perché il
+  // confronto sarebbe aggirabile dalla console.
+  _adminRecCode = code;
   adminRecStep3();
 }
 
@@ -3261,16 +3232,32 @@ async function adminRecSavePass(){
   const msg=document.getElementById('rec-adm-msg3');
   if(!np||np.length<8){msg.innerHTML='<div class="alert alert-info">❌ Minimo 8 caratteri.</div>';return;}
   if(np!==cp){msg.innerHTML='<div class="alert alert-info">❌ Le password non coincidono.</div>';return;}
-  const _hashedPw = await hashPassword(np);
-  if(_adminRecIdx===2) S.config.adminPassword2=_hashedPw;
-  else if(_adminRecIdx===3) S.config.adminPassword3=_hashedPw;
-  else S.config.adminPassword=_hashedPw;
-  saveState(); _persistAdminCreds();
-  // Recupera l'email dell'admin che ha fatto il reset per pre-compilare il login
-  const _recEmail = _adminRecIdx===2 ? (S.config.adminEmail2||S.config.adminEmail)
-                  : _adminRecIdx===3 ? (S.config.adminEmail3||S.config.adminEmail)
-                  : S.config.adminEmail;
-  _adminRecIdx = 1; // reset
+  if(!_adminRecCode||!_adminRecEmail){msg.innerHTML='<div class="alert alert-info">❌ Nessun recupero in corso. Ricomincia.</div>';setTimeout(()=>adminRecStep1(),1500);return;}
+  msg.innerHTML='<div class="alert alert-info">⏳ Salvataggio…</div>';
+
+  // La nuova password viene registrata dal SERVER, che è l'unico a conservarne
+  // l'impronta: salvarla solo sul dispositivo non servirebbe a entrare.
+  const hash = await hashPassword(np);
+  let dati;
+  try{
+    const res=await fetch('/.netlify/functions/state-save',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'admin-recover-confirm', email:_adminRecEmail, code:_adminRecCode, passwordHash:hash})
+    });
+    dati=await res.json().catch(()=>null) || {};
+  }catch(e){ msg.innerHTML='<div class="alert alert-info">📡 Server non raggiungibile. La password NON è stata cambiata.</div>'; return; }
+
+  if(!dati.ok){
+    msg.innerHTML='<div class="alert alert-info">❌ '+escHtml(dati.error||'Salvataggio non riuscito')
+      +(typeof dati.rimasti==='number' ? ' — '+dati.rimasti+' tentativi rimasti' : '')+'</div>';
+    if(/scaduto|Troppi tentativi|Nessun recupero/i.test(dati.error||'')){
+      _adminRecCode=null; setTimeout(()=>adminRecStep1(),2000);
+    }
+    return;
+  }
+
+  const _recEmail=_adminRecEmail;
+  _adminRecCode=null; _adminRecEmail=null;
   msg.innerHTML='<div class="alert alert-success">✅ Password aggiornata! Ora accedi con la nuova password.</div>';
   setTimeout(()=>{
     showLoginView();
@@ -3716,20 +3703,37 @@ async function hashPassword(password){
 const _LOGIN_MAX_ATTEMPTS = 5;
 const _LOGIN_LOCKOUT_MS   = 15 * 60 * 1000; // 15 minuti
 
-function _getLoginState(){
-  try{ return JSON.parse(sessionStorage.getItem('sgas_login_st')||'{}'); }catch{ return {}; }
+// Tentativi di accesso falliti, contati SEPARATAMENTE per ogni email admin.
+// Prima il conteggio era unico: cinque errori di un amministratore bloccavano
+// per quindici minuti anche gli altri due sullo stesso browser — situazione
+// normale su un dispositivo condiviso.
+function _getLoginState(email){
+  try{
+    const tutti = JSON.parse(sessionStorage.getItem('sgas_login_st')||'{}');
+    return tutti[String(email||'').toLowerCase()] || {};
+  }catch{ return {}; }
 }
-function _setLoginState(obj){ sessionStorage.setItem('sgas_login_st', JSON.stringify(obj)); }
+function _setLoginState(email, obj){
+  try{
+    const k = String(email||'').toLowerCase();
+    let tutti = {};
+    try{ tutti = JSON.parse(sessionStorage.getItem('sgas_login_st')||'{}') || {}; }catch(e){}
+    if(obj && Object.keys(obj).length) tutti[k] = obj; else delete tutti[k];
+    sessionStorage.setItem('sgas_login_st', JSON.stringify(tutti));
+  }catch(e){}
+}
 
 async function loginAdmin(){
-  const st = _getLoginState();
-  if(st.lockedUntil && Date.now() < st.lockedUntil){
-    const mins = Math.ceil((st.lockedUntil - Date.now()) / 60000);
-    toast('🔒 Troppi tentativi. Riprova tra '+mins+' minuto/i.');
-    return;
-  }
   const email=document.getElementById('adm-mail').value.trim().toLowerCase();
   const pass=document.getElementById('adm-pw').value;
+  // Il blocco riguarda SOLO l'email che ha sbagliato: gli altri amministratori
+  // possono entrare dallo stesso browser.
+  const st = _getLoginState(email);
+  if(st.lockedUntil && Date.now() < st.lockedUntil){
+    const mins = Math.ceil((st.lockedUntil - Date.now()) / 60000);
+    toast('🔒 Troppi tentativi per '+email+'. Riprova tra '+mins+' minuto/i.');
+    return;
+  }
   // La verifica avviene sul SERVER: l'impronta della password non è più né nel
   // file pubblico né nel blob leggibile da tutti, quindi non c'è più nulla da
   // confrontare in locale. Il proxy risponde con un token solo se le
@@ -3754,7 +3758,7 @@ async function loginAdmin(){
   if(esito.token){
     _setStateAuth({kind:'admin', email, password: pass});
     _storeStateToken(esito.token);
-    _setLoginState({});
+    _setLoginState(email, {});
     const tok = (crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now());
     currentUser={type:'admin', adminEmail: email, _tok: tok};
     saveSession();
@@ -3768,10 +3772,10 @@ async function loginAdmin(){
     _setStateAuth(null);
     const attempts = (st.attempts||0) + 1;
     if(attempts >= _LOGIN_MAX_ATTEMPTS){
-      _setLoginState({attempts, lockedUntil: Date.now() + _LOGIN_LOCKOUT_MS});
-      toast('🔒 Account bloccato per 15 minuti dopo '+_LOGIN_MAX_ATTEMPTS+' tentativi errati.');
+      _setLoginState(email, {attempts, lockedUntil: Date.now() + _LOGIN_LOCKOUT_MS});
+      toast('🔒 Accesso bloccato per 15 minuti per '+email+' dopo '+_LOGIN_MAX_ATTEMPTS+' tentativi errati.');
     } else {
-      _setLoginState({attempts});
+      _setLoginState(email, {attempts});
       toast('❌ Credenziali errate ('+(attempts)+'/'+_LOGIN_MAX_ATTEMPTS+' tentativi)');
     }
   }
