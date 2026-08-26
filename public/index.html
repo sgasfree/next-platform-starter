@@ -2226,20 +2226,65 @@ function _aggiornaVisteAperte(){
   }catch(e){ console.warn('Aggiornamento viste:', e); }
 }
 
+// Campi del catalogo SENZA immagini. I loghi e i banner dei fornitori pesano
+// da soli circa 750 KB: scaricarli insieme al resto rendeva la lettura lenta o
+// la faceva fallire su rete mobile, e il tesserato restava con prezzi e
+// disponibilità vecchi. Ora arrivano dopo, in secondo piano.
+const _CAMPI_FORNITORE = 'id,nome,categoria,emoji,zona,descrizione,vision,caratteristiche,'
+  + 'attivo,contattodiretto,nome_contatto,telefono,whatsapp,email_contatto,'
+  + 'telegram_contatto,indirizzo_contatto';
+const _CAMPI_PRODOTTO  = 'id,fornitore_id,nome,prezzo,unita,codice,descrizione,disponibile';
+
+// Scarica loghi e banner e li innesta nei fornitori già in memoria, poi
+// ridisegna. Non blocca nulla: se fallisce, il catalogo resta corretto e senza
+// immagini, che è molto meglio del contrario.
+async function _caricaImmaginiFornitori(){
+  const sb = getSupabase();
+  if(!sb) return;
+  try{
+    const { data, error } = await sb.from('fornitori').select('id,logo,banner');
+    if(error || !Array.isArray(data)) return;
+    let cambiate = false;
+    data.forEach(r=>{
+      const f = (S.fornitori||[]).find(x=>x.id===r.id);
+      if(!f) return;
+      if(r.logo   && f.logo   !== r.logo)  { f.logo   = r.logo;   cambiate = true; }
+      if(r.banner && f.banner !== r.banner){ f.banner = r.banner; cambiate = true; }
+    });
+    if(cambiate){
+      try{ localStorage.setItem('sgas_state', JSON.stringify(S)); }catch(e){}
+      _aggiornaVisteAperte();
+    }
+  }catch(e){ console.warn('Immagini fornitori non caricate:', e); }
+}
+
 async function sincronizzaCatalogo(){
   const sb = getSupabase();
   if(!sb) return false;
   let righeF, righeP;
   try{
-    const rf = await sb.from('fornitori').select('*');
-    const rp = await sb.from('prodotti').select('*');
-    if(rf.error || rp.error || !Array.isArray(rf.data) || !Array.isArray(rp.data)) return false;
+    const rf = await sb.from('fornitori').select(_CAMPI_FORNITORE);
+    const rp = await sb.from('prodotti').select(_CAMPI_PRODOTTO);
+    if(rf.error || rp.error || !Array.isArray(rf.data) || !Array.isArray(rp.data)){
+      console.warn('Lettura catalogo non riuscita:', (rf.error||rp.error));
+      return false;
+    }
     righeF = rf.data; righeP = rp.data;
   }catch(e){ console.warn('Lettura catalogo fallita:', e); return false; }
 
   if(righeF.length || righeP.length){
-    S.fornitori = righeF.map(_fornitoreDaRiga);
+    // Le immagini non sono in questa lettura: conserva quelle già presenti,
+    // così un riallineamento non svuota il catalogo di loghi e banner.
+    const imgPrima = {};
+    (S.fornitori||[]).forEach(f=>{ if(f && f.id && (f.logo||f.banner)) imgPrima[f.id] = {logo:f.logo, banner:f.banner}; });
+    S.fornitori = righeF.map(_fornitoreDaRiga).map(f=>{
+      const vecchia = imgPrima[f.id];
+      if(vecchia){ f.logo = f.logo || vecchia.logo || null; f.banner = f.banner || vecchia.banner || null; }
+      return f;
+    });
     S.prodotti  = righeP.map(_prodottoDaRiga);
+    // Le immagini mancanti arrivano dopo, senza far aspettare nessuno.
+    if(S.fornitori.some(f=>!f.logo && !f.banner)) _caricaImmaginiFornitori();
     return true;
   }
   // Tabelle vuote: trasferisci quanto c'è nel blob (solo un admin può scrivere)
