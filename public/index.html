@@ -2169,10 +2169,34 @@ async function allineaDatiCondivisiDopoLogin(){
   try{ await sincronizzaRaccolte(); }catch(e){ console.warn('sincronizzaRaccolte:', e); }
   try{ await sincronizzaCatalogo(); }catch(e){ console.warn('sincronizzaCatalogo:', e); }
   try{ chiudiRaccolteScadute(); }catch(e){}
+  _aggiornaVisteAperte();
+}
+
+// Ridisegna la schermata attualmente aperta dopo che i dati sono cambiati.
+//
+// Prima veniva aggiornato solo il pannello admin: chi stava nella vista
+// tesserato (compreso l'admin in "Vista Tesserato") continuava a vedere prezzi
+// e disponibilità vecchi finché non ricaricava la pagina.
+function _aggiornaVisteAperte(){
   try{
-    if(currentUser && currentUser.type==='admin' && window._currentAdminSec)
+    if(currentUser && currentUser.type==='admin' && window._currentAdminSec){
       adminNav(window._currentAdminSec);
-  }catch(e){}
+      return;
+    }
+    const visibile = id => { const e=document.getElementById(id); return e && getComputedStyle(e).display!=='none'; };
+    if(visibile('socio-fornitore') && typeof currentFornId!=='undefined' && currentFornId){
+      // Conserva il testo di ricerca: ridisegnare non deve cancellare
+      // quello che il tesserato sta scrivendo.
+      const q = (document.getElementById('search-prodotti')||{}).value || '';
+      openFornitore(currentFornId);
+      const el = document.getElementById('search-prodotti');
+      if(el && q){ el.value = q; el.dispatchEvent(new Event('input')); }
+    } else if(visibile('socio-catalogo')){
+      renderFornitori();
+    }
+    if(visibile('socio-cart')) renderCart();
+    updateCartBadge();
+  }catch(e){ console.warn('Aggiornamento viste:', e); }
 }
 
 async function sincronizzaCatalogo(){
@@ -2452,6 +2476,10 @@ async function initSupabase(){
     }
     toast('☁️ Dati sincronizzati');
   }
+  // Le tabelle sono state lette dopo il primo disegno della pagina: ridisegna
+  // quello che è aperto, altrimenti chi ricarica resta con prezzi e
+  // disponibilità della copia locale finché non cambia schermata.
+  _aggiornaVisteAperte();
   // Sottoscrizione real-time per sync istantaneo tra admin
   _subscribeSupabaseRealtime();
 }
@@ -2510,8 +2538,7 @@ function _subscribeSupabaseRealtime(){
             Promise.all([sincronizzaRaccolte(), sincronizzaCatalogo()]).then(()=>{
               try{
                 localStorage.setItem('sgas_state', JSON.stringify(S));
-                if(currentUser && currentUser.type==='admin' && window._currentAdminSec)
-                  adminNav(window._currentAdminSec);
+                _aggiornaVisteAperte();
               }catch(e){}
             });
           }catch(e){}
