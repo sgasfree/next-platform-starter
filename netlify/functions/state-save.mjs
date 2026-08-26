@@ -12,7 +12,7 @@
 //   'token' → verifica credenziali e restituisce un token firmato (HMAC, 24h)
 //   'save'  → verifica il token e fa l'upsert dello stato nella tabella config
 
-import { pbkdf2Sync, createHmac, timingSafeEqual } from 'node:crypto';
+import { pbkdf2Sync, createHmac, createHash, timingSafeEqual } from 'node:crypto';
 
 const STATE_KEY = 'sgas_app_state';
 // Le password admin NON possono stare nel blob 'sgas_app_state': quella riga è
@@ -254,6 +254,73 @@ export const handler = async (event) => {
       if(d && d.ok) return json(200, { ok:true, url:hookUrl, description:d.description || 'Webhook registrato' });
       return json(502, { ok:false, error:(d&&d.description) || 'Telegram ha rifiutato la registrazione' });
     }catch(e){ return json(502, { ok:false, error:'Chiamata a Telegram fallita: '+e.message }); }
+  }
+
+  // ── Azioni: recupero password admin ───────────────────────────────────────
+  // Il codice viene generato, conservato (solo come impronta) e verificato QUI.
+  // Prima nasceva e veniva controllato nel browser: chiunque poteva aggirarlo
+  // dalla console, e soprattutto la nuova password non arrivava mai al server,
+  // che è l'unico a poterla registrare.
+  if(action === 'admin-recover-request' || action === 'admin-recover-confirm'){
+    const email = String(body.email || '').trim().toLowerCase();
+    if(!email) return json(400, { ok:false, error:'Email mancante' });
+
+    const state = await readConfigState(SUPA_URL, SUPA_KEY);
+    const cfg = (state && state.config) || {};
+    const slot = [cfg.adminEmail, cfg.adminEmail2, cfg.adminEmail3]
+      .findIndex(e => e && String(e).toLowerCase() === email) + 1;   // 0 = non trovato
+
+    const creds = await readAdminCreds(SUPA_URL, SUPA_KEY);
+    const sha = s => createHash('sha256').update(String(s)).digest('hex');
+
+    if(action === 'admin-recover-request'){
+      // Risposta sempre uguale: non si rivela quali email siano registrate.
+      if(slot > 0){
+        const code = String(Math.floor(100000 + Math.random() * 900000));
+        creds.recovery = { slot, codeHash: sha(code + '|' + email),
+                           exp: Date.now() + 15*60*1000, attempts: 0 };
+        await upsertConfigRow(SUPA_URL, SUPA_KEY, CREDS_KEY, creds);
+        const BOT = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
+        const chats = [cfg.tgAdminChatId, cfg.tgAdminChatId2, cfg.tgAdminChatId3]
+          .map(c => String(c || '').trim()).filter(Boolean);
+        const testo = '🔐 SGAS — Codice reset password admin:\n\n' + code +
+                      '\n\n⏱ Scade tra 15 minuti.\nSe non hai richiesto questo codice, ignora il messaggio.';
+        if(BOT) await Promise.all(chats.map(chat_id =>
+          fetch(`https://api.telegram.org/bot${BOT}/sendMessage`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ chat_id, text: testo })
+          }).catch(()=>null)));
+      }
+      return json(200, { ok:true });
+    }
+
+    // ── conferma: verifica il codice e registra la nuova password ──
+    const rec = creds.recovery;
+    if(!rec || slot < 1) return json(400, { ok:false, error:'Nessun recupero in corso. Ricomincia.' });
+    if(Date.now() > rec.exp){
+      delete creds.recovery; await upsertConfigRow(SUPA_URL, SUPA_KEY, CREDS_KEY, creds);
+      return json(410, { ok:false, error:'Codice scaduto. Richiedine uno nuovo.' });
+    }
+    if((rec.attempts || 0) >= 3){
+      delete creds.recovery; await upsertConfigRow(SUPA_URL, SUPA_KEY, CREDS_KEY, creds);
+      return json(429, { ok:false, error:'Troppi tentativi. Richiedi un nuovo codice.' });
+    }
+    const code = String(body.code || '').trim();
+    if(rec.slot !== slot || sha(code + '|' + email) !== rec.codeHash){
+      rec.attempts = (rec.attempts || 0) + 1;
+      await upsertConfigRow(SUPA_URL, SUPA_KEY, CREDS_KEY, creds);
+      return json(401, { ok:false, error:'Codice errato', rimasti: Math.max(0, 3 - rec.attempts) });
+    }
+
+    const passwordHash = String(body.passwordHash || '');
+    if(!passwordHash.startsWith('pbkdf2:'))
+      return json(400, { ok:false, error:'Password non hashata' });
+
+    creds[slot === 1 ? 'adminPassword' : `adminPassword${slot}`] = passwordHash;
+    delete creds.recovery;
+    const res = await upsertConfigRow(SUPA_URL, SUPA_KEY, CREDS_KEY, creds);
+    if(!res.ok) return json(502, { ok:false, error:'Salvataggio password fallito' });
+    return json(200, { ok:true });
   }
 
   // ── Azioni: catalogo (fornitori e prodotti, tabelle dedicate) ─────────────
