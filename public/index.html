@@ -2501,8 +2501,20 @@ function _subscribeSupabaseRealtime(){
           S.cart = _rtCart || {raccoltaId:'', items:[]};
           if(_rtRacc) S.raccolte = _rtRacc;
           localStorage.setItem('sgas_state', JSON.stringify(S));
-          // Le raccolte non arrivano più dal blob: riallineale alla tabella.
-          try{ sincronizzaRaccolte().then(()=>{ if(currentUser&&currentUser.type==='admin'&&window._currentAdminSec==='raccolte') renderRaccolte(); }); }catch(e){}
+          // Raccolte e catalogo non arrivano più dal blob: quello che è appena
+          // stato applicato è la copia di riserva, che può essere indietro
+          // rispetto alle tabelle. Vanno riletti da lì, altrimenti una modifica
+          // appena fatta da un altro admin (per esempio una spunta di
+          // disponibilità) verrebbe sostituita dalla versione vecchia.
+          try{
+            Promise.all([sincronizzaRaccolte(), sincronizzaCatalogo()]).then(()=>{
+              try{
+                localStorage.setItem('sgas_state', JSON.stringify(S));
+                if(currentUser && currentUser.type==='admin' && window._currentAdminSec)
+                  adminNav(window._currentAdminSec);
+              }catch(e){}
+            });
+          }catch(e){}
           // Aggiorna UI admin in tempo reale
           if(currentUser && currentUser.type==='admin' && window._currentAdminSec){
             setTimeout(()=>{ try{ adminNav(window._currentAdminSec); }catch(e){} }, 200);
@@ -6056,7 +6068,7 @@ function modalDisponibilitaRaccolta(raccoltaId){
   openModal(html);
 }
 
-function toggleDispModal(prodId, btn){
+async function toggleDispModal(prodId, btn){
   const p=S.prodotti.find(x=>x.id===prodId); if(!p) return;
   p.disponibile = p.disponibile===false ? true : false;
   const disp=p.disponibile!==false;
@@ -6066,6 +6078,10 @@ function toggleDispModal(prodId, btn){
   const label=row.querySelector('span');
   if(label){ label.style.textDecoration=disp?'':'line-through'; label.style.color=disp?'':'var(--text-light)'; }
   saveState();
+  // La disponibilità va scritta sulla riga del prodotto: fermandosi a
+  // saveState() restava solo nella copia di riserva del blob, che il
+  // salvataggio di un altro admin sovrascriveva — e la spunta spariva.
+  await _persistiCatalogo('prodotti', p);
 }
 
 function deleteRaccolta(id){
