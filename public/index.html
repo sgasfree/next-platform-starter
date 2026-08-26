@@ -2044,33 +2044,33 @@ async function _salvaRaccolteSulServer(raccolte){
   const lista = Array.isArray(raccolte) ? raccolte : [raccolte];
   if(!lista.length) return true;
   const token = await _getStateToken();
-  if(!token) return false;
+  if(!token) return 'nosessione';
   try{
     const res = await fetch('/.netlify/functions/state-save',{
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({action:'raccolte-upsert', token, raccolte: lista})
     });
-    return res.ok;
-  }catch(e){ return false; }
+    return res.ok ? true : 'errore';
+  }catch(e){ return 'errore'; }
 }
 
 async function _eliminaRaccoltaSulServer(id){
   const token = await _getStateToken();
-  if(!token) return false;
+  if(!token) return 'nosessione';
   try{
     const res = await fetch('/.netlify/functions/state-save',{
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({action:'raccolte-delete', token, id})
     });
-    return res.ok;
-  }catch(e){ return false; }
+    return res.ok ? true : 'errore';
+  }catch(e){ return 'errore'; }
 }
 
 // Salva una raccolta e avvisa se è rimasta solo in locale.
 async function _persistiRaccolta(r){
-  const ok = await _salvaRaccolteSulServer(r);
-  if(!ok) toast('⚠️ Raccolta salvata solo su questo dispositivo — riprova tra poco.');
-  return ok;
+  const esito = await _salvaRaccolteSulServer(r);
+  if(esito !== true) _avvisaScritturaFallita(esito);
+  return esito === true;
 }
 
 // Allinea le raccolte con la tabella. Se la tabella è vuota ma il blob ne
@@ -2082,7 +2082,7 @@ async function sincronizzaRaccolte(){
   if(daTabella.length){ S.raccolte = daTabella; return true; }
   const nelBlob = (S.raccolte || []).filter(r => r && r.id && r.nome);
   if(nelBlob.length && _blobRemotoLetto && currentUser && currentUser.type === 'admin'){
-    const ok = await _salvaRaccolteSulServer(nelBlob);
+    const ok = await _salvaRaccolteSulServer(nelBlob) === true;
     if(ok) console.log('📦 '+nelBlob.length+' raccolte trasferite nella tabella dedicata');
     return ok;
   }
@@ -2119,40 +2119,60 @@ const _prodottoDaRiga = p => ({
   disponibile: p.disponibile!==false, foto:p.foto||null
 });
 
+// Avviso quando una scrittura sul server non riesce.
+//
+// Il caso più insidioso è la sessione scaduta: l'admin entrato con
+// email+password, dopo un ricaricamento, non ha più le credenziali in memoria
+// (la password non viene conservata) e si regge sul token del proxy, che dura
+// 24 ore. Su un telefono, dove l'app resta aperta per giorni, quel token scade
+// e da quel momento OGNI modifica resta solo sul dispositivo. Prima l'unico
+// segnale era un messaggio che spariva in tre secondi e diceva "riprova tra
+// poco" — cosa che non risolve nulla. Qui l'avviso è bloccante e dice cosa fare.
+function _avvisaScritturaFallita(motivo){
+  if(motivo === 'nosessione'){
+    alert('🔒 Sessione scaduta — la modifica NON è stata salvata\n\n'
+      + 'Per motivi di sicurezza la password non resta memorizzata, e '
+      + 'l\'autorizzazione a scrivere è scaduta.\n\n'
+      + 'Esci e rientra, poi ripeti la modifica.');
+  } else {
+    toast('⚠️ Modifica salvata solo su questo dispositivo — riprova tra poco.');
+  }
+}
+
 // Salva uno o più record del catalogo. `tabella` è 'fornitori' o 'prodotti'.
 async function _salvaCatalogoSulServer(tabella, righe){
   const lista = Array.isArray(righe) ? righe : [righe];
   if(!lista.length) return true;
   const token = await _getStateToken();
-  if(!token) return false;
+  if(!token) return 'nosessione';
   try{
     const res = await fetch('/.netlify/functions/state-save',{
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({action:'catalogo-upsert', token, tabella, righe: lista})
     });
-    return res.ok;
-  }catch(e){ return false; }
+    return res.ok ? true : 'errore';
+  }catch(e){ return 'errore'; }
 }
 
 async function _eliminaCatalogoSulServer(tabella, ids){
   const lista = Array.isArray(ids) ? ids : [ids];
   if(!lista.length) return true;
   const token = await _getStateToken();
-  if(!token) return false;
+  if(!token) return 'nosessione';
   try{
     const res = await fetch('/.netlify/functions/state-save',{
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({action:'catalogo-delete', token, tabella, ids: lista})
     });
-    return res.ok;
-  }catch(e){ return false; }
+    return res.ok ? true : 'errore';
+  }catch(e){ return 'errore'; }
 }
 
 // Salva un record e avvisa se è rimasto solo in locale.
 async function _persistiCatalogo(tabella, riga){
-  const ok = await _salvaCatalogoSulServer(tabella, riga);
-  if(!ok) toast('⚠️ Salvato solo su questo dispositivo — riprova tra poco.');
-  return ok;
+  const esito = await _salvaCatalogoSulServer(tabella, riga);
+  if(esito !== true) _avvisaScritturaFallita(esito);
+  return esito === true;
 }
 
 // Allinea fornitori e prodotti con le tabelle. Se le tabelle sono vuote ma il
@@ -2219,8 +2239,8 @@ async function sincronizzaCatalogo(){
   const fBlob = (S.fornitori||[]).filter(f=>f && f.id && f.nome);
   const pBlob = (S.prodotti ||[]).filter(p=>p && p.id && p.nome);
   if((fBlob.length || pBlob.length) && _blobRemotoLetto && currentUser && currentUser.type==='admin'){
-    const okF = await _salvaCatalogoSulServer('fornitori', fBlob);
-    const okP = await _salvaCatalogoSulServer('prodotti',  pBlob);
+    const okF = await _salvaCatalogoSulServer('fornitori', fBlob) === true;
+    const okP = await _salvaCatalogoSulServer('prodotti',  pBlob) === true;
     if(okF && okP) console.log('📦 Catalogo trasferito: '+fBlob.length+' fornitori, '+pBlob.length+' prodotti');
     return okF && okP;
   }
@@ -5699,7 +5719,7 @@ function deleteFornitore(id){
   saveState(); renderFornitori_admin(); toast('Fornitore eliminato');
   _eliminaCatalogoSulServer('prodotti', prodottiDelForn)
     .then(()=>_eliminaCatalogoSulServer('fornitori', id))
-    .then(ok=>{ if(!ok) toast('⚠️ Eliminato solo su questo dispositivo — riprova tra poco.'); });
+    .then(esito=>{ if(esito !== true) _avvisaScritturaFallita(esito); });
 }
 
 // ════════════════════ ADMIN — PRODOTTI ════════════════════
@@ -5822,8 +5842,8 @@ function deleteProdotto(id){
   if(!confirm('Eliminare questo prodotto?')) return;
   S.prodotti=S.prodotti.filter(p=>p.id!==id);
   saveState(); renderProdotti_admin(); toast('Prodotto eliminato');
-  _eliminaCatalogoSulServer('prodotti', id).then(ok=>{
-    if(!ok) toast('⚠️ Eliminato solo su questo dispositivo — riprova tra poco.');
+  _eliminaCatalogoSulServer('prodotti', id).then(esito=>{
+    if(esito !== true) _avvisaScritturaFallita(esito);
   });
 }
 
@@ -6119,8 +6139,8 @@ function deleteRaccolta(id){
   if(_r&&_r.nome){ if(!S.raccolteStorico) S.raccolteStorico={}; S.raccolteStorico[id]=_r.nome; }
   S.raccolte=S.raccolte.filter(r=>r.id!==id);
   saveState(); renderRaccolte(); toast('Raccolta eliminata');
-  _eliminaRaccoltaSulServer(id).then(ok=>{
-    if(!ok) toast('⚠️ Eliminata solo su questo dispositivo — riprova tra poco.');
+  _eliminaRaccoltaSulServer(id).then(esito=>{
+    if(esito !== true) _avvisaScritturaFallita(esito);
   });
 }
 
