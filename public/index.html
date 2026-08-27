@@ -505,7 +505,7 @@ tr:hover td{background:var(--green-pale);}
 </div>
 
 <!-- ════════════════════════════════ LOGIN ════════════════════════════════ -->
-<div id="view-login" class="view">
+<div id="view-login" class="view active">
   <div class="login-wrap">
     <div class="login-hero">
       <div id="login-logo-wrap" style="margin-bottom:14px;display:flex;justify-content:center;">
@@ -791,7 +791,7 @@ tr:hover td{background:var(--green-pale);}
 </div>
 
 <!-- ════════════════════════════════ ADMIN ════════════════════════════════ -->
-<div id="view-admin" class="view active">
+<div id="view-admin" class="view">
   <div class="admin-topbar">
     <button class="hamburger" onclick="toggleSidebar()">☰</button>
     <span style="font-family:var(--font-serif,serif);color:#fff;" id="admin-mobile-title">Impostazioni</span>
@@ -9135,7 +9135,38 @@ function updatePrenotazioniBadge(){
   badge.textContent=aperte;
 }
 
+// Segnale che lo script principale e' stato letto ed eseguito per intero.
+// Lo verifica il blocco qui sotto, scritto apposta in sintassi vecchia.
+window.__sgasAvviata = true;
+
 </script>
 
+<!-- Avviso per browser troppo vecchi.
+     L'app usa costrutti moderni (per esempio l'operatore ?.): un browser che
+     non li conosce fallisce la lettura dell'INTERO script, quindi nessun
+     bottone risponde e la pagina resta congelata sullo scheletro dell'HTML.
+     Senza questo avviso l'utente vede una schermata immobile e inspiegabile.
+     Questo blocco e' volutamente in sintassi vecchia, altrimenti fallirebbe
+     insieme al resto. -->
+<script>
+(function(){
+  if (window.__sgasAvviata) return;
+  var d = document, box = d.createElement('div');
+  box.setAttribute('style', 'position:fixed;inset:0;z-index:99999;background:#1b5e20;'
+    + 'color:#fff;display:block;padding:32px 22px;font-family:sans-serif;'
+    + 'text-align:center;overflow:auto;');
+  box.innerHTML =
+      '<div style="font-size:44px;margin-bottom:14px;">\uD83D\uDD04</div>'
+    + '<h1 style="font-size:20px;margin:0 0 12px;">Browser non compatibile</h1>'
+    + '<p style="font-size:15px;line-height:1.6;max-width:420px;margin:0 auto 14px;">'
+    + 'Questo browser &egrave; troppo datato per far funzionare l\'app: '
+    + 'la pagina resterebbe bloccata.</p>'
+    + '<p style="font-size:15px;line-height:1.6;max-width:420px;margin:0 auto;">'
+    + 'Apri <strong>sgas-freeconomy.netlify.app</strong> con una versione '
+    + 'aggiornata di Chrome, Firefox, Safari o Edge, oppure da un altro '
+    + 'dispositivo.</p>';
+  if (d.body) { d.body.innerHTML = ''; d.body.appendChild(box); }
+})();
+</script>
 
 </body></html>
