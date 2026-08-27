@@ -2697,13 +2697,22 @@ document.addEventListener('click',()=>{
 // ════════════════════ ROUTER ════════════════════
 let currentUser=null;
 
+// Durata massima di una sessione "Ricordami". Senza un limite, su un
+// dispositivo dove qualcuno ha spuntato "Ricordami" il pannello si riapriva
+// per sempre a ogni visita, senza alcuna verifica: un problema serio su un
+// telefono condiviso, prestato o smarrito. Per gli admin il limite è più
+// stretto, perché l'accesso vale su tutto il gruppo.
+const RICORDAMI_MS_ADMIN  =  7 * 24 * 60 * 60 * 1000;   // 7 giorni
+const RICORDAMI_MS_SOCIO  = 30 * 24 * 60 * 60 * 1000;   // 30 giorni
+
 function saveSession(){
   try{
     if(currentUser){
       const tok = currentUser._tok || (crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now());
       currentUser._tok = tok;
       if(!currentUser._rememberMe) sessionStorage.setItem('sgas_live_tok', tok);
-      localStorage.setItem('sgas_usr_tok',JSON.stringify({type:currentUser.type, viaOtp:!!currentUser.viaOtp, adminEmail:currentUser.adminEmail||'', socioId:currentUser.id||'', _tok:tok, rememberMe:!!currentUser._rememberMe}));
+      const durata = currentUser.type==='admin' ? RICORDAMI_MS_ADMIN : RICORDAMI_MS_SOCIO;
+      localStorage.setItem('sgas_usr_tok',JSON.stringify({type:currentUser.type, viaOtp:!!currentUser.viaOtp, adminEmail:currentUser.adminEmail||'', socioId:currentUser.id||'', _tok:tok, rememberMe:!!currentUser._rememberMe, exp: currentUser._rememberMe ? Date.now()+durata : 0}));
     } else {
       sessionStorage.removeItem('sgas_live_tok');
       localStorage.removeItem('sgas_usr_tok');
@@ -2716,6 +2725,12 @@ function restoreSession(){
     const raw=localStorage.getItem('sgas_usr_tok');
     if(!raw) return false;
     const ses=JSON.parse(raw);
+    // Sessione "Ricordami" scaduta: si riparte dall'accesso.
+    if(ses.exp && Date.now() > ses.exp){
+      localStorage.removeItem('sgas_usr_tok');
+      try{ sessionStorage.removeItem('sgas_live_tok'); }catch(e){}
+      return false;
+    }
     const _onAdmin = window.location.hash==='#admin' || window.location.pathname==='/admin';
     // Su /admin non ripristinare mai sessioni socio
     if(_onAdmin && ses.type==='socio') return false;
