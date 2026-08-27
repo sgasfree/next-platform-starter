@@ -505,7 +505,7 @@ tr:hover td{background:var(--green-pale);}
 </div>
 
 <!-- ════════════════════════════════ LOGIN ════════════════════════════════ -->
-<div id="view-login" class="view">
+<div id="view-login" class="view active">
   <div class="login-wrap">
     <div class="login-hero">
       <div id="login-logo-wrap" style="margin-bottom:14px;display:flex;justify-content:center;">
@@ -514,6 +514,7 @@ tr:hover td{background:var(--green-pale);}
       <h1 id="login-gas-name">S-GAS <span>Freeconomy</span></h1>
       <p>Produttori etici a KM zero</p>
       <div id="login-clock" style="margin-top:12px;font-size:.95rem;color:#c8e6c9;letter-spacing:.04em;font-variant-numeric:tabular-nums;"></div>
+      <div id="login-build" style="margin-top:4px;font-size:.7rem;color:#a5d6a7;opacity:.75;"></div>
       <div id="login-app-link-wrap" style="margin-top:10px;display:none;">
         <a id="login-app-link" href="#" target="_blank" style="color:#a5d6a7;font-size:.78rem;text-decoration:underline;word-break:break-all;"></a>
       </div>
@@ -790,7 +791,7 @@ tr:hover td{background:var(--green-pale);}
 </div>
 
 <!-- ════════════════════════════════ ADMIN ════════════════════════════════ -->
-<div id="view-admin" class="view active">
+<div id="view-admin" class="view">
   <div class="admin-topbar">
     <button class="hamburger" onclick="toggleSidebar()">☰</button>
     <span style="font-family:var(--font-serif,serif);color:#fff;" id="admin-mobile-title">Impostazioni</span>
@@ -1888,6 +1889,12 @@ function _persistAdminCreds(){
   }catch(e){}
 }
 
+// Versione dell'app effettivamente in esecuzione. Serve a capire in un colpo
+// d'occhio se un dispositivo — tipicamente il telefono, dove l'app installata
+// puo restare aperta per giorni — sta ancora usando una copia vecchia invece
+// dell'ultima pubblicata.
+const APP_BUILD = '2026-08-26 · 4';
+
 // ════════ SUPABASE INTEGRATION ════════
 let _supaClient = null;
 let _supaUrlUsed = '';
@@ -2044,33 +2051,33 @@ async function _salvaRaccolteSulServer(raccolte){
   const lista = Array.isArray(raccolte) ? raccolte : [raccolte];
   if(!lista.length) return true;
   const token = await _getStateToken();
-  if(!token) return false;
+  if(!token) return 'nosessione';
   try{
     const res = await fetch('/.netlify/functions/state-save',{
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({action:'raccolte-upsert', token, raccolte: lista})
     });
-    return res.ok;
-  }catch(e){ return false; }
+    return res.ok ? true : 'errore';
+  }catch(e){ return 'errore'; }
 }
 
 async function _eliminaRaccoltaSulServer(id){
   const token = await _getStateToken();
-  if(!token) return false;
+  if(!token) return 'nosessione';
   try{
     const res = await fetch('/.netlify/functions/state-save',{
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({action:'raccolte-delete', token, id})
     });
-    return res.ok;
-  }catch(e){ return false; }
+    return res.ok ? true : 'errore';
+  }catch(e){ return 'errore'; }
 }
 
 // Salva una raccolta e avvisa se è rimasta solo in locale.
 async function _persistiRaccolta(r){
-  const ok = await _salvaRaccolteSulServer(r);
-  if(!ok) toast('⚠️ Raccolta salvata solo su questo dispositivo — riprova tra poco.');
-  return ok;
+  const esito = await _salvaRaccolteSulServer(r);
+  if(esito !== true) _avvisaScritturaFallita(esito);
+  return esito === true;
 }
 
 // Allinea le raccolte con la tabella. Se la tabella è vuota ma il blob ne
@@ -2082,7 +2089,7 @@ async function sincronizzaRaccolte(){
   if(daTabella.length){ S.raccolte = daTabella; return true; }
   const nelBlob = (S.raccolte || []).filter(r => r && r.id && r.nome);
   if(nelBlob.length && _blobRemotoLetto && currentUser && currentUser.type === 'admin'){
-    const ok = await _salvaRaccolteSulServer(nelBlob);
+    const ok = await _salvaRaccolteSulServer(nelBlob) === true;
     if(ok) console.log('📦 '+nelBlob.length+' raccolte trasferite nella tabella dedicata');
     return ok;
   }
@@ -2119,40 +2126,60 @@ const _prodottoDaRiga = p => ({
   disponibile: p.disponibile!==false, foto:p.foto||null
 });
 
+// Avviso quando una scrittura sul server non riesce.
+//
+// Il caso più insidioso è la sessione scaduta: l'admin entrato con
+// email+password, dopo un ricaricamento, non ha più le credenziali in memoria
+// (la password non viene conservata) e si regge sul token del proxy, che dura
+// 24 ore. Su un telefono, dove l'app resta aperta per giorni, quel token scade
+// e da quel momento OGNI modifica resta solo sul dispositivo. Prima l'unico
+// segnale era un messaggio che spariva in tre secondi e diceva "riprova tra
+// poco" — cosa che non risolve nulla. Qui l'avviso è bloccante e dice cosa fare.
+function _avvisaScritturaFallita(motivo){
+  if(motivo === 'nosessione'){
+    alert('🔒 Sessione scaduta — la modifica NON è stata salvata\n\n'
+      + 'Per motivi di sicurezza la password non resta memorizzata, e '
+      + 'l\'autorizzazione a scrivere è scaduta.\n\n'
+      + 'Esci e rientra, poi ripeti la modifica.');
+  } else {
+    toast('⚠️ Modifica salvata solo su questo dispositivo — riprova tra poco.');
+  }
+}
+
 // Salva uno o più record del catalogo. `tabella` è 'fornitori' o 'prodotti'.
 async function _salvaCatalogoSulServer(tabella, righe){
   const lista = Array.isArray(righe) ? righe : [righe];
   if(!lista.length) return true;
   const token = await _getStateToken();
-  if(!token) return false;
+  if(!token) return 'nosessione';
   try{
     const res = await fetch('/.netlify/functions/state-save',{
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({action:'catalogo-upsert', token, tabella, righe: lista})
     });
-    return res.ok;
-  }catch(e){ return false; }
+    return res.ok ? true : 'errore';
+  }catch(e){ return 'errore'; }
 }
 
 async function _eliminaCatalogoSulServer(tabella, ids){
   const lista = Array.isArray(ids) ? ids : [ids];
   if(!lista.length) return true;
   const token = await _getStateToken();
-  if(!token) return false;
+  if(!token) return 'nosessione';
   try{
     const res = await fetch('/.netlify/functions/state-save',{
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({action:'catalogo-delete', token, tabella, ids: lista})
     });
-    return res.ok;
-  }catch(e){ return false; }
+    return res.ok ? true : 'errore';
+  }catch(e){ return 'errore'; }
 }
 
 // Salva un record e avvisa se è rimasto solo in locale.
 async function _persistiCatalogo(tabella, riga){
-  const ok = await _salvaCatalogoSulServer(tabella, riga);
-  if(!ok) toast('⚠️ Salvato solo su questo dispositivo — riprova tra poco.');
-  return ok;
+  const esito = await _salvaCatalogoSulServer(tabella, riga);
+  if(esito !== true) _avvisaScritturaFallita(esito);
+  return esito === true;
 }
 
 // Allinea fornitori e prodotti con le tabelle. Se le tabelle sono vuote ma il
@@ -2199,28 +2226,73 @@ function _aggiornaVisteAperte(){
   }catch(e){ console.warn('Aggiornamento viste:', e); }
 }
 
+// Campi del catalogo SENZA immagini. I loghi e i banner dei fornitori pesano
+// da soli circa 750 KB: scaricarli insieme al resto rendeva la lettura lenta o
+// la faceva fallire su rete mobile, e il tesserato restava con prezzi e
+// disponibilità vecchi. Ora arrivano dopo, in secondo piano.
+const _CAMPI_FORNITORE = 'id,nome,categoria,emoji,zona,descrizione,vision,caratteristiche,'
+  + 'attivo,contattodiretto,nome_contatto,telefono,whatsapp,email_contatto,'
+  + 'telegram_contatto,indirizzo_contatto';
+const _CAMPI_PRODOTTO  = 'id,fornitore_id,nome,prezzo,unita,codice,descrizione,disponibile';
+
+// Scarica loghi e banner e li innesta nei fornitori già in memoria, poi
+// ridisegna. Non blocca nulla: se fallisce, il catalogo resta corretto e senza
+// immagini, che è molto meglio del contrario.
+async function _caricaImmaginiFornitori(){
+  const sb = getSupabase();
+  if(!sb) return;
+  try{
+    const { data, error } = await sb.from('fornitori').select('id,logo,banner');
+    if(error || !Array.isArray(data)) return;
+    let cambiate = false;
+    data.forEach(r=>{
+      const f = (S.fornitori||[]).find(x=>x.id===r.id);
+      if(!f) return;
+      if(r.logo   && f.logo   !== r.logo)  { f.logo   = r.logo;   cambiate = true; }
+      if(r.banner && f.banner !== r.banner){ f.banner = r.banner; cambiate = true; }
+    });
+    if(cambiate){
+      try{ localStorage.setItem('sgas_state', JSON.stringify(S)); }catch(e){}
+      _aggiornaVisteAperte();
+    }
+  }catch(e){ console.warn('Immagini fornitori non caricate:', e); }
+}
+
 async function sincronizzaCatalogo(){
   const sb = getSupabase();
   if(!sb) return false;
   let righeF, righeP;
   try{
-    const rf = await sb.from('fornitori').select('*');
-    const rp = await sb.from('prodotti').select('*');
-    if(rf.error || rp.error || !Array.isArray(rf.data) || !Array.isArray(rp.data)) return false;
+    const rf = await sb.from('fornitori').select(_CAMPI_FORNITORE);
+    const rp = await sb.from('prodotti').select(_CAMPI_PRODOTTO);
+    if(rf.error || rp.error || !Array.isArray(rf.data) || !Array.isArray(rp.data)){
+      console.warn('Lettura catalogo non riuscita:', (rf.error||rp.error));
+      return false;
+    }
     righeF = rf.data; righeP = rp.data;
   }catch(e){ console.warn('Lettura catalogo fallita:', e); return false; }
 
   if(righeF.length || righeP.length){
-    S.fornitori = righeF.map(_fornitoreDaRiga);
+    // Le immagini non sono in questa lettura: conserva quelle già presenti,
+    // così un riallineamento non svuota il catalogo di loghi e banner.
+    const imgPrima = {};
+    (S.fornitori||[]).forEach(f=>{ if(f && f.id && (f.logo||f.banner)) imgPrima[f.id] = {logo:f.logo, banner:f.banner}; });
+    S.fornitori = righeF.map(_fornitoreDaRiga).map(f=>{
+      const vecchia = imgPrima[f.id];
+      if(vecchia){ f.logo = f.logo || vecchia.logo || null; f.banner = f.banner || vecchia.banner || null; }
+      return f;
+    });
     S.prodotti  = righeP.map(_prodottoDaRiga);
+    // Le immagini mancanti arrivano dopo, senza far aspettare nessuno.
+    if(S.fornitori.some(f=>!f.logo && !f.banner)) _caricaImmaginiFornitori();
     return true;
   }
   // Tabelle vuote: trasferisci quanto c'è nel blob (solo un admin può scrivere)
   const fBlob = (S.fornitori||[]).filter(f=>f && f.id && f.nome);
   const pBlob = (S.prodotti ||[]).filter(p=>p && p.id && p.nome);
   if((fBlob.length || pBlob.length) && _blobRemotoLetto && currentUser && currentUser.type==='admin'){
-    const okF = await _salvaCatalogoSulServer('fornitori', fBlob);
-    const okP = await _salvaCatalogoSulServer('prodotti',  pBlob);
+    const okF = await _salvaCatalogoSulServer('fornitori', fBlob) === true;
+    const okP = await _salvaCatalogoSulServer('prodotti',  pBlob) === true;
     if(okF && okP) console.log('📦 Catalogo trasferito: '+fBlob.length+' fornitori, '+pBlob.length+' prodotti');
     return okF && okP;
   }
@@ -2625,13 +2697,22 @@ document.addEventListener('click',()=>{
 // ════════════════════ ROUTER ════════════════════
 let currentUser=null;
 
+// Durata massima di una sessione "Ricordami". Senza un limite, su un
+// dispositivo dove qualcuno ha spuntato "Ricordami" il pannello si riapriva
+// per sempre a ogni visita, senza alcuna verifica: un problema serio su un
+// telefono condiviso, prestato o smarrito. Per gli admin il limite è più
+// stretto, perché l'accesso vale su tutto il gruppo.
+const RICORDAMI_MS_ADMIN  =  7 * 24 * 60 * 60 * 1000;   // 7 giorni
+const RICORDAMI_MS_SOCIO  = 30 * 24 * 60 * 60 * 1000;   // 30 giorni
+
 function saveSession(){
   try{
     if(currentUser){
       const tok = currentUser._tok || (crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now());
       currentUser._tok = tok;
       if(!currentUser._rememberMe) sessionStorage.setItem('sgas_live_tok', tok);
-      localStorage.setItem('sgas_usr_tok',JSON.stringify({type:currentUser.type, viaOtp:!!currentUser.viaOtp, adminEmail:currentUser.adminEmail||'', socioId:currentUser.id||'', _tok:tok, rememberMe:!!currentUser._rememberMe}));
+      const durata = currentUser.type==='admin' ? RICORDAMI_MS_ADMIN : RICORDAMI_MS_SOCIO;
+      localStorage.setItem('sgas_usr_tok',JSON.stringify({type:currentUser.type, viaOtp:!!currentUser.viaOtp, adminEmail:currentUser.adminEmail||'', socioId:currentUser.id||'', _tok:tok, rememberMe:!!currentUser._rememberMe, exp: currentUser._rememberMe ? Date.now()+durata : 0}));
     } else {
       sessionStorage.removeItem('sgas_live_tok');
       localStorage.removeItem('sgas_usr_tok');
@@ -2644,6 +2725,12 @@ function restoreSession(){
     const raw=localStorage.getItem('sgas_usr_tok');
     if(!raw) return false;
     const ses=JSON.parse(raw);
+    // Sessione "Ricordami" scaduta: si riparte dall'accesso.
+    if(ses.exp && Date.now() > ses.exp){
+      localStorage.removeItem('sgas_usr_tok');
+      try{ sessionStorage.removeItem('sgas_live_tok'); }catch(e){}
+      return false;
+    }
     const _onAdmin = window.location.hash==='#admin' || window.location.pathname==='/admin';
     // Su /admin non ripristinare mai sessioni socio
     if(_onAdmin && ses.type==='socio') return false;
@@ -5699,7 +5786,7 @@ function deleteFornitore(id){
   saveState(); renderFornitori_admin(); toast('Fornitore eliminato');
   _eliminaCatalogoSulServer('prodotti', prodottiDelForn)
     .then(()=>_eliminaCatalogoSulServer('fornitori', id))
-    .then(ok=>{ if(!ok) toast('⚠️ Eliminato solo su questo dispositivo — riprova tra poco.'); });
+    .then(esito=>{ if(esito !== true) _avvisaScritturaFallita(esito); });
 }
 
 // ════════════════════ ADMIN — PRODOTTI ════════════════════
@@ -5822,8 +5909,8 @@ function deleteProdotto(id){
   if(!confirm('Eliminare questo prodotto?')) return;
   S.prodotti=S.prodotti.filter(p=>p.id!==id);
   saveState(); renderProdotti_admin(); toast('Prodotto eliminato');
-  _eliminaCatalogoSulServer('prodotti', id).then(ok=>{
-    if(!ok) toast('⚠️ Eliminato solo su questo dispositivo — riprova tra poco.');
+  _eliminaCatalogoSulServer('prodotti', id).then(esito=>{
+    if(esito !== true) _avvisaScritturaFallita(esito);
   });
 }
 
@@ -6119,8 +6206,8 @@ function deleteRaccolta(id){
   if(_r&&_r.nome){ if(!S.raccolteStorico) S.raccolteStorico={}; S.raccolteStorico[id]=_r.nome; }
   S.raccolte=S.raccolte.filter(r=>r.id!==id);
   saveState(); renderRaccolte(); toast('Raccolta eliminata');
-  _eliminaRaccoltaSulServer(id).then(ok=>{
-    if(!ok) toast('⚠️ Eliminata solo su questo dispositivo — riprova tra poco.');
+  _eliminaRaccoltaSulServer(id).then(esito=>{
+    if(esito !== true) _avvisaScritturaFallita(esito);
   });
 }
 
@@ -8637,7 +8724,10 @@ setInterval(()=>{ try{ chiudiRaccolteScadute(); }catch(e){} }, 60000);
   }
   tick();
   setInterval(tick, 1000);
+  const bd = document.getElementById('login-build');
+  if(bd) bd.textContent = 'versione ' + APP_BUILD;
 })();
+console.log('%cSGAS versione ' + APP_BUILD, 'color:#2e7d32;font-weight:700');
 
 const _isAdminPath = window.location.hash==='#admin' || window.location.pathname==='/admin';
 
@@ -9045,7 +9135,38 @@ function updatePrenotazioniBadge(){
   badge.textContent=aperte;
 }
 
+// Segnale che lo script principale e' stato letto ed eseguito per intero.
+// Lo verifica il blocco qui sotto, scritto apposta in sintassi vecchia.
+window.__sgasAvviata = true;
+
 </script>
 
+<!-- Avviso per browser troppo vecchi.
+     L'app usa costrutti moderni (per esempio l'operatore ?.): un browser che
+     non li conosce fallisce la lettura dell'INTERO script, quindi nessun
+     bottone risponde e la pagina resta congelata sullo scheletro dell'HTML.
+     Senza questo avviso l'utente vede una schermata immobile e inspiegabile.
+     Questo blocco e' volutamente in sintassi vecchia, altrimenti fallirebbe
+     insieme al resto. -->
+<script>
+(function(){
+  if (window.__sgasAvviata) return;
+  var d = document, box = d.createElement('div');
+  box.setAttribute('style', 'position:fixed;inset:0;z-index:99999;background:#1b5e20;'
+    + 'color:#fff;display:block;padding:32px 22px;font-family:sans-serif;'
+    + 'text-align:center;overflow:auto;');
+  box.innerHTML =
+      '<div style="font-size:44px;margin-bottom:14px;">\uD83D\uDD04</div>'
+    + '<h1 style="font-size:20px;margin:0 0 12px;">Browser non compatibile</h1>'
+    + '<p style="font-size:15px;line-height:1.6;max-width:420px;margin:0 auto 14px;">'
+    + 'Questo browser &egrave; troppo datato per far funzionare l\'app: '
+    + 'la pagina resterebbe bloccata.</p>'
+    + '<p style="font-size:15px;line-height:1.6;max-width:420px;margin:0 auto;">'
+    + 'Apri <strong>sgas-freeconomy.netlify.app</strong> con una versione '
+    + 'aggiornata di Chrome, Firefox, Safari o Edge, oppure da un altro '
+    + 'dispositivo.</p>';
+  if (d.body) { d.body.innerHTML = ''; d.body.appendChild(box); }
+})();
+</script>
 
 </body></html>
