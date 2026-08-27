@@ -523,11 +523,7 @@ tr:hover td{background:var(--green-pale);}
 
       <!-- ── Banner Tesserato (visibile solo su /) ── -->
       <div id="login-banner-socio" style="margin-bottom: 20px; background: var(--green-pale); border-radius: 14px; padding: 14px 16px; text-align: center; display: none;">
-        <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:8px;">
-          <img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAICAgICAQICAgIDAgIDAwYEAwMDAwcFBQQGCAcJCAgHCAgJCg0LCQoMCggICw8LDA0ODg8OCQsQERAOEQ0ODg7/2wBDAQIDAwMDAwcEBAcOCQgJDg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg7/wAARCAKAAoADASIAAhEBAxEB/8QAHgABAAEDBQEAAAAAAAAAAAAAAAkBBwgCAwQFBgr/xABNEAABAgUCAwYEAggDBQcDBAMBAgMABAUGEQchCBIxEyJBUWFxCRQygUKRFSNSYnKCobEWM0MkksHR8AoXJTRTY6Jz4fFEg5OyVHTS/8QAHQEAAQQDAQEAAAAAAAAAAAAAAAQFBgcBAgMICf/EAEMRAAEDAwIDBgMFBwIGAQUBAAEAAgMEBREhMQYSQRMiUWFxgTKRoQcUQlKxFSMzcsHR4WLwFiRDU4LxJTRjkqKy0v/aAAwDAQACEQMRAD8An8hCECEhCECEhCECEhCECEhCECEhCECEhCECEhCECEhCECEhCECEhCECEhCECEhCECEhCECEhCECEhFCQDiNsuDmIzgjwjGQELdhHHMxvkJPL54jSJkFWAM+RBz/AGjGRjKFyoRx0PhfQEHxGOn/AF5RvJPMgGMggoWqEIRlCQjbUvl8MiLG6y8RWl+hNrIqN/V9EpMvoJkaXKoL89OYOP1bQ3IzsVHCR5x0jjfK8MYMk9AsZCvlzDOMRUHf/wC0Qq3j8VmuGcdRYGk9PlpJCiG5i46o44tY6DLbASEH0C1eXWPMUr4rGqDdSbNa0vtSflfxNSE7Nyzhx1wpRcA/3YkA4du5ZzGMDy5hn5ZWnaNzhTqA5EUyM48YwH0S+IPozqxX5KgVZMzpvdE2sNtSlbdQqVfc2HI3Mp7vNnYJWEmM8G3+0KVAJUg4wQcwyVFNPSSd
-" style="height:24px;width:auto;object-fit:contain;">
-          <div style="font-size:1.6rem;">🛒</div>
-        </div>
+        <div style="font-size:1.6rem;margin-bottom:4px;">🛒</div>
         <div style="font-weight:800;color:var(--green-dark);font-size:1rem;">Area Tesserati</div>
         <div style="font-size:.78rem;color:var(--text-mid);margin-top:3px;">Accedi con tessera e cellulare</div>
       </div>
@@ -719,7 +715,10 @@ tr:hover td{background:var(--green-pale);}
   <!-- Carrello -->
   <div id="socio-cart" style="display:none;" class="content">
     <button class="back-btn" onclick="backToCatalogo()">← Torna al catalogo</button>
-    <h2 class="section-title">🛒 Il tuo Carrello</h2>
+    <h2 class="section-title" style="display:flex;align-items:center;gap:8px;">
+      <span id="cart-logo" style="width:30px;height:30px;display:none;align-items:center;justify-content:center;border-radius:50%;overflow:hidden;flex-shrink:0;"></span>
+      <span>🛒 Il tuo Carrello</span>
+    </h2>
     <div id="cart-content"></div>
   </div>
 
@@ -4343,8 +4342,12 @@ function updateCartBadge(){
 // ════════════════════ CARRELLO ════════════════════
 function renderCart(){
   const content=document.getElementById('cart-content');
+  const _logo=S.config.logoBase64||S.config.logoData||null;
+  const _cl=document.getElementById('cart-logo');
+  if(_cl&&_logo){ _cl.innerHTML='<img src="'+_logo+'" style="width:100%;height:100%;object-fit:contain;">'; _cl.style.display='flex'; }
   if(S.cart.items.length===0){
-    content.innerHTML=`<div class="empty"><div class="empty-icon">🛒</div><p>Il carrello è vuoto</p><button class="btn btn-primary" style="margin-top:16px;" onclick="backToCatalogo()">Vai al catalogo</button></div>`;
+    const _vuoto=_logo?'<img src="'+_logo+'" style="width:56px;height:56px;object-fit:contain;border-radius:50%;">':'';
+    content.innerHTML=`<div class="empty"><div style="display:flex;align-items:center;justify-content:center;gap:12px;">${_vuoto}<div class="empty-icon" style="margin:0;">🛒</div></div><p>Il carrello è vuoto</p><button class="btn btn-primary" style="margin-top:16px;" onclick="backToCatalogo()">Vai al catalogo</button></div>`;
     return;
   }
   const opens=S.raccolte.filter(r=>r.aperta);
