@@ -3939,7 +3939,7 @@ function renderCatSidebar(){
   const raccBadge=nAperte>0?`<span style="position:absolute;top:4px;right:4px;background:var(--green);color:#fff;border-radius:50%;width:16px;height:16px;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;">${nAperte}</span>`:'';
   nav.innerHTML=
     `<button class="cat-btn${currentTab==='_raccolte'?' active':''}" id="tab-_raccolte" onclick="setTab('_raccolte')" style="position:relative;">
-      <span class="cat-ico">🛒</span>Rac&#xAD;col&#xAD;te${raccBadge}
+      <span class="cat-ico" style="display:flex;">${iconaCarrelloLogo(22)}</span>Rac&#xAD;col&#xAD;te${raccBadge}
     </button>`
   +S.categorie.map(cat=>`
     <button class="cat-btn${cat.id===currentTab?' active':''}" id="tab-${cat.id}" onclick="setTab('${cat.id}')">
