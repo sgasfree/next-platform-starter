@@ -523,7 +523,7 @@ tr:hover td{background:var(--green-pale);}
 
       <!-- ── Banner Tesserato (visibile solo su /) ── -->
       <div id="login-banner-socio" style="margin-bottom: 20px; background: var(--green-pale); border-radius: 14px; padding: 14px 16px; text-align: center; display: none;">
-        <div style="font-size:1.6rem;margin-bottom:4px;">🛒</div>
+        <div id="login-banner-cart-icon" style="display:flex;justify-content:center;margin-bottom:4px;color:var(--green-dark);">🛒</div>
         <div style="font-weight:800;color:var(--green-dark);font-size:1rem;">Area Tesserati</div>
         <div style="font-size:.78rem;color:var(--text-mid);margin-top:3px;">Accedi con tessera e cellulare</div>
       </div>
@@ -813,7 +813,7 @@ tr:hover td{background:var(--green-pale);}
         <button class="nav-item" id="nav-fornitori" onclick="adminNav('fornitori')"><span class="nav-icon">🏪</span>Fornitori</button>
         <button class="nav-item" id="nav-prodotti" onclick="adminNav('prodotti')"><span class="nav-icon">📦</span>Prodotti</button>
         <button class="nav-item" id="nav-raccolte" onclick="adminNav('raccolte')"><span class="nav-icon">📋</span>Raccolte</button>
-        <button class="nav-item" id="nav-ordini" onclick="adminNav('ordini')"><span class="nav-icon">🛒</span>Ordini</button>
+        <button class="nav-item" id="nav-ordini" onclick="adminNav('ordini')"><span class="nav-icon" id="nav-ordini-icon" style="display:inline-flex;align-items:center;">🛒</span>Ordini</button>
         <button class="nav-item" id="nav-prenotazioni" onclick="adminNav('prenotazioni')"><span class="nav-icon">📅</span>Prenotazioni</button>
         <button class="nav-item" id="nav-messaggi" onclick="adminNav('messaggi')"><span class="nav-icon">💬</span>Messaggi<span class="msg-topbar-badge" id="msg-badge-admin" style="display:none;">0</span></button>
         <button class="nav-item active" id="nav-settings" onclick="adminNav('settings')"><span class="nav-icon">⚙️</span>Impostazioni</button>
@@ -4255,7 +4255,7 @@ function openFornitore(id){
         +'<div style="font-size:.75rem;color:var(--text-light);">Aggiungi i prodotti al carrello e vai alla raccolta</div>'
         +ritiroHtml
         +'</div>'
-        +'<button class="btn btn-primary btn-sm" onclick="showSocioSection(&#39;cart&#39;);renderCart()">🛒 Vai al carrello</button>'
+        +'<button class="btn btn-primary btn-sm" onclick="showSocioSection(&#39;cart&#39;);renderCart()" style="display:inline-flex;align-items:center;gap:6px;">'+iconaCarrelloLogo(18)+'Vai al carrello</button>'
         +'</div>';
     } else {
       // Nessuna raccolta: banner grigio, prodotti visibili ma non ordinabili
@@ -8698,6 +8698,12 @@ function applyLogo(){
   // Icona carrello nella barra in alto (logo dentro il cestello)
   const tci=document.getElementById('topbar-cart-icon');
   if(tci) tci.innerHTML=iconaCarrelloLogo(26);
+  // Icona carrello nel banner di accesso tesserati
+  const lbc=document.getElementById('login-banner-cart-icon');
+  if(lbc) lbc.innerHTML=iconaCarrelloLogo(40);
+  // Icona carrello nella voce "Ordini" del menu admin
+  const noi=document.getElementById('nav-ordini-icon');
+  if(noi) noi.innerHTML=iconaCarrelloLogo(20);
   // Favicon dinamico
   if(src){
     let favicon=document.getElementById('dynamic-favicon');
