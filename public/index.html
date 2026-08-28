@@ -523,7 +523,7 @@ tr:hover td{background:var(--green-pale);}
 
       <!-- ── Banner Tesserato (visibile solo su /) ── -->
       <div id="login-banner-socio" style="margin-bottom: 20px; background: var(--green-pale); border-radius: 14px; padding: 14px 16px; text-align: center; display: none;">
-        <div style="font-size:1.6rem;margin-bottom:4px;">🛒</div>
+        <div id="login-banner-cart-icon" style="display:flex;justify-content:center;margin-bottom:4px;color:var(--green-dark);">🛒</div>
         <div style="font-weight:800;color:var(--green-dark);font-size:1rem;">Area Tesserati</div>
         <div style="font-size:.78rem;color:var(--text-mid);margin-top:3px;">Accedi con tessera e cellulare</div>
       </div>
@@ -656,7 +656,7 @@ tr:hover td{background:var(--green-pale);}
       <span class="ti-label">Profilo</span>
     </button>
     <button class="topbar-icon" onclick="showSocioSection('cart');renderCart()" title="Carrello" style="position:relative;">
-      <span style="position:relative;display:inline-flex;">🛒<span class="badge" id="cart-badge" style="display:none;">0</span></span>
+      <span style="position:relative;display:inline-flex;"><span id="topbar-cart-icon">🛒</span><span class="badge" id="cart-badge" style="display:none;">0</span></span>
       <span class="ti-label">Carrello</span>
     </button>
     
@@ -716,7 +716,7 @@ tr:hover td{background:var(--green-pale);}
   <div id="socio-cart" style="display:none;" class="content">
     <button class="back-btn" onclick="backToCatalogo()">← Torna al catalogo</button>
     <h2 class="section-title" style="display:flex;align-items:center;gap:8px;">
-      <span id="cart-logo" style="width:30px;height:30px;display:none;align-items:center;justify-content:center;border-radius:50%;overflow:hidden;flex-shrink:0;"></span>
+      <span id="cart-logo" style="width:48px;height:48px;display:none;align-items:center;justify-content:center;flex-shrink:0;color:var(--green-dark);"></span>
       <span>🛒 Il tuo Carrello</span>
     </h2>
     <div id="cart-content"></div>
@@ -813,7 +813,7 @@ tr:hover td{background:var(--green-pale);}
         <button class="nav-item" id="nav-fornitori" onclick="adminNav('fornitori')"><span class="nav-icon">🏪</span>Fornitori</button>
         <button class="nav-item" id="nav-prodotti" onclick="adminNav('prodotti')"><span class="nav-icon">📦</span>Prodotti</button>
         <button class="nav-item" id="nav-raccolte" onclick="adminNav('raccolte')"><span class="nav-icon">📋</span>Raccolte</button>
-        <button class="nav-item" id="nav-ordini" onclick="adminNav('ordini')"><span class="nav-icon">🛒</span>Ordini</button>
+        <button class="nav-item" id="nav-ordini" onclick="adminNav('ordini')"><span class="nav-icon" id="nav-ordini-icon" style="display:inline-flex;align-items:center;">🛒</span>Ordini</button>
         <button class="nav-item" id="nav-prenotazioni" onclick="adminNav('prenotazioni')"><span class="nav-icon">📅</span>Prenotazioni</button>
         <button class="nav-item" id="nav-messaggi" onclick="adminNav('messaggi')"><span class="nav-icon">💬</span>Messaggi<span class="msg-topbar-badge" id="msg-badge-admin" style="display:none;">0</span></button>
         <button class="nav-item active" id="nav-settings" onclick="adminNav('settings')"><span class="nav-icon">⚙️</span>Impostazioni</button>
@@ -4255,7 +4255,7 @@ function openFornitore(id){
         +'<div style="font-size:.75rem;color:var(--text-light);">Aggiungi i prodotti al carrello e vai alla raccolta</div>'
         +ritiroHtml
         +'</div>'
-        +'<button class="btn btn-primary btn-sm" onclick="showSocioSection(&#39;cart&#39;);renderCart()">🛒 Vai al carrello</button>'
+        +'<button class="btn btn-primary btn-sm" onclick="showSocioSection(&#39;cart&#39;);renderCart()" style="display:inline-flex;align-items:center;gap:6px;">'+iconaCarrelloLogo(18)+'Vai al carrello</button>'
         +'</div>';
     } else {
       // Nessuna raccolta: banner grigio, prodotti visibili ma non ordinabili
@@ -4340,14 +4340,39 @@ function updateCartBadge(){
 }
 
 // ════════════════════ CARRELLO ════════════════════
+// Logo di riserva quando il GAS non ne ha ancora caricato uno proprio
+// (stesso file usato da applyLogo per il resto dell'app).
+const DEFAULT_LOGO='data:image/jpeg;base64,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';
+
+// Carrello col logo S-GAS dentro il cestello. Il logo è ritagliato sul
+// cestello, così non sborda mai dai bordi del disegno.
+let _nIconaCarrello=0;
+function iconaCarrelloLogo(size,opts){
+  opts=opts||{};
+  const logo=S.config.logoBase64||S.config.logoData||DEFAULT_LOGO;
+  // Sotto i 44px il cerchio di sfondo stringe troppo il disegno e il logo
+  // diventa illeggibile: in quel caso si disegna il solo carrello.
+  const cerchio=opts.cerchio!==undefined?opts.cerchio:size>=44;
+  const id='ico-cart-'+(++_nIconaCarrello);
+  const cestello='M14 19 H53 L47 37 H22 Z';
+  return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 64 64" role="img" aria-label="Carrello" style="display:block;flex-shrink:0;overflow:visible;">'
+    +(cerchio?'<circle cx="32" cy="32" r="31" fill="var(--green-pale)"/>':'')
+    +'<defs><clipPath id="'+id+'"><path d="'+cestello+'"/></clipPath></defs>'
+    +(logo?'<image href="'+logo+'" xlink:href="'+logo+'" x="23.5" y="19" width="19" height="19" clip-path="url(#'+id+')" preserveAspectRatio="xMidYMid meet"/>':'')
+    +'<g fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">'
+    +'<path d="M7 13 H12 L14 19"/>'
+    +'<path d="'+cestello+'"/>'
+    +'<path d="M22 37 L24.5 44 H46"/>'
+    +'<circle cx="26" cy="50" r="3.6"/><circle cx="45" cy="50" r="3.6"/>'
+    +'</g></svg>';
+}
+
 function renderCart(){
   const content=document.getElementById('cart-content');
-  const _logo=S.config.logoBase64||S.config.logoData||null;
   const _cl=document.getElementById('cart-logo');
-  if(_cl&&_logo){ _cl.innerHTML='<img src="'+_logo+'" style="width:100%;height:100%;object-fit:contain;">'; _cl.style.display='flex'; }
+  if(_cl){ _cl.innerHTML=iconaCarrelloLogo(48); _cl.style.display='flex'; }
   if(S.cart.items.length===0){
-    const _vuoto=_logo?'<img src="'+_logo+'" style="width:56px;height:56px;object-fit:contain;border-radius:50%;">':'';
-    content.innerHTML=`<div class="empty"><div style="display:flex;align-items:center;justify-content:center;gap:12px;">${_vuoto}<div class="empty-icon" style="margin:0;">🛒</div></div><p>Il carrello è vuoto</p><button class="btn btn-primary" style="margin-top:16px;" onclick="backToCatalogo()">Vai al catalogo</button></div>`;
+    content.innerHTML='<div class="empty"><div style="display:flex;justify-content:center;margin-bottom:6px;color:var(--green-dark);">'+iconaCarrelloLogo(96)+'</div><p>Il carrello è vuoto</p><button class="btn btn-primary" style="margin-top:16px;" onclick="backToCatalogo()">Vai al catalogo</button></div>';
     return;
   }
   const opens=S.raccolte.filter(r=>r.aperta);
@@ -8656,7 +8681,6 @@ function updateSidebarName(){
 }
 
 function applyLogo(){
-  const DEFAULT_LOGO='data:image/jpeg;base64,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';
   const src=S.config.logoBase64||S.config.logoData||DEFAULT_LOGO;
   const imgTag=src?`<img src="${src}" style="width:100%;height:100%;object-fit:contain;">`:'';
 
@@ -8671,6 +8695,15 @@ function applyLogo(){
   // Sidebar
   const sli=document.getElementById('sidebar-logo-img');
   if(sli) sli.innerHTML=imgTag;
+  // Icona carrello nella barra in alto (logo dentro il cestello)
+  const tci=document.getElementById('topbar-cart-icon');
+  if(tci) tci.innerHTML=iconaCarrelloLogo(26);
+  // Icona carrello nel banner di accesso tesserati
+  const lbc=document.getElementById('login-banner-cart-icon');
+  if(lbc) lbc.innerHTML=iconaCarrelloLogo(40);
+  // Icona carrello nella voce "Ordini" del menu admin
+  const noi=document.getElementById('nav-ordini-icon');
+  if(noi) noi.innerHTML=iconaCarrelloLogo(20);
   // Favicon dinamico
   if(src){
     let favicon=document.getElementById('dynamic-favicon');
