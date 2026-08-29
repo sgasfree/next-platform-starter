@@ -2379,6 +2379,16 @@ function syncToSupabase(){
       //    restituisce in {error} — va controllato esplicitamente, altrimenti
       //    un salvataggio rifiutato sembra riuscito e nessuno se ne accorge.
       if(!savedViaProxy){
+        if(!token){
+          // Nessun token = nessuna sessione col proxy: il fallback qui sotto è
+          // RLS-bloccato per certo, non serve nemmeno tentarlo. Senza questo
+          // avviso bloccante, impostazioni come i Chat ID Admin del recupero
+          // password sembrano salvate (restano visibili nel browser) ma non
+          // arrivano mai al server: chi le legge da lì — es. il recupero
+          // password admin — continua a vedere il valore vecchio, in silenzio.
+          _avvisaScritturaFallita('nosessione');
+          return;
+        }
         const {error} = await sb.from('config').upsert(
           { chiave:'sgas_app_state', valore:payload, updated_at: new Date().toISOString() },
           { onConflict:'chiave' }
