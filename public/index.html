@@ -1996,13 +1996,14 @@ async function _getStateToken(){
 // generico (vedi commento in syncToSupabase). passwordHash vuoto = rimuove
 // lo slot. Ritorna true/false; in caso di errore mostra un toast esplicito
 // (niente fallimenti silenziosi come nel bug del salvataggio generico).
-async function _saveAdminCredsToProxy(slot, email, passwordHash){
+async function _saveAdminCredsToProxy(slot, email, passwordHash, opts){
+  const keepPassword = !!(opts && opts.keepPassword);
   const token = await _getStateToken();
   if(!token){ toast('⚠️ Credenziali admin salvate solo in locale: impossibile autenticarsi col server. Riprova tra poco.'); return false; }
   try{
     const res = await fetch('/.netlify/functions/state-save',{
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({action:'admin-creds', token, slot, email, passwordHash})
+      body: JSON.stringify({action:'admin-creds', token, slot, email, passwordHash, keepPassword})
     });
     if(res.ok) return true;
     const data = await res.json().catch(()=>null);
@@ -8034,14 +8035,22 @@ async function saveConfigGAS(){
   // Password: salvata nel giusto slot in base a chi è loggato
   const np=document.getElementById('s-pass').value;
   let credOk=true;
+  const slot = isAdmin2?2:isAdmin3?3:1;
+  const slotEmail = isAdmin2?S.config.adminEmail2:isAdmin3?S.config.adminEmail3:S.config.adminEmail;
   if(np){
     const hashed=await hashPassword(np);
-    const slot = isAdmin2?2:isAdmin3?3:1;
-    const slotEmail = isAdmin2?S.config.adminEmail2:isAdmin3?S.config.adminEmail3:S.config.adminEmail;
     if(isAdmin2) S.config.adminPassword2=hashed;
     else if(isAdmin3) S.config.adminPassword3=hashed;
     else S.config.adminPassword=hashed;
     credOk = await _saveAdminCredsToProxy(slot, slotEmail, hashed);
+  } else if(slotEmail){
+    // Anche senza cambio password l'email va registrata sul server: il
+    // salvataggio generico qui sotto la rimuove apposta dal payload (per non
+    // farla sovrascrivere da un dispositivo con una copia vecchia), quindi
+    // senza questa chiamata resterebbe solo sul dispositivo. È così che il
+    // server poteva non conoscere alcuna email admin, e il recupero password
+    // rispondeva "email sconosciuta" a chi era davvero admin.
+    credOk = await _saveAdminCredsToProxy(slot, slotEmail, '', {keepPassword:true});
   }
   saveState();
   _persistAdminCreds();
