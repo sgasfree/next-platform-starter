@@ -296,12 +296,21 @@ export const handler = async (event) => {
             body: JSON.stringify({ chat_id, text: testo })
           }).then(r => r.json()).catch(e => ({ ok:false, description: String(e) }))));
         const almenoUnoInviato = esiti.some(e => e && e.ok);
+        // Dettaglio per contatto: qui non è enumerazione (siamo già nel ramo
+        // "email esiste ed è la propria"). Senza questo, un chat_id sbagliato
+        // fra tre resta invisibile: "inviato" con successo grazie agli altri
+        // due, mentre chi guarda proprio quel contatto non vede mai nulla.
+        const dettagli = chats.map((chat_id, i) => ({
+          chatId: chat_id, ok: !!(esiti[i] && esiti[i].ok),
+          motivo: esiti[i] && !esiti[i].ok ? (esiti[i].description || 'errore sconosciuto') : null
+        }));
         if(!almenoUnoInviato){
           delete creds.recovery;
           await upsertConfigRow(SUPA_URL, SUPA_KEY, CREDS_KEY, creds);
           const motivo = (esiti.find(e => e && e.description) || {}).description || 'errore sconosciuto';
-          return json(502, { ok:false, error:'Invio Telegram fallito: ' + motivo });
+          return json(502, { ok:false, error:'Invio Telegram fallito: ' + motivo, dettagli });
         }
+        return json(200, { ok:true, dettagli });
       }
       return json(200, { ok:true });
     }

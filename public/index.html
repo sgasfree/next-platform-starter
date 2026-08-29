@@ -3327,23 +3327,34 @@ async function adminRecSendCode(){
   // Il codice viene generato e conservato dal SERVER: nel browser non passa mai,
   // e la risposta è identica anche per un'email non registrata, così non si può
   // scoprire quali email siano admin provandole una per una.
+  let dati=null;
   try{
     const res=await fetch('/.netlify/functions/state-save',{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({action:'admin-recover-request', email})
     });
+    dati=await res.json().catch(()=>null);
     if(!res.ok){
       // Un errore qui significa che l'email ESISTE ma il codice non è
       // partito (bot non configurato, nessun contatto Telegram, invio
       // fallito): il server lo dice esplicitamente, non è enumerazione.
-      const err=await res.json().catch(()=>null);
-      msg.innerHTML='<div class="alert alert-info">❌ '+escHtml((err&&err.error)||'Servizio non disponibile. Riprova tra poco.')+'</div>';
+      msg.innerHTML='<div class="alert alert-info">❌ '+escHtml((dati&&dati.error)||'Servizio non disponibile. Riprova tra poco.')+'</div>';
       return;
     }
   }catch(e){ msg.innerHTML='<div class="alert alert-info">📡 Server non raggiungibile.</div>'; return; }
   _adminRecEmail = email;
-  msg.innerHTML='<div class="alert alert-success">✅ Se l\'email è registrata, il codice è stato inviato su Telegram ai referenti.</div>';
-  setTimeout(()=>adminRecStep2(),1400);
+  // 'dettagli' arriva solo se l'email è quella di un admin vero: mostra a
+  // schermo quale dei Chat ID configurati ha davvero ricevuto il messaggio,
+  // così un contatto sbagliato fra più admin non resta invisibile dietro un
+  // generico "successo" garantito dagli altri due che funzionano.
+  let dettaglioHtml='';
+  if(Array.isArray(dati && dati.dettagli)){
+    dettaglioHtml='<div style="text-align:left;font-size:.78rem;margin-top:8px;">'
+      +dati.dettagli.map(d=>(d.ok?'✅ ':'❌ ')+escHtml(d.chatId)+(d.ok?' — ricevuto':' — '+escHtml(d.motivo||'fallito'))).join('<br>')
+      +'</div>';
+  }
+  msg.innerHTML='<div class="alert alert-success">✅ Se l\'email è registrata, il codice è stato inviato su Telegram ai referenti.</div>'+dettaglioHtml;
+  setTimeout(()=>adminRecStep2(), dettaglioHtml?3500:1400);
 }
 
 function adminRecStep2(){
