@@ -274,22 +274,34 @@ export const handler = async (event) => {
     const sha = s => createHash('sha256').update(String(s)).digest('hex');
 
     if(action === 'admin-recover-request'){
-      // Risposta sempre uguale: non si rivela quali email siano registrate.
+      // Risposta sempre uguale SOLO quando l'email non è registrata: non si
+      // deve rivelare quali email siano admin. Ma se l'email ESISTE, chi la
+      // possiede sa già di essere admin: possiamo (anzi dobbiamo) dirgli se
+      // il codice non è partito, altrimenti resta bloccato senza saperlo.
       if(slot > 0){
         const code = String(Math.floor(100000 + Math.random() * 900000));
         creds.recovery = { slot, codeHash: sha(code + '|' + email),
                            exp: Date.now() + 15*60*1000, attempts: 0 };
         await upsertConfigRow(SUPA_URL, SUPA_KEY, CREDS_KEY, creds);
         const BOT = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
+        if(!BOT) return json(500, { ok:false, error:'TELEGRAM_BOT_TOKEN non configurato sul server' });
         const chats = [cfg.tgAdminChatId, cfg.tgAdminChatId2, cfg.tgAdminChatId3]
           .map(c => String(c || '').trim()).filter(Boolean);
+        if(!chats.length) return json(500, { ok:false, error:'Nessun contatto Telegram amministratore configurato' });
         const testo = '🔐 SGAS — Codice reset password admin:\n\n' + code +
                       '\n\n⏱ Scade tra 15 minuti.\nSe non hai richiesto questo codice, ignora il messaggio.';
-        if(BOT) await Promise.all(chats.map(chat_id =>
+        const esiti = await Promise.all(chats.map(chat_id =>
           fetch(`https://api.telegram.org/bot${BOT}/sendMessage`, {
             method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({ chat_id, text: testo })
-          }).catch(()=>null)));
+          }).then(r => r.json()).catch(e => ({ ok:false, description: String(e) }))));
+        const almenoUnoInviato = esiti.some(e => e && e.ok);
+        if(!almenoUnoInviato){
+          delete creds.recovery;
+          await upsertConfigRow(SUPA_URL, SUPA_KEY, CREDS_KEY, creds);
+          const motivo = (esiti.find(e => e && e.description) || {}).description || 'errore sconosciuto';
+          return json(502, { ok:false, error:'Invio Telegram fallito: ' + motivo });
+        }
       }
       return json(200, { ok:true });
     }
