@@ -267,13 +267,32 @@ export const handler = async (event) => {
 
     const state = await readConfigState(SUPA_URL, SUPA_KEY);
     const cfg = (state && state.config) || {};
-    const slot = [cfg.adminEmail, cfg.adminEmail2, cfg.adminEmail3]
-      .findIndex(e => e && String(e).toLowerCase() === email) + 1;   // 0 = non trovato
+    // .trim() anche sul valore salvato: uno spazio finito per sbaglio nel campo
+    // Impostazioni rendeva l'email irriconoscibile, e il recupero rispondeva
+    // "email sconosciuta" senza che nulla lo lasciasse capire.
+    const emailsAdmin = [cfg.adminEmail, cfg.adminEmail2, cfg.adminEmail3]
+      .map(e => String(e || '').trim().toLowerCase());
+    const slot = emailsAdmin.findIndex(e => e && e === email) + 1;   // 0 = non trovato
 
     const creds = await readAdminCreds(SUPA_URL, SUPA_KEY);
     const sha = s => createHash('sha256').update(String(s)).digest('hex');
 
     if(action === 'admin-recover-request'){
+      // Nessuna email admin registrata sul server: non è il caso "email
+      // sbagliata" (che va taciuto), è una configurazione incompleta che
+      // rende il recupero impossibile per CHIUNQUE. Tacerlo significa
+      // rispondere "inviato" a un messaggio che non partirà mai — ed è
+      // esattamente così che il problema è rimasto invisibile.
+      //
+      // Perché può succedere: il salvataggio generico delle impostazioni
+      // rimuove apposta le email admin dal payload (per non farle
+      // sovrascrivere da un dispositivo con una copia vecchia), quindi
+      // arrivano al server SOLO tramite il salvataggio dedicato delle
+      // credenziali. Se quello non è mai stato fatto, qui non c'è nulla.
+      // Non rivela quali email siano admin: dice solo che non ce n'è alcuna.
+      if(!emailsAdmin.some(Boolean))
+        return json(500, { ok:false, error:'Nessuna email amministratore registrata sul server: apri Impostazioni → Amministratori e salva di nuovo l\'email admin, poi riprova il recupero.' });
+
       // Risposta sempre uguale SOLO quando l'email non è registrata: non si
       // deve rivelare quali email siano admin. Ma se l'email ESISTE, chi la
       // possiede sa già di essere admin: possiamo (anzi dobbiamo) dirgli se
@@ -524,6 +543,13 @@ export const handler = async (event) => {
     const passwordHash = String(body.passwordHash || ''); // già hashata pbkdf2 dal client, o '' per rimuovere
     if(passwordHash && !passwordHash.startsWith('pbkdf2:'))
       return json(400, { ok:false, error:'Password non hashata' });
+    // Aggiornare la sola email senza toccare la password: serve a registrare
+    // sul server un'email admin già in uso (il salvataggio generico non la
+    // trasmette apposta), senza cancellare l'impronta della password di chi
+    // non la sta cambiando.
+    const soloEmail = body.keepPassword === true;
+    if(soloEmail && !email)
+      return json(400, { ok:false, error:'Email mancante' });
 
     const state = await readConfigState(SUPA_URL, SUPA_KEY);
     if(!state || !state.config) return json(500, { ok:false, error:'Stato remoto non disponibile' });
@@ -538,7 +564,7 @@ export const handler = async (event) => {
     state.config[passKey]  = '';
 
     const creds = await readAdminCreds(SUPA_URL, SUPA_KEY);
-    creds[passKey] = passwordHash;
+    if(!soloEmail) creds[passKey] = passwordHash;
 
     const resCreds = await upsertConfigRow(SUPA_URL, SUPA_KEY, CREDS_KEY, creds);
     if(!resCreds.ok){
