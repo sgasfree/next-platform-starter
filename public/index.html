@@ -2303,10 +2303,20 @@ async function sincronizzaCatalogo(){
   return true;
 }
 
+// Momento dell'ultima uscita. Il logout revoca la sessione e subito dopo
+// chiama saveState(): il salvataggio che parte 1,5 s più tardi si troverebbe
+// senza token e verrebbe scambiato per una sessione scaduta, mostrando
+// l'avviso bloccante proprio mentre si esce di proposito.
+let _uscitaAt = 0;
+
 function syncToSupabase(){
   if(S.config && S.config.supabasePaused) return; // sync in standby
   clearTimeout(_syncTimeout);
   _syncTimeout = setTimeout(async ()=>{
+    // Uscita in corso: non c'è più una sessione con cui scrivere, e non c'è
+    // nulla da salvare che riguardi il server (il carrello è personale e non
+    // viene mai pubblicato). Uscire non è un errore: niente avviso.
+    if(Date.now() - _uscitaAt < 5000) return;
     const sb = getSupabase();
     if(!sb) return;
     try{
@@ -3945,6 +3955,7 @@ function logout(){
   const wasViaOtp = currentUser && currentUser.viaOtp;
   _ordiniPropri = null;   // niente ordini di chi era collegato prima
   currentUser=null;
+  _uscitaAt = Date.now(); // il salvataggio qui sotto non è una sessione scaduta
   _setStateAuth(null); // revoca il token di scrittura del proxy
   saveSession();
   S.cart={raccoltaId:'',items:[]};
