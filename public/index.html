@@ -3322,7 +3322,14 @@ async function adminRecSendCode(){
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({action:'admin-recover-request', email})
     });
-    if(!res.ok){ msg.innerHTML='<div class="alert alert-info">❌ Servizio non disponibile. Riprova tra poco.</div>'; return; }
+    if(!res.ok){
+      // Un errore qui significa che l'email ESISTE ma il codice non è
+      // partito (bot non configurato, nessun contatto Telegram, invio
+      // fallito): il server lo dice esplicitamente, non è enumerazione.
+      const err=await res.json().catch(()=>null);
+      msg.innerHTML='<div class="alert alert-info">❌ '+escHtml((err&&err.error)||'Servizio non disponibile. Riprova tra poco.')+'</div>';
+      return;
+    }
   }catch(e){ msg.innerHTML='<div class="alert alert-info">📡 Server non raggiungibile.</div>'; return; }
   _adminRecEmail = email;
   msg.innerHTML='<div class="alert alert-success">✅ Se l\'email è registrata, il codice è stato inviato su Telegram ai referenti.</div>';
