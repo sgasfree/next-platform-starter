@@ -58,6 +58,13 @@ export const handler = async (event) => {
       return json(404, { ok: false, error: 'Nome e cognome non corrispondenti.' });
   }
 
+  // I dati personali escono SOLO a verifica completata (tessera + cellulare +
+  // nome). Prima uscivano già al passo 1, cioè a chi conosceva o indovinava il
+  // solo numero di tessera: essendo progressivi (SGAS 0001, 0002, ...) bastava
+  // provarli in sequenza per raccogliere i cellulari dei tesserati, e i passi 2
+  // e 3 non proteggevano più nulla.
+  if (step < 3) return json(200, { ok: true });
+
   return json(200, {
     ok: true,
     tessera: socio.tessera,
