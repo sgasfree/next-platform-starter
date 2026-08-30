@@ -1898,6 +1898,19 @@ function _persistAdminCreds(){
 // dell'ultima pubblicata.
 const APP_BUILD = '2026-08-29 · 1';
 
+// A schermo la versione si legge come "Versione (1) 29 agosto 2026". La
+// costante qui sopra resta in forma anno-mese-giorno: è quella che si ordina
+// e si confronta a colpo d'occhio quando si confrontano due dispositivi.
+function versioneLeggibile(build){
+  const mesi = ['gennaio','febbraio','marzo','aprile','maggio','giugno',
+                'luglio','agosto','settembre','ottobre','novembre','dicembre'];
+  const m = String(build||'').match(/^(\d{4})-(\d{2})-(\d{2})\s*·\s*(\d+)$/);
+  // Formato inatteso: meglio mostrare il valore grezzo che nascondere tutto —
+  // questa scritta serve proprio a capire quale copia sta girando.
+  if(!m) return 'Versione ' + build;
+  return 'Versione (' + m[4] + ') ' + Number(m[3]) + ' ' + mesi[Number(m[2])-1] + ' ' + m[1];
+}
+
 // ════════ SUPABASE INTEGRATION ════════
 let _supaClient = null;
 let _supaUrlUsed = '';
@@ -8813,9 +8826,10 @@ setInterval(()=>{ try{ chiudiRaccolteScadute(); }catch(e){} }, 60000);
   tick();
   setInterval(tick, 1000);
   const bd = document.getElementById('login-build');
-  if(bd) bd.textContent = 'versione ' + APP_BUILD;
+  if(bd) bd.textContent = versioneLeggibile(APP_BUILD);
 })();
-console.log('%cSGAS versione ' + APP_BUILD, 'color:#2e7d32;font-weight:700');
+// In console resta anche la forma grezza: serve a confrontare due dispositivi.
+console.log('%cSGAS ' + versioneLeggibile(APP_BUILD) + '  [' + APP_BUILD + ']', 'color:#2e7d32;font-weight:700');
 
 const _isAdminPath = window.location.hash==='#admin' || window.location.pathname==='/admin';
 
