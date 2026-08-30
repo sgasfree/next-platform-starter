@@ -2361,6 +2361,22 @@ function syncToSupabase(){
       // l'aggiornamento (via loadFromSupabase/realtime) si ritrova il
       // carrello di un altro tesserato al posto del proprio.
       delete payloadObj.cart;
+      // Dati personali: la riga `sgas_app_state` è a LETTURA PUBBLICA (policy
+      // config_read) e la chiave anon è dentro il file servito, quindi tutto
+      // ciò che finisce qui è leggibile da chiunque, non solo dai tesserati.
+      // Messaggi privati e prenotazioni vivono già nelle tabelle protette da
+      // RLS (`messaggi`, `ordini_prenotazione`): qui non devono comparire.
+      delete payloadObj.messaggi;
+      delete payloadObj.ordiniPrenotazione;
+      // Degli ordini resta la copia di riserva, ma senza i campi che
+      // identificano la persona (nome, cognome, cellulare, Telegram, tessera):
+      // l'elenco a schermo li risolve da S.soci, che arriva dalla tabella
+      // protetta. Prima finivano tutti nel documento pubblico.
+      if(Array.isArray(payloadObj.ordini))
+        payloadObj.ordini = payloadObj.ordini.map(o=>{
+          const {socioNome,socioCognome,socioCellulare,socioTelegram,socioTessera,...resto}=o;
+          return resto;
+        });
       // Raccolte e catalogo vivono nelle tabelle dedicate: da lì vengono letti,
       // e solo lì contano. Nel blob resta però una COPIA DI RISERVA, senza
       // immagini per non farlo crescere.

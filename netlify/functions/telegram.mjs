@@ -104,21 +104,28 @@ export const handler = async (event) => {
     return json(400, { ok: false, description: 'Missing chat_id or text' });
   }
 
+  // Serve SEMPRE un token valido. Prima i chat ID degli admin erano ammessi
+  // anche senza: serviva al recupero password, che parte da non autenticati.
+  // Quel flusso però ora invia da solo (state-save chiama Telegram
+  // direttamente), mentre l'eccezione restava aperta — e i chat ID degli admin
+  // sono nel blob a lettura pubblica. Chiunque poteva quindi far scrivere al
+  // bot ufficiale del GAS un messaggio a piacere agli amministratori:
+  // indistinguibile, per chi lo riceve, da un avviso legittimo (per esempio un
+  // finto "codice di reset").
+  const payload = verifyToken(SECRET, token);
+  if (!payload) {
+    return json(401, { ok: false, description: 'Non autorizzato' });
+  }
+
   // Il destinatario deve essere qualcuno che il GAS conosce già.
   const target = normChat(chat_id);
-  const admins = await adminChatIds(SUPA_URL, SUPA_KEY);
-  let consentito = admins.includes(target);
-
+  // Un admin autenticato può scrivere a chiunque (serve al pulsante "Test",
+  // che prova un Chat ID non ancora salvato). Un tesserato no: può raggiungere
+  // solo gli admin o un destinatario già registrato.
+  let consentito = payload.role === 'admin';
   if (!consentito) {
-    // Non è un chat ID admin: serve almeno un token valido.
-    const payload = verifyToken(SECRET, token);
-    if (!payload) {
-      return json(401, { ok: false, description: 'Non autorizzato' });
-    }
-    // Un admin autenticato può scrivere a chiunque (serve al pulsante "Test",
-    // che prova un Chat ID non ancora salvato). Un tesserato no: può
-    // raggiungere solo destinatari già registrati.
-    consentito = payload.role === 'admin'
+    const admins = await adminChatIds(SUPA_URL, SUPA_KEY);
+    consentito = admins.includes(target)
       || (await socioChatIds(SUPA_URL, SUPA_KEY)).includes(target);
   }
 
