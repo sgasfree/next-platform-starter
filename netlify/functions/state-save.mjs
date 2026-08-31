@@ -21,7 +21,14 @@ const STATE_KEY = 'sgas_app_state';
 // riga separata, che nessuna policy espone: si legge solo con la service_role,
 // cioè solo da qui.
 const CREDS_KEY = 'sgas_admin_creds';
-const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;   // 24 ore
+const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;   // 24 ore (tesserati e admin via OTP)
+// Un admin rimosso (email/password cancellate) mantiene comunque scrittura
+// finché il suo token firmato non scade: qui non c'è revoca istantanea, solo
+// una scadenza. Più breve è, prima si chiude quella finestra. Il tesserato
+// non ne risente (token diverso, sopra): qui riguarda solo email+password e
+// l'accesso admin via OTP. Se va rifatto troppo spesso, si allunga di nuovo —
+// ma un valore fra qualche ora e mezza giornata è un compromesso ragionevole.
+const ADMIN_TOKEN_TTL_MS = 8 * 60 * 60 * 1000;   // 8 ore
 const MAX_PAYLOAD_BYTES = 4 * 1024 * 1024;  // 4 MB (il blob senza immagini è molto più piccolo)
 
 const json = (status, obj) => ({
@@ -200,7 +207,7 @@ export const handler = async (event) => {
       // Accesso riuscito: se le impronte erano ancora nel blob pubblico, spostale
       // ora. Un errore qui non deve impedire l'accesso già verificato.
       try{ await migraCredsDalBlob(SUPA_URL, SUPA_KEY, state); }catch(e){}
-      return json(200, { ok:true, token: signToken(SECRET, { role:'admin', sub:email, exp: Date.now()+TOKEN_TTL_MS }) });
+      return json(200, { ok:true, token: signToken(SECRET, { role:'admin', sub:email, exp: Date.now()+ADMIN_TOKEN_TTL_MS }) });
     }
     if(kind === 'socio'){
       const tess = normTessera(body.tessera);
@@ -220,7 +227,8 @@ export const handler = async (event) => {
       const adminTess = (process.env.ADMIN_TESSERE || '')
         .split(',').map(t => normTessera(t)).filter(Boolean);
       const role = adminTess.includes(normTessera(match.tessera)) ? 'admin' : 'socio';
-      return json(200, { ok:true, token: signToken(SECRET, { role, sub:String(match.id), exp: Date.now()+TOKEN_TTL_MS }) });
+      const ttl = role === 'admin' ? ADMIN_TOKEN_TTL_MS : TOKEN_TTL_MS;
+      return json(200, { ok:true, token: signToken(SECRET, { role, sub:String(match.id), exp: Date.now()+ttl }) });
     }
     return json(400, { ok:false, error:'kind non valido' });
   }
@@ -609,7 +617,7 @@ export const handler = async (event) => {
     const resState = await upsertConfigRow(SUPA_URL, SUPA_KEY, STATE_KEY, state);
     if(!resState.ok) return json(502, { ok:false, error:'Scrittura stato fallita' });
 
-    return json(200, { ok:true, token: signToken(SECRET, { role:'admin', sub:email, exp: Date.now()+TOKEN_TTL_MS }) });
+    return json(200, { ok:true, token: signToken(SECRET, { role:'admin', sub:email, exp: Date.now()+ADMIN_TOKEN_TTL_MS }) });
   }
 
   // ── Azione: gestione credenziali admin (slot 1/2/3) ───────────────────────
