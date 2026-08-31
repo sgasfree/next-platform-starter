@@ -113,6 +113,38 @@ async function readAdminCreds(url, key){
   try{ return JSON.parse(rows[0].valore) || {}; }catch(e){ return {}; }
 }
 
+// Chat ID Telegram degli admin: stessa migrazione delle password. Le
+// installazioni precedenti li tengono nel blob pubblico (serviva al browser
+// per mandare le notifiche direttamente); qui i tesserati non hanno mai
+// bisogno di conoscerli, solo il server che invia per loro. Alla prima
+// lettura o scrittura li si sposta nella riga riservata e li si cancella dal
+// blob pubblico — senza aspettare che qualcuno risalvi le impostazioni.
+async function leggiChatAdminEMigra(url, key, cfgPubblico){
+  const creds = await readAdminCreds(url, key);
+  const daCreds = [creds.tgAdminChatId, creds.tgAdminChatId2, creds.tgAdminChatId3]
+    .map(c => String(c || '').trim());
+  if(daCreds.some(Boolean)) return { chats: daCreds.filter(Boolean), creds };
+
+  // Niente nella riga riservata: guarda nel blob pubblico (installazione non
+  // ancora migrata) e, se trova qualcosa, sposta e ripulisce subito.
+  const dalBlob = [cfgPubblico.tgAdminChatId, cfgPubblico.tgAdminChatId2, cfgPubblico.tgAdminChatId3]
+    .map(c => String(c || '').trim());
+  if(dalBlob.some(Boolean)){
+    creds.tgAdminChatId = dalBlob[0] || '';
+    creds.tgAdminChatId2 = dalBlob[1] || '';
+    creds.tgAdminChatId3 = dalBlob[2] || '';
+    await upsertConfigRow(url, key, CREDS_KEY, creds);
+    const stato = await readConfigState(url, key);
+    if(stato && stato.config){
+      stato.config.tgAdminChatId = '';
+      stato.config.tgAdminChatId2 = '';
+      stato.config.tgAdminChatId3 = '';
+      await upsertConfigRow(url, key, STATE_KEY, stato);
+    }
+  }
+  return { chats: dalBlob.filter(Boolean), creds };
+}
+
 // Migrazione automatica: le installazioni precedenti tengono le impronte nel
 // blob pubblico. Al primo accesso riuscito le si sposta nella riga riservata e
 // le si cancella da quello pubblico, senza chiedere niente all'amministratore.
@@ -256,6 +288,60 @@ export const handler = async (event) => {
     }catch(e){ return json(502, { ok:false, error:'Chiamata a Telegram fallita: '+e.message }); }
   }
 
+  // ── Azioni: Chat ID Telegram degli admin ──────────────────────────────────
+  // Prima vivevano nel blob pubblico (serviva al browser per sapere a chi
+  // mandare le notifiche d'ordine). Ora restano nella riga riservata, come le
+  // password: il browser non ha più bisogno di conoscerli, solo di chiedere
+  // al server di avvisare gli admin per lui.
+  if(action === 'admin-notify-get'){
+    const payload = verifyToken(SECRET, body.token);
+    if(!payload) return json(401, { ok:false, error:'Token non valido o scaduto' });
+    if(payload.role !== 'admin') return json(403, { ok:false, error:'Riservato agli admin' });
+    const state = await readConfigState(SUPA_URL, SUPA_KEY);
+    const cfg = (state && state.config) || {};
+    const { creds } = await leggiChatAdminEMigra(SUPA_URL, SUPA_KEY, cfg);
+    return json(200, { ok:true,
+      tgAdminChatId:  creds.tgAdminChatId  || '',
+      tgAdminChatId2: creds.tgAdminChatId2 || '',
+      tgAdminChatId3: creds.tgAdminChatId3 || '' });
+  }
+
+  if(action === 'admin-notify-config'){
+    const payload = verifyToken(SECRET, body.token);
+    if(!payload) return json(401, { ok:false, error:'Token non valido o scaduto' });
+    if(payload.role !== 'admin') return json(403, { ok:false, error:'Riservato agli admin' });
+    const creds = await readAdminCreds(SUPA_URL, SUPA_KEY);
+    creds.tgAdminChatId  = String(body.tgAdminChatId  || '').trim();
+    creds.tgAdminChatId2 = String(body.tgAdminChatId2 || '').trim();
+    creds.tgAdminChatId3 = String(body.tgAdminChatId3 || '').trim();
+    const res = await upsertConfigRow(SUPA_URL, SUPA_KEY, CREDS_KEY, creds);
+    if(!res.ok) return json(502, { ok:false, error:'Salvataggio fallito' });
+    return json(200, { ok:true });
+  }
+
+  // Un utente autenticato qualsiasi (admin o tesserato) può chiedere di
+  // avvisare gli admin: serve alla notifica di un nuovo ordine. Il testo lo
+  // prepara il browser (sa già tutto sull'ordine appena inviato); i
+  // destinatari li sceglie solo il server, che è l'unico a conoscerli.
+  if(action === 'notify-admins'){
+    const payload = verifyToken(SECRET, body.token);
+    if(!payload) return json(401, { ok:false, error:'Token non valido o scaduto' });
+    const testo = String(body.text || '').trim();
+    if(!testo) return json(400, { ok:false, error:'Testo mancante' });
+    const BOT = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
+    if(!BOT) return json(500, { ok:false, error:'TELEGRAM_BOT_TOKEN non configurato sul server' });
+    const state = await readConfigState(SUPA_URL, SUPA_KEY);
+    const cfg = (state && state.config) || {};
+    const { chats } = await leggiChatAdminEMigra(SUPA_URL, SUPA_KEY, cfg);
+    if(!chats.length) return json(200, { ok:true, inviati:0 }); // nessun admin configurato: non è un errore del chiamante
+    const esiti = await Promise.all(chats.map(chat_id =>
+      fetch(`https://api.telegram.org/bot${BOT}/sendMessage`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ chat_id, text: testo, parse_mode:'HTML' })
+      }).then(r => r.json()).catch(e => ({ ok:false, description: String(e) }))));
+    return json(200, { ok:true, inviati: esiti.filter(e=>e&&e.ok).length });
+  }
+
   // ── Azioni: recupero password admin ───────────────────────────────────────
   // Il codice viene generato, conservato (solo come impronta) e verificato QUI.
   // Prima nasceva e veniva controllato nel browser: chiunque poteva aggirarlo
@@ -304,8 +390,7 @@ export const handler = async (event) => {
         await upsertConfigRow(SUPA_URL, SUPA_KEY, CREDS_KEY, creds);
         const BOT = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
         if(!BOT) return json(500, { ok:false, error:'TELEGRAM_BOT_TOKEN non configurato sul server' });
-        const chats = [cfg.tgAdminChatId, cfg.tgAdminChatId2, cfg.tgAdminChatId3]
-          .map(c => String(c || '').trim()).filter(Boolean);
+        const { chats } = await leggiChatAdminEMigra(SUPA_URL, SUPA_KEY, cfg);
         if(!chats.length) return json(500, { ok:false, error:'Nessun contatto Telegram amministratore configurato' });
         const testo = '🔐 SGAS — Codice reset password admin:\n\n' + code +
                       '\n\n⏱ Scade tra 15 minuti.\nSe non hai richiesto questo codice, ignora il messaggio.';

@@ -920,9 +920,11 @@ tr:hover td{background:var(--green-pale);}
         4️⃣ Ogni tesserato può ottenere il proprio Chat ID scrivendo a <b>@userinfobot</b> su Telegram
       </div>
       <div class="alert alert-info" style="font-size:.8rem;margin-bottom:10px;">🔒 Il Bot Token è protetto su Netlify (variabile d'ambiente <code>TELEGRAM_BOT_TOKEN</code>) — non va inserito qui.</div>
-      <div class="field"><label>💬 Chat ID Admin 1 (per ricevere ordini)</label><input id="s-tgadmin" type="text" value="${S.config.tgAdminChatId||''}" placeholder="es. 123456789"></div>
-      <div class="field"><label>💬 Chat ID Admin 2 <span style="font-size:.75rem;color:var(--text-light);">(opzionale)</span></label><input id="s-tgadmin2" type="text" value="${S.config.tgAdminChatId2||''}" placeholder="es. 987654321"></div>
-      <div class="field"><label>💬 Chat ID Admin 3 <span style="font-size:.75rem;color:var(--text-light);">(opzionale)</span></label><input id="s-tgadmin3" type="text" value="${S.config.tgAdminChatId3||''}" placeholder="es. 111222333"></div>
+      <!-- Non vivono più in S.config: si caricano da caricaChatAdminInImpostazioni(),
+           l'unica che ha un token per chiederli al server. -->
+      <div class="field"><label>💬 Chat ID Admin 1 (per ricevere ordini)</label><input id="s-tgadmin" type="text" placeholder="es. 123456789"></div>
+      <div class="field"><label>💬 Chat ID Admin 2 <span style="font-size:.75rem;color:var(--text-light);">(opzionale)</span></label><input id="s-tgadmin2" type="text" placeholder="es. 987654321"></div>
+      <div class="field"><label>💬 Chat ID Admin 3 <span style="font-size:.75rem;color:var(--text-light);">(opzionale)</span></label><input id="s-tgadmin3" type="text" placeholder="es. 111222333"></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;">
         <button class="btn btn-primary" onclick="saveTelegramConfig()">💾 Salva config Telegram</button>
         <button class="btn btn-secondary" onclick="testTelegramMsg()">🧪 Invia messaggio di test</button>
@@ -2352,6 +2354,12 @@ function syncToSupabase(){
         ['adminEmail','adminPassword','adminEmail2','adminPassword2','adminEmail3','adminPassword3'].forEach(k=>{
           delete payloadObj.config[k];
         });
+        // Chat ID Telegram degli admin: stessa logica, ora vivono nella riga
+        // riservata (vedi admin-notify-config/get). Rete di sicurezza in più,
+        // nel caso qualcosa li rimetta ancora in S.config.
+        ['tgAdminChatId','tgAdminChatId2','tgAdminChatId3'].forEach(k=>{
+          delete payloadObj.config[k];
+        });
       }
       // Anagrafica soci: vive solo nella tabella `soci` (RLS), non va mai
       // pubblicata nel blob `config` (lettura pubblica via anon key).
@@ -2688,10 +2696,9 @@ function _subscribeSupabaseRealtime(){
 }
 
 // ════════ TELEGRAM NOTIFICATIONS ════════
-// Invio di una notifica Telegram. Il server accetta come destinatari solo i
-// chat ID che conosce: quelli degli admin sempre, quelli dei tesserati solo
-// con un token valido. Qui il token si allega quando disponibile; nei flussi
-// non autenticati (recupero password, che scrive solo agli admin) resta vuoto.
+// Invio di una notifica Telegram a un destinatario CONOSCIUTO dal browser
+// (un socio, o un Chat ID admin già scritto a mano in un modulo). Serve
+// sempre un token valido, verificato dal server.
 async function sendTelegramMsg(chatId, text){
   if(!chatId) return;
   let tok = null;
@@ -2703,6 +2710,21 @@ async function sendTelegramMsg(chatId, text){
       body:JSON.stringify({chat_id:chatId, text:text, parse_mode:'HTML', token:tok||undefined})
     });
   }catch(e){ console.warn('Telegram notify error:',e); }
+}
+
+// Avvisa gli amministratori senza che il browser conosca i loro Chat ID: li
+// legge solo il server, dalla riga riservata (mai dal blob pubblico). Chi
+// chiama deve solo essere autenticato — admin o tesserato, come già valeva
+// per la notifica di un nuovo ordine.
+async function notificaAdminNuovoOrdine(testo){
+  try{
+    const tok = await _getStateToken();
+    if(!tok) return; // nessuna sessione: niente da inviare, non è un errore bloccante
+    await fetch('/.netlify/functions/state-save',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'notify-admins', token:tok, text:testo})
+    });
+  }catch(e){ console.warn('Notifica admin fallita:', e); }
 }
 
 function buildOrderTgMsg(ord, forSocio){
@@ -4566,14 +4588,10 @@ function submitOrder(){
   try{ exportOrderWord(ord); }catch(e){ console.warn('Word gen error:',e); }
   sendOrderEmail(ord);
   sendPush('📦 Ordine confermato!', 'Il tuo ordine '+ord.id+' è stato ricevuto — Totale: €'+ord.totale.toFixed(2), window.location.origin);
-  // Notifiche Telegram
-  const adminChatId = (S.config.tgAdminChatId||'').trim();
-  const adminChatId2 = (S.config.tgAdminChatId2||'').trim();
-  const adminChatId3 = (S.config.tgAdminChatId3||'').trim();
+  // Notifiche Telegram. Agli admin la manda il SERVER: il browser non
+  // conosce più i loro Chat ID, sa solo chiedere di avvisarli.
+  notificaAdminNuovoOrdine(buildOrderTgMsg(ord, false));
   const socioChatId = (currentUser.telegramChatId||'').trim();
-  if(adminChatId) sendTelegramMsg(adminChatId, buildOrderTgMsg(ord, false));
-  if(adminChatId2) sendTelegramMsg(adminChatId2, buildOrderTgMsg(ord, false));
-  if(adminChatId3) sendTelegramMsg(adminChatId3, buildOrderTgMsg(ord, false));
   if(socioChatId) sendTelegramMsg(socioChatId, buildOrderTgMsg(ord, true));
   toast('✅ Ordine inviato! Documento Word scaricato.');
   backToCatalogo();
@@ -7962,9 +7980,11 @@ INSERT INTO config (chiave,valore) VALUES ('sgas_app_state','{}');</pre>
         4️⃣ Ogni socio può ottenere il proprio Chat ID scrivendo a <b>@userinfobot</b> su Telegram
       </div>
       <div class="alert alert-info" style="font-size:.8rem;margin-bottom:10px;">🔒 Il Bot Token è protetto su Netlify (variabile d'ambiente <code>TELEGRAM_BOT_TOKEN</code>) — non va inserito qui.</div>
-      <div class="field"><label>💬 Chat ID Admin 1 (per ricevere ordini)</label><input id="s-tgadmin" type="text" value="${S.config.tgAdminChatId||''}" placeholder="es. 123456789"></div>
-      <div class="field"><label>💬 Chat ID Admin 2 <span style="font-size:.75rem;color:var(--text-light);">(opzionale)</span></label><input id="s-tgadmin2" type="text" value="${S.config.tgAdminChatId2||''}" placeholder="es. 987654321"></div>
-      <div class="field"><label>💬 Chat ID Admin 3 <span style="font-size:.75rem;color:var(--text-light);">(opzionale)</span></label><input id="s-tgadmin3" type="text" value="${S.config.tgAdminChatId3||''}" placeholder="es. 111222333"></div>
+      <!-- Non vivono più in S.config: si caricano da caricaChatAdminInImpostazioni(),
+           l'unica che ha un token per chiederli al server. -->
+      <div class="field"><label>💬 Chat ID Admin 1 (per ricevere ordini)</label><input id="s-tgadmin" type="text" placeholder="⏳ caricamento…"></div>
+      <div class="field"><label>💬 Chat ID Admin 2 <span style="font-size:.75rem;color:var(--text-light);">(opzionale)</span></label><input id="s-tgadmin2" type="text" placeholder="es. 987654321"></div>
+      <div class="field"><label>💬 Chat ID Admin 3 <span style="font-size:.75rem;color:var(--text-light);">(opzionale)</span></label><input id="s-tgadmin3" type="text" placeholder="es. 111222333"></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;">
         <button class="btn btn-primary" onclick="saveTelegramConfig()">💾 Salva config Telegram</button>
         <button class="btn btn-secondary" onclick="testTelegramMsg()">🧪 Invia messaggio di test</button>
@@ -8007,6 +8027,29 @@ INSERT INTO config (chiave,valore) VALUES ('sgas_app_state','{}');</pre>
       </div>
     </div>`;
   renderCatListAdmin();
+  caricaChatAdminInImpostazioni();
+}
+
+// I Chat ID Telegram degli admin non vivono più in S.config (sono nella riga
+// riservata): la schermata Impostazioni li chiede al server appena si apre,
+// con il proprio token da admin.
+async function caricaChatAdminInImpostazioni(){
+  const c1=document.getElementById('s-tgadmin');
+  if(!c1) return;
+  try{
+    const tok = await _getStateToken();
+    if(!tok) return;
+    const res = await fetch('/.netlify/functions/state-save',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'admin-notify-get', token:tok})
+    });
+    const dati = await res.json().catch(()=>null);
+    if(!res.ok || !dati || !dati.ok){ c1.placeholder='es. 123456789'; return; }
+    c1.value = dati.tgAdminChatId||'';
+    c1.placeholder='es. 123456789';
+    const c2=document.getElementById('s-tgadmin2'); if(c2) c2.value = dati.tgAdminChatId2||'';
+    const c3=document.getElementById('s-tgadmin3'); if(c3) c3.value = dati.tgAdminChatId3||'';
+  }catch(e){ c1.placeholder='es. 123456789'; }
 }
 
 async function saveAdmin2(){
@@ -8215,11 +8258,20 @@ async function verificaWebhookTelegram(){
   }
 }
 
-function saveTelegramConfig(){
-  S.config.tgAdminChatId=(document.getElementById('s-tgadmin').value||'').trim();
-  S.config.tgAdminChatId2=(document.getElementById('s-tgadmin2')||{value:''}).value.trim();
-  S.config.tgAdminChatId3=(document.getElementById('s-tgadmin3')||{value:''}).value.trim();
-  saveState(); toast('✅ Config Telegram salvata');
+async function saveTelegramConfig(){
+  const tgAdminChatId  = (document.getElementById('s-tgadmin').value||'').trim();
+  const tgAdminChatId2 = (document.getElementById('s-tgadmin2')||{value:''}).value.trim();
+  const tgAdminChatId3 = (document.getElementById('s-tgadmin3')||{value:''}).value.trim();
+  const tok = await _getStateToken();
+  if(!tok){ toast('⚠️ Sessione scaduta: esci e rientra, poi riprova.'); return; }
+  try{
+    const res = await fetch('/.netlify/functions/state-save',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'admin-notify-config', token:tok, tgAdminChatId, tgAdminChatId2, tgAdminChatId3})
+    });
+    if(res.ok) toast('✅ Config Telegram salvata');
+    else{ const d=await res.json().catch(()=>null); toast('❌ '+((d&&d.error)||'Salvataggio fallito')); }
+  }catch(e){ toast('📡 Server non raggiungibile. Riprova tra poco.'); }
 }
 
 async function testTelegramMsg(){
