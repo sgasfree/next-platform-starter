@@ -399,7 +399,14 @@ export const handler = async (event) => {
         const BOT = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
         if(!BOT) return json(500, { ok:false, error:'TELEGRAM_BOT_TOKEN non configurato sul server' });
         const { chats } = await leggiChatAdminEMigra(SUPA_URL, SUPA_KEY, cfg);
-        if(!chats.length) return json(500, { ok:false, error:'Nessun contatto Telegram amministratore configurato' });
+        // Il codice va a QUALSIASI Chat ID Admin configurato (1, 2 o 3): non
+        // esiste "il contatto di questo admin" — sono condivisi fra tutti.
+        // Quindi se qui non ce n'è nessuno, il recupero è impossibile per
+        // ogni amministratore, non solo per chi lo sta chiedendo ora — anche
+        // se quell'admin entra benissimo con OTP o email+password, che non
+        // passano da qui. Il messaggio lo dice esplicitamente per evitare
+        // di pensare a un problema del singolo account.
+        if(!chats.length) return json(500, { ok:false, error:'Nessun Chat ID Telegram amministratore è mai stato configurato (vale per tutti gli admin, non solo per te): vai in Impostazioni → Telegram e impostane almeno uno, poi riprova il recupero.' });
         const testo = '🔐 SGAS — Codice reset password admin:\n\n' + code +
                       '\n\n⏱ Scade tra 15 minuti.\nSe non hai richiesto questo codice, ignora il messaggio.';
         const esiti = await Promise.all(chats.map(chat_id =>
