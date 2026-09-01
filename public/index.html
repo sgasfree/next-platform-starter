@@ -2943,6 +2943,11 @@ function backToCatalogo(){
     renderFornitori();
   }
   _prevTab=null;
+  // Il pulsante "torna al catalogo" deve riportare anche in cima alla
+  // pagina: cambiava solo la sezione, lo scroll restava dov'era (a metà
+  // pagina, con la barra in alto fuori vista se si veniva da una lunga
+  // scheda fornitore o da un lungo carrello).
+  window.scrollTo(0,0);
 }
 
 // Pulsante flottante: mostra solo se fuori dal catalogo e la pagina è scrollata
@@ -3118,6 +3123,7 @@ function showOspiteSection(sec){
 function backToCatalogoOspite(){
   showOspiteSection('catalogo');
   renderFornitoriOspite();
+  window.scrollTo(0,0);
 }
 
 // ════════════════════ WIZARD ════════════════════
