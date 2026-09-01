@@ -186,10 +186,38 @@
   <div class="sec-title">🔑 Come fare il login</div>
   <div class="sec-sub">Niente password — tessera, cellulare e un codice via Telegram</div>
 
-  <div class="alert info" style="margin-bottom:16px;">📱 Per ricevere il codice OTP devi avere <strong>Telegram</strong> installato e aver comunicato il tuo numero al GAS. Il bot <strong>@infoSgas_bot</strong> ti invierà il codice.</div>
+  <div class="alert warn" style="margin-bottom:16px;">⚠️ <strong>Prima di provare ad accedere</strong>, devi aver avviato tu il bot Telegram: senza quel passo l'app non può inviarti nulla, nemmeno con tessera e cellulare corretti. Non è un dettaglio opzionale — vedi qui sotto.</div>
+
+  <!-- Passo 0: avviare il bot su Telegram (prerequisito, va fatto una volta sola) -->
+  <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Passo 0 — Avvia il bot su Telegram (una volta sola, prima di tutto)</div>
+  <div class="mock">
+    <div class="mock-hero" style="background:linear-gradient(160deg,#0088cc,#29b6f6);">
+      <div class="logo">📲</div>
+      <div class="t1">@infoSgas_bot</div>
+      <div class="t2">Cercalo su Telegram e aprilo</div>
+    </div>
+    <div class="mock-body">
+      <div style="text-align:center;margin-bottom:12px;">
+        <div style="display:inline-block;background:#e3f2fd;color:#0d47a1;font-weight:800;font-size:12px;padding:8px 22px;border-radius:20px;">▶ START</div>
+        <div class="tag-below" style="margin-top:4px;display:block;text-align:center;">↑ tocca qui la prima volta</div>
+      </div>
+      <div style="background:#f1f8e9;border-radius:10px;padding:12px;font-size:11.5px;line-height:1.6;color:#212121;">
+        👋 Bot <strong>SGAS Freeconomy</strong> attivo.<br><br>
+        Da qui riceverai i codici di accesso all'app e gli avvisi del GAS.<br>
+        Il tuo Chat ID è <code style="background:#e0e0e0;padding:1px 4px;border-radius:3px;">123456789</code>: comunicalo all'amministratore se la tua tessera non è ancora collegata.
+      </div>
+      <div class="tag-below" style="margin-top:6px;display:block;text-align:center;color:var(--green-dark);font-weight:800;">✅ Questa risposta conferma che sei collegato</div>
+    </div>
+  </div>
+
+  <div class="step"><div class="step-num">0</div><div class="step-body">
+    <strong>Cerca @infoSgas_bot su Telegram e premi «Avvia» (o «Start»)</strong>
+    <p>Serve <strong>una volta sola</strong>, il giorno che diventi tesserato — non a ogni accesso. Telegram non permette a un bot di scrivere per primo a chi non ha mai aperto la conversazione: se salti questo passo, l'app dirà che tutto è andato bene ma il codice non arriverà <strong>mai</strong>, nemmeno inserendo tessera e cellulare giusti.</p>
+    <div class="alert info">📩 Se non vedi la risposta del bot, controlla di aver scritto <strong>esattamente</strong> <code>@infoSgas_bot</code> e non un nome simile.</div>
+  </div></div>
 
   <!-- Passo 1-4: inserisci dati + Ricordami -->
-  <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Passo 1 — Inserisci tessera e cellulare</div>
+  <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:24px 0 8px;">Passo 1 — Inserisci tessera e cellulare</div>
   <div class="mock">
     <div class="mock-hero">
       <div class="logo" style="display:flex;justify-content:center;">
@@ -307,6 +335,11 @@
       <div style="width:72px;height:72px;border-radius:50%;background:#fff;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.2);overflow:hidden;"><img src="icon-192.png" alt="Logo S-GAS Freeconomy" style="width:100%;height:100%;object-fit:contain;padding:4px;box-sizing:border-box;"></div>
       <div style="color:#fff;font-weight:800;font-size:20px;letter-spacing:-.3px;">S-GAS <span style="color:#a5d6a7;">Freeconomy</span></div>
       <div style="color:#a5d6a7;font-size:12px;margin-top:4px;">Produttori etici a KM zero</div>
+      <div style="margin-top:12px;font-size:13px;color:#c8e6c9;letter-spacing:.04em;">Martedì 01 settembre 2026 — 10:32:07</div>
+      <div style="margin-top:5px;display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.12);border-radius:20px;padding:3px 10px;">
+        <span style="font-size:10px;color:#e8f5e9;">Versione (1) 31 agosto 2026</span>
+        <span style="font-size:9px;color:#ffcdd2;font-weight:900;">← qui</span>
+      </div>
     </div>
     <div style="background:#f1f8e9;padding:14px;margin:12px;">
       <div style="text-align:center;margin-bottom:10px;">
