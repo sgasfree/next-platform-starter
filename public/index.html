@@ -5712,18 +5712,18 @@ function fornForm(f){
       ${bannerPreview}
       <label class="btn btn-secondary btn-sm" style="cursor:pointer;display:inline-block;">🖼 Carica banner<input type="file" accept="image/*" style="display:none;" onchange="previewFornBanner(event)"></label>
     </div>
-    <div class="field"><label>Nome</label><input id="m-fnome" type="text" value="${escHtml(f.nome||'')}" placeholder="Nome azienda"></div>
-    <div class="field"><label>Categoria</label><select id="m-fcat">
+    <div class="field"><label for="m-fnome">Nome</label><input id="m-fnome" type="text" value="${escHtml(f.nome||'')}" placeholder="Nome azienda"></div>
+    <div class="field"><label for="m-fcat">Categoria</label><select id="m-fcat">
       ${S.categorie.map(cat=>`<option value="${cat.id}" ${f.categoria===cat.id?'selected':''}>${cat.ico} ${escHtml(cat.nome)}</option>`).join('')}
     </select></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-      <div class="field"><label>Emoji</label><input id="m-femi" type="text" value="${escHtml(f.emoji||'')}" placeholder="🏪"></div>
+      <div class="field"><label for="m-femi">Emoji</label><input id="m-femi" type="text" value="${escHtml(f.emoji||'')}" placeholder="🏪"></div>
 
     </div>
-    <div class="field"><label>Zona / Città</label><input id="m-fzona" type="text" value="${escHtml(f.zona||'')}" placeholder="es. Varese, Lombardia"></div>
-    <div class="field"><label>Descrizione</label><textarea id="m-fdesc" placeholder="Descrizione del produttore...">${escHtml(f.descrizione||'').replace(/<br>/g,'\n')}</textarea></div>
-    <div class="field"><label>Caratteristiche (separate da virgola)</label><input id="m-fchar" type="text" value="${escHtml((f.caratteristiche||[]).join(', '))}" placeholder="Biologico, Km 0, Slow Food"></div>
-    <div class="field"><label>Vision / Frase ispiratrice</label><input id="m-fvis" type="text" value="${escHtml(f.vision||'')}" placeholder="La nostra filosofia..."></div>
+    <div class="field"><label for="m-fzona">Zona / Città</label><input id="m-fzona" type="text" value="${escHtml(f.zona||'')}" placeholder="es. Varese, Lombardia"></div>
+    <div class="field"><label for="m-fdesc">Descrizione</label><textarea id="m-fdesc" placeholder="Descrizione del produttore...">${escHtml(f.descrizione||'').replace(/<br>/g,'\n')}</textarea></div>
+    <div class="field"><label for="m-fchar">Caratteristiche (separate da virgola)</label><input id="m-fchar" type="text" value="${escHtml((f.caratteristiche||[]).join(', '))}" placeholder="Biologico, Km 0, Slow Food"></div>
+    <div class="field"><label for="m-fvis">Vision / Frase ispiratrice</label><input id="m-fvis" type="text" value="${escHtml(f.vision||'')}" placeholder="La nostra filosofia..."></div>
     <div class="field" style="margin-top:16px;border-top:1px solid var(--green-light);padding-top:14px;">
       <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:700;">
         <input type="checkbox" id="m-fcontatto" ${f.contattodiretto?'checked':''} onchange="document.getElementById('m-fcontatto-fields').style.display=this.checked?'block':'none'" style="width:18px;height:18px;">
@@ -5731,12 +5731,12 @@ function fornForm(f){
       </label>
     </div>
     <div id="m-fcontatto-fields" style="display:${f.contattodiretto?'block':'none'}">
-      <div class="field"><label>Nome referente</label><input id="m-fnome-contatto" type="text" value="${escHtml(f.nomeContatto||'')}" placeholder="es. Mario Rossi"></div>
-      <div class="field"><label>Telefono</label><input id="m-ftel" type="tel" value="${escHtml(f.telefono||'')}" placeholder="es. 3401234567"></div>
-      <div class="field"><label>WhatsApp <span style="font-weight:400;font-size:.78rem;">(lascia vuoto se uguale al tel.)</span></label><input id="m-fwa" type="tel" value="${escHtml(f.whatsapp||'')}" placeholder="es. 3401234567"></div>
-      <div class="field"><label>Email contatto</label><input id="m-femail-contatto" type="email" value="${escHtml(f.emailContatto||'')}" placeholder="es. info@fornitore.it"></div>
-      <div class="field"><label>Telegram <span style="font-weight:400;font-size:.78rem;">(username senza @)</span></label><input id="m-ftelegram" type="text" value="${escHtml(f.telegramContatto||'')}" placeholder="es. nomeutente"></div>
-      <div class="field"><label>Indirizzo</label><input id="m-findirizzo" type="text" value="${escHtml(f.indirizzoContatto||'')}" placeholder="es. Via Roma 1, Milano"></div>
+      <div class="field"><label for="m-fnome-contatto">Nome referente</label><input id="m-fnome-contatto" type="text" value="${escHtml(f.nomeContatto||'')}" placeholder="es. Mario Rossi"></div>
+      <div class="field"><label for="m-ftel">Telefono</label><input id="m-ftel" type="tel" value="${escHtml(f.telefono||'')}" placeholder="es. 3401234567"></div>
+      <div class="field"><label for="m-fwa">WhatsApp <span style="font-weight:400;font-size:.78rem;">(lascia vuoto se uguale al tel.)</span></label><input id="m-fwa" type="tel" value="${escHtml(f.whatsapp||'')}" placeholder="es. 3401234567"></div>
+      <div class="field"><label for="m-femail-contatto">Email contatto</label><input id="m-femail-contatto" type="email" value="${escHtml(f.emailContatto||'')}" placeholder="es. info@fornitore.it"></div>
+      <div class="field"><label for="m-ftelegram">Telegram <span style="font-weight:400;font-size:.78rem;">(username senza @)</span></label><input id="m-ftelegram" type="text" value="${escHtml(f.telegramContatto||'')}" placeholder="es. nomeutente"></div>
+      <div class="field"><label for="m-findirizzo">Indirizzo</label><input id="m-findirizzo" type="text" value="${escHtml(f.indirizzoContatto||'')}" placeholder="es. Via Roma 1, Milano"></div>
     </div>
     `;
 }
@@ -5853,13 +5853,15 @@ function modalEditFornitore(id){
 async function saveFornitore(editId){
   const nome=document.getElementById('m-fnome').value.trim();
   if(!nome){toast('Nome obbligatorio');return;}
-  const prev=document.getElementById('m-flogo-preview');
-  // Preserva sempre il logo esistente se non è stato cambiato
-  const existingLogo=editId?(S.fornitori.find(x=>x.id===editId)||{}).logo:null;
-  const logoVal=_fornLogo||existingLogo||(prev&&prev.src&&prev.src.startsWith('data:')?prev.src:null);
-  const existingBanner=editId?(S.fornitori.find(x=>x.id===editId)||{}).banner:null;
-  const bannerPrev=document.getElementById('m-fbanner-preview');
-  const bannerVal=_fornBanner||existingBanner||(bannerPrev&&bannerPrev.src&&bannerPrev.src.startsWith('data:')?bannerPrev.src:null);
+  // _fornLogo/_fornBanner sono l'unica fonte di verità, tenuta aggiornata da
+  // apertura modale, caricamento e rimozione: NON va più recuperato il
+  // valore salvato in S.fornitori come ripiego. Farlo (come prima) resuscita
+  // un'immagine appena rimossa, perché "rimossa" e "mai caricata" diventano
+  // indistinguibili — S.fornitori[...].logo è ancora quello vecchio, il
+  // ripiego lo rimette dentro, e il pulsante "Rimuovi" appare funzionare
+  // solo finché non si riapre l'app.
+  const logoVal=_fornLogo||null;
+  const bannerVal=_fornBanner||null;
   const data={
     nome,categoria:document.getElementById('m-fcat').value,
     emoji:document.getElementById('m-femi').value.trim(),
