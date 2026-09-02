@@ -5853,13 +5853,15 @@ function modalEditFornitore(id){
 async function saveFornitore(editId){
   const nome=document.getElementById('m-fnome').value.trim();
   if(!nome){toast('Nome obbligatorio');return;}
-  const prev=document.getElementById('m-flogo-preview');
-  // Preserva sempre il logo esistente se non è stato cambiato
-  const existingLogo=editId?(S.fornitori.find(x=>x.id===editId)||{}).logo:null;
-  const logoVal=_fornLogo||existingLogo||(prev&&prev.src&&prev.src.startsWith('data:')?prev.src:null);
-  const existingBanner=editId?(S.fornitori.find(x=>x.id===editId)||{}).banner:null;
-  const bannerPrev=document.getElementById('m-fbanner-preview');
-  const bannerVal=_fornBanner||existingBanner||(bannerPrev&&bannerPrev.src&&bannerPrev.src.startsWith('data:')?bannerPrev.src:null);
+  // _fornLogo/_fornBanner sono l'unica fonte di verità, tenuta aggiornata da
+  // apertura modale, caricamento e rimozione: NON va più recuperato il
+  // valore salvato in S.fornitori come ripiego. Farlo (come prima) resuscita
+  // un'immagine appena rimossa, perché "rimossa" e "mai caricata" diventano
+  // indistinguibili — S.fornitori[...].logo è ancora quello vecchio, il
+  // ripiego lo rimette dentro, e il pulsante "Rimuovi" appare funzionare
+  // solo finché non si riapre l'app.
+  const logoVal=_fornLogo||null;
+  const bannerVal=_fornBanner||null;
   const data={
     nome,categoria:document.getElementById('m-fcat').value,
     emoji:document.getElementById('m-femi').value.trim(),
