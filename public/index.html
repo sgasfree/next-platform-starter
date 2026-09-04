@@ -294,6 +294,12 @@ h1,h2,h3,h4{font-family:var(--font-serif,serif);}
 .prodotto-row{display:flex;align-items:center;padding:13px 0;border-bottom:1px solid var(--border);}
 .prodotto-row:last-child{border-bottom:none;}
 .prodotto-name{flex:1;font-weight:600;font-size:.9rem;}
+/* Intestazione che divide i prodotti di un fornitore per categoria: serve ai
+   cataloghi molto vari, dove un elenco piatto costringerebbe a scorrere a
+   lungo per capire dove finisce un tipo di prodotto e dove inizia l'altro. */
+.cat-prodotti{margin:14px 0 2px;padding:6px 12px;background:var(--green-pale);border-radius:8px;
+  font-weight:800;font-size:.82rem;color:var(--green-dark);border:1px solid var(--green-light);}
+.cat-prodotti:first-child{margin-top:0;}
 .prodotto-price{color:var(--green);font-weight:800;font-size:.95rem;margin-right:12px;}
 .qty-ctrl{display:flex;align-items:center;gap:8px;}
 .qty-btn{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--green-light);background:#fff;cursor:pointer;font-size:1rem;color:var(--green);display:flex;align-items:center;justify-content:center;transition:.2s;font-weight:700;}
@@ -1898,7 +1904,7 @@ function _persistAdminCreds(){
 // d'occhio se un dispositivo — tipicamente il telefono, dove l'app installata
 // puo restare aperta per giorni — sta ancora usando una copia vecchia invece
 // dell'ultima pubblicata.
-const APP_BUILD = '2026-08-31 · 1';
+const APP_BUILD = '2026-09-04 · 1';
 
 // A schermo la versione si legge come "Versione (1) 29 agosto 2026". La
 // costante qui sopra resta in forma anno-mese-giorno: è quella che si ordina
@@ -2974,6 +2980,35 @@ function _prodottiOrdinati(fornitorId){
     .sort((a,b)=>(a.nome||'').toLowerCase().localeCompare((b.nome||'').toLowerCase(),'it'));
 }
 
+// ── Prodotti raggruppati per categoria dentro la scheda del fornitore ──
+// Alcuni fornitori hanno un catalogo molto vario: i prodotti olistici vanno
+// dalle lampade di sale agli incensi, dalle candele ai profumatori. Elencarli
+// di fila, senza separazioni, obbliga il socio a leggerli tutti per trovare
+// quello che cerca. Per questo il nome può iniziare con la sua categoria
+// seguita da " · " — "Touareg · Bastoncini incenso": l'elenco stacca la
+// categoria e la mostra come intestazione, e il prodotto resta col nome
+// pulito. I fornitori con un catalogo omogeneo non usano il separatore e
+// continuano a vedere l'elenco semplice di sempre.
+const SEP_CATEGORIA = ' · ';
+function categoriaProdotto(p){
+  const n=(p&&p.nome)||'';
+  const i=n.indexOf(SEP_CATEGORIA);
+  return i>0 ? n.slice(0,i) : '';
+}
+function nomeProdottoSenzaCategoria(p){
+  const n=(p&&p.nome)||'';
+  const i=n.indexOf(SEP_CATEGORIA);
+  return i>0 ? n.slice(i+SEP_CATEGORIA.length) : n;
+}
+// Restituisce l'intestazione da mettere prima di `p`, ma solo quando apre una
+// categoria diversa dalla precedente. `stato` ricorda l'ultima già scritta.
+function intestazioneCategoria(p, stato){
+  const cat=categoriaProdotto(p);
+  if(!cat || cat===stato.ultima) return '';
+  stato.ultima=cat;
+  return '<div class="cat-prodotti">'+escHtml(cat)+'</div>';
+}
+
 // ════════════════════ OSPITE (VETRINA) ════════════════════
 let ospiteTab='';
 
@@ -3086,14 +3121,15 @@ function openFornitoreOspite(id){
   if(prods.length){
     html+='<div class="card">'
       +'<h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">📦 Prodotti e servizi offerti</h3>'
-      +prods.map(p=>
-        '<div class="prodotto-row">'
-        +'<div style="flex:1;"><div class="prodotto-name">'+escHtml(p.nome)+'</div>'
+      +(function(){ const statoCat={ultima:''}; return prods.map(p=>
+        intestazioneCategoria(p, statoCat)
+        +'<div class="prodotto-row">'
+        +'<div style="flex:1;"><div class="prodotto-name">'+escHtml(nomeProdottoSenzaCategoria(p))+'</div>'
         +(p.descrizione?'<div style="font-size:.75rem;color:var(--text-mid);margin-top:2px;line-height:1.4;">'+escHtml(p.descrizione)+'</div>':'')
         +'<div style="font-size:.75rem;color:var(--text-light);">'+escHtml(p.unita)+'</div></div>'
         +'<div class="prodotto-price">'+(p.prezzo>0?'&euro;'+p.prezzo.toFixed(2):(function(){const u=(p.unita||'').toLowerCase();return u.includes('appuntamento')?'Su appuntamento':u.includes('preventivo')?'Su preventivo':u.includes('notte')&&p.prezzo===0?'Stagionale':u.includes('omaggio')?'Gratuito':'Gratuito';})())+'</div>'
         +'</div>'
-      ).join('')
+      ).join(''); })()
       +'</div>';
   } else {
     html+='<div class="alert alert-info">Nessun prodotto disponibile al momento.</div>';
@@ -4357,14 +4393,19 @@ function openFornitore(id){
     }
     html+='<div style="margin-bottom:12px;"><input id="search-prodotti" type="search" placeholder="🔍 Cerca prodotto o codice..." style="width:100%;padding:9px 14px;border:1.5px solid var(--border);border-radius:20px;font-family:\'Nunito\',sans-serif;font-size:.9rem;outline:none;"></div>'
       +'<h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">Prodotti</h3>'
-      +prods.map(p=>{
+      +(function(){ const statoCat={ultima:''}; return prods.map(p=>{
         const qty=getCartQty(p.id);
         const disp = p.disponibile !== false;
         const codBadge = p.codice ? '<span style="font-family:monospace;background:#e8f5e9;color:var(--green-dark);font-size:.7rem;padding:1px 6px;border-radius:4px;font-weight:700;margin-left:6px;">cod. '+escHtml(p.codice)+'</span>' : '';
+        // La ricerca continua a lavorare sul nome completo: chi cerca
+        // "touareg" trova i prodotti anche ora che la parola sta
+        // nell'intestazione e non più nella riga.
         const searchTxt=escHtml([p.nome,p.codice,p.descrizione,p.unita].filter(Boolean).join(' ').toLowerCase());
+        const titolo=escHtml(nomeProdottoSenzaCategoria(p));
+        const intesta=intestazioneCategoria(p, statoCat);
         if(canOrder && disp){
-          return '<div class="prodotto-row" data-name="'+searchTxt+'">'
-            +'<div><div class="prodotto-name">'+escHtml(p.nome)+codBadge+'</div>'
+          return intesta+'<div class="prodotto-row" data-name="'+searchTxt+'">'
+            +'<div><div class="prodotto-name">'+titolo+codBadge+'</div>'
             +(p.descrizione?'<div style="font-size:.75rem;color:var(--text-mid);margin-top:2px;line-height:1.4;">'+escHtml(p.descrizione)+'</div>':'')
             +'<div style="font-size:.75rem;color:var(--text-light);">'+escHtml(p.unita)+'</div></div>'
             +'<div class="prodotto-price">'+(p.prezzo>0?'&#8364;'+p.prezzo.toFixed(2):(p.unita&&p.unita.toLowerCase().includes('appuntamento')?'':'Gratuito'))+'</div>'
@@ -4378,15 +4419,15 @@ function openFornitore(id){
           const label = !disp
             ? '<span style="font-size:.72rem;background:#f5f5f5;color:#999;border-radius:20px;padding:2px 10px;font-weight:700;border:1px solid #e0e0e0;">⛔ Non disponibile</span>'
             : '<div style="font-size:.8rem;color:var(--text-light);padding:4px 8px;">—</div>';
-          return '<div class="prodotto-row" data-name="'+searchTxt+'" style="opacity:'+(!disp?'.5':'.55')+'; pointer-events:none;">'
-            +'<div><div class="prodotto-name" style="color:var(--text-light);">'+escHtml(p.nome)+codBadge+'</div>'
+          return intesta+'<div class="prodotto-row" data-name="'+searchTxt+'" style="opacity:'+(!disp?'.5':'.55')+'; pointer-events:none;">'
+            +'<div><div class="prodotto-name" style="color:var(--text-light);">'+titolo+codBadge+'</div>'
             +(p.descrizione?'<div style="font-size:.75rem;color:var(--text-light);margin-top:2px;line-height:1.4;">'+escHtml(p.descrizione)+'</div>':'')
             +'<div style="font-size:.75rem;color:var(--text-light);">'+escHtml(p.unita)+'</div></div>'
             +'<div class="prodotto-price" style="color:var(--text-light);">'+(p.prezzo>0?'&#8364;'+p.prezzo.toFixed(2):'—')+'</div>'
             +label
             +'</div>';
         }
-      }).join('')
+      }).join(''); })()
       +'</div>';
   } else {
     html+='<div class="alert alert-info">Nessun prodotto disponibile al momento.</div>';
@@ -4397,10 +4438,21 @@ function openFornitore(id){
   const sp=document.getElementById('search-prodotti');
   if(sp) sp.addEventListener('input', function(){
     const q=this.value.toLowerCase().trim();
-    document.querySelectorAll('#forn-detail-content .prodotto-row').forEach(row=>{
-      const name=row.getAttribute('data-name')||'';
-      row.style.display=(!q||name.includes(q))?'':'none';
+    // Le intestazioni di categoria vanno nascoste insieme ai loro prodotti,
+    // altrimenti una ricerca lascia sullo schermo titoli senza niente sotto.
+    let intestaCorrente=null, trovatiNelGruppo=0;
+    const chiudiGruppo=()=>{ if(intestaCorrente) intestaCorrente.style.display=trovatiNelGruppo?'':'none'; };
+    document.querySelectorAll('#forn-detail-content .cat-prodotti, #forn-detail-content .prodotto-row').forEach(el=>{
+      if(el.classList.contains('cat-prodotti')){
+        chiudiGruppo();
+        intestaCorrente=el; trovatiNelGruppo=0;
+        return;
+      }
+      const visibile = !q || (el.getAttribute('data-name')||'').includes(q);
+      el.style.display = visibile?'':'none';
+      if(visibile) trovatiNelGruppo++;
     });
+    chiudiGruppo();
   });
   showSocioSection('fornitore');
 }
