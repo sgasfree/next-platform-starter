@@ -257,7 +257,12 @@ h1,h2,h3,h4{font-family:var(--font-serif,serif);}
 /* ── Catalogo: layout sidebar sinistra + lista destra ── */
 .catalogo-layout{display:flex;gap:0;height:100%;}
 .cat-sidebar{width:72px;flex-shrink:0;display:flex;flex-direction:column;gap:6px;padding:4px 0;background:var(--green-pale);border-radius:16px;margin-right:14px;}
-.cat-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:10px 4px;border:none;background:none;border-radius:12px;cursor:pointer;font-family:'Nunito',sans-serif;font-weight:700;font-size:.6rem;color:var(--text-mid);transition:.2s;text-align:center;line-height:1.2;}
+/* I nomi lunghi delle categorie ("Prodotti olistici") vanno a capo tra una
+   parola e l'altra: prima venivano sillabati ogni sei lettere e si leggeva
+   "Prodotti oli-stici". Una parola singola più larga della colonna viene
+   ancora spezzata, ma solo come ultima risorsa, per non farla sbordare. */
+.cat-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:10px 4px;border:none;background:none;border-radius:12px;cursor:pointer;font-family:'Nunito',sans-serif;font-weight:700;font-size:.6rem;color:var(--text-mid);transition:.2s;text-align:center;line-height:1.2;
+  hyphens:none;-webkit-hyphens:none;word-break:normal;overflow-wrap:break-word;}
 .cat-btn .cat-ico{font-size:1.4rem;line-height:1;}
 .cat-btn.active{background:var(--green);color:#fff;box-shadow:0 2px 8px rgba(45,106,47,.3);}
 .cat-btn:hover:not(.active){background:var(--green-light);}
@@ -3033,7 +3038,7 @@ function renderCatSidebarOspite(){
   if(!nav) return;
   nav.innerHTML=S.categorie.map(cat=>
     '<button class="cat-btn'+(cat.id===ospiteTab?' active':'')+'" onclick="setTabOspite(\''+cat.id+'\')">'+
-    '<span class="cat-ico">'+cat.ico+'</span>'+escHtml(cat.nome.replace(/(.{6})/g,'$1\u00AD'))+'</button>'
+    '<span class="cat-ico">'+cat.ico+'</span>'+escHtml(cat.nome)+'</button>'
   ).join('')
   +'<button class="cat-btn" onclick="showOspiteSection(\'chisiamo\');renderChiSiamo(\'ospite\')" style="margin-top:6px;border-top:1px solid var(--green-light);padding-top:8px;"><span class="cat-ico">ℹ️</span>Chi Siamo</button>'
   // Guida tesserato accessibile già dalla vetrina: chi sta esplorando capisce
@@ -4065,11 +4070,11 @@ function renderCatSidebar(){
   const raccBadge=nAperte>0?`<span style="position:absolute;top:4px;right:4px;background:var(--green);color:#fff;border-radius:50%;width:16px;height:16px;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;">${nAperte}</span>`:'';
   nav.innerHTML=
     `<button class="cat-btn${currentTab==='_raccolte'?' active':''}" id="tab-_raccolte" onclick="setTab('_raccolte')" style="position:relative;">
-      <span class="cat-ico" style="display:flex;">${iconaCarrelloLogo(22)}</span>Rac&#xAD;col&#xAD;te${raccBadge}
+      <span class="cat-ico" style="display:flex;">${iconaCarrelloLogo(22)}</span>Raccolte${raccBadge}
     </button>`
   +S.categorie.map(cat=>`
     <button class="cat-btn${cat.id===currentTab?' active':''}" id="tab-${cat.id}" onclick="setTab('${cat.id}')">
-      <span class="cat-ico">${cat.ico}</span>${escHtml(cat.nome.replace(/(.{6})/g,'$1­'))}
+      <span class="cat-ico">${cat.ico}</span>${escHtml(cat.nome)}
     </button>`).join('')
   +'<button class="cat-btn" onclick="showSocioSection(\'chisiamo\');renderChiSiamo(\'socio\')" style="margin-top:6px;border-top:1px solid var(--green-light);padding-top:8px;"><span class="cat-ico">ℹ️</span>Chi Siamo</button>';
 }
