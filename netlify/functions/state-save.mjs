@@ -515,17 +515,33 @@ export const handler = async (event) => {
         descrizione: orNull(r.descrizione),
         disponibile: r.disponibile !== false,
         foto:        orNull(r.foto),
+        // Posto del prodotto dentro la sua sezione. Facoltativo: null = in
+        // coda. Number() esplicito perché il client può mandarlo come testo.
+        ordine:      (r.ordine === '' || r.ordine === undefined || r.ordine === null || !isFinite(Number(r.ordine)))
+                       ? null : Math.trunc(Number(r.ordine)),
         updated_at:  new Date().toISOString()
       });
     }
 
-    const res = await sbFetch(SUPA_URL, SUPA_KEY, `/rest/v1/${tabella}?on_conflict=id`, {
+    const scrivi = lista => sbFetch(SUPA_URL, SUPA_KEY, `/rest/v1/${tabella}?on_conflict=id`, {
       method: 'POST',
       prefer: 'resolution=merge-duplicates,return=minimal',
-      body: JSON.stringify(righe)
+      body: JSON.stringify(lista)
     });
+
+    let res = await scrivi(righe);
     if(!res.ok){
-      const txt = await res.text().catch(()=> '');
+      let txt = await res.text().catch(()=> '');
+      // `ordine` è arrivato dopo: se il database non ha ancora la colonna,
+      // rifiuta l'intero salvataggio e l'admin si vede l'avviso "non salvato"
+      // per una modifica che con il resto dei campi passerebbe benissimo.
+      // Si riprova una volta senza, così il campo nuovo può viaggiare col
+      // file prima della migrazione senza bloccare nessuno.
+      if(tabella === 'prodotti' && /ordine/i.test(txt)){
+        res = await scrivi(righe.map(({ ordine, ...resto }) => resto));
+        if(res.ok) return json(200, { ok:true, salvate: righe.length, ordineIgnorato:true });
+        txt = await res.text().catch(()=> '');
+      }
       return json(502, { ok:false, error:'Salvataggio catalogo fallito', detail: txt.slice(0,200) });
     }
     return json(200, { ok:true, salvate: righe.length });
