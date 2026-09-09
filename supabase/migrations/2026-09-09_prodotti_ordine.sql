@@ -12,3 +12,12 @@
 --
 -- Additiva e ripetibile: non tocca nessun dato esistente.
 alter table public.prodotti add column if not exists ordine int;
+
+-- Presentazione della sezione.
+--
+-- Alcune sezioni non sono solo un'etichetta: una linea cosmetica arriva col
+-- suo testo di presentazione, che sul listino sta sotto il titolo e prima
+-- degli articoli. Il testo si scrive sul PRIMO prodotto della sezione — è
+-- quello che apre l'intestazione — e da lì viene mostrato una volta sola.
+-- Anche questa facoltativa: le sezioni senza testo restano il titolo secco.
+alter table public.prodotti add column if not exists sezione_descrizione text;

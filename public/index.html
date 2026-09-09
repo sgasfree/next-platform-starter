@@ -291,6 +291,8 @@ h1,h2,h3,h4{font-family:var(--font-serif,serif);}
 .cat-prodotti{margin:14px 0 2px;padding:6px 12px;background:var(--green-pale);border-radius:8px;
   font-weight:800;font-size:.82rem;color:var(--green-dark);border:1px solid var(--green-light);}
 .cat-prodotti:first-child{margin-top:0;}
+.cat-prodotti-testo{margin:0 0 6px;padding:2px 12px 6px;font-size:.78rem;line-height:1.5;
+  color:var(--text-mid);white-space:pre-line;}
 .prodotto-price{color:var(--green);font-weight:800;font-size:.95rem;margin-right:12px;}
 .qty-ctrl{display:flex;align-items:center;gap:8px;}
 .qty-btn{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--green-light);background:#fff;cursor:pointer;font-size:1rem;color:var(--green);display:flex;align-items:center;justify-content:center;transition:.2s;font-weight:700;}
@@ -2141,7 +2143,9 @@ const _prodottoDaRiga = p => ({
   unita:p.unita||'', codice:p.codice||'', descrizione:p.descrizione||'',
   disponibile: p.disponibile!==false, foto:p.foto||null,
   // Posto del prodotto dentro la sua sezione. Assente = va in coda.
-  ordine: (p.ordine===null||p.ordine===undefined||p.ordine==='') ? null : Number(p.ordine)
+  ordine: (p.ordine===null||p.ordine===undefined||p.ordine==='') ? null : Number(p.ordine),
+  // Testo di presentazione della sezione, sul prodotto che la apre.
+  sezioneDescrizione: p.sezione_descrizione||''
 });
 
 // Avviso quando una scrittura sul server non riesce.
@@ -2275,18 +2279,18 @@ const _CAMPI_FORNITORE = 'id,nome,categoria,emoji,zona,descrizione,vision,caratt
   + 'attivo,contattodiretto,nome_contatto,telefono,whatsapp,email_contatto,'
   + 'telegram_contatto,indirizzo_contatto';
 const _CAMPI_PRODOTTO_BASE = 'id,fornitore_id,nome,prezzo,unita,codice,descrizione,disponibile';
-const _CAMPI_PRODOTTO  = _CAMPI_PRODOTTO_BASE + ',ordine';
+const _CAMPI_PRODOTTO  = _CAMPI_PRODOTTO_BASE + ',ordine,sezione_descrizione';
 
-// `ordine` è arrivato dopo gli altri campi. Se il database non ha ancora la
-// colonna, chiederla farebbe fallire l'INTERA lettura del catalogo — prezzi e
-// disponibilità compresi — e il socio resterebbe con la copia vecchia senza
-// che nulla lo dica. Qui si riprova una volta senza quel campo: l'app
-// funziona identica, solo senza l'ordine personalizzato, finché la colonna
-// non viene aggiunta.
+// `ordine` e `sezione_descrizione` sono arrivati dopo gli altri campi. Se il
+// database non ha ancora quelle colonne, chiederle farebbe fallire l'INTERA
+// lettura del catalogo — prezzi e disponibilità compresi — e il socio
+// resterebbe con la copia vecchia senza che nulla lo dica. Qui si riprova una
+// volta con i soli campi storici: l'app funziona identica, solo senza ordine
+// e testo di sezione, finché le colonne non vengono aggiunte.
 async function _leggiProdotti(sb){
   const r = await sb.from('prodotti').select(_CAMPI_PRODOTTO);
-  if(r.error && /ordine/i.test(r.error.message || '')){
-    console.warn('Colonna `ordine` non presente: leggo il catalogo senza.');
+  if(r.error && /ordine|sezione_descrizione/i.test(r.error.message || '')){
+    console.warn('Colonne nuove non presenti: leggo il catalogo senza.');
     return await sb.from('prodotti').select(_CAMPI_PRODOTTO_BASE);
   }
   return r;
@@ -3088,11 +3092,18 @@ function nomeProdottoSenzaCategoria(p){
 }
 // Restituisce l'intestazione da mettere prima di `p`, ma solo quando apre una
 // categoria diversa dalla precedente. `stato` ricorda l'ultima già scritta.
+// Alcune sezioni non sono solo un'etichetta: una linea cosmetica arriva col
+// suo testo di presentazione, che sul listino sta sotto il titolo e prima
+// degli articoli. Quel testo si scrive sul PRIMO prodotto della sezione — è
+// quello che apre l'intestazione — e da lì viene mostrato una volta sola.
+// Sezioni senza testo restano il titolo secco di sempre.
 function intestazioneCategoria(p, stato){
   const cat=categoriaProdotto(p);
   if(!cat || cat===stato.ultima) return '';
   stato.ultima=cat;
-  return '<div class="cat-prodotti">'+escHtml(cat)+'</div>';
+  const testo=(p && p.sezioneDescrizione) ? String(p.sezioneDescrizione).trim() : '';
+  return '<div class="cat-prodotti">'+escHtml(cat)+'</div>'
+    + (testo ? '<div class="cat-prodotti-testo">'+escHtml(testo)+'</div>' : '');
 }
 
 // ════════════════════ OSPITE (VETRINA) ════════════════════
@@ -6170,7 +6181,8 @@ function prodForm(p){
       <div class="field"><label>Codice articolo <span style="font-size:.72rem;color:var(--text-light);font-weight:400;">(opzionale, per riordino fornitore)</span></label><input id="m-pcod" type="text" value="${escHtml(p.codice||'')}" placeholder="es. 22-A"></div>
       <div class="field"><label>Ordine <span style="font-size:.72rem;color:var(--text-light);font-weight:400;">(opzionale, posto nella sezione)</span></label><input id="m-pord" type="number" step="1" value="${p.ordine===null||p.ordine===undefined?'':escHtml(String(p.ordine))}" placeholder="es. 1"></div>
     </div>
-    <div style="font-size:.72rem;color:var(--text-light);margin:-4px 0 4px;">Scrivi la sezione nel nome con il separatore <strong>&nbsp;·&nbsp;</strong> — es. <em>01 KRINOSAN · Shampoo 250 ml</em>. Il numero in "Ordine" decide il posto dentro quella sezione; senza numero il prodotto va in coda, in ordine alfabetico.</div>`;
+    <div style="font-size:.72rem;color:var(--text-light);margin:-4px 0 4px;">Scrivi la sezione nel nome con il separatore <strong>&nbsp;·&nbsp;</strong> — es. <em>KRINOSAN 01 · Shampoo 250 ml</em>. Il numero in "Ordine" decide il posto del prodotto e, di riflesso, quello della sezione; senza numero il prodotto va in coda, in ordine alfabetico.</div>
+    <div class="field"><label>Presentazione della sezione <span style="font-size:.72rem;color:var(--text-light);font-weight:400;">(facoltativa, si mostra sotto il titolo della sezione)</span></label><textarea id="m-psez" rows="3" placeholder="Testo che presenta la linea, come sul listino. Scrivilo sul primo prodotto della sezione.">${escHtml(p.sezioneDescrizione||'')}</textarea></div>`;
 }
 
 function modalNewProdotto(){
@@ -6204,7 +6216,8 @@ async function saveProdotto(editId){
   const ordEl=document.getElementById('m-pord');
   const ordNum=ordEl?parseInt(ordEl.value,10):NaN;
   const ordine=isFinite(ordNum)?ordNum:null;
-  const data={fornitorId:document.getElementById('m-pforn').value,nome,prezzo,unita:document.getElementById('m-pun').value.trim(),codice:codEl?codEl.value.trim():'',ordine};
+  const sezEl=document.getElementById('m-psez');
+  const data={fornitorId:document.getElementById('m-pforn').value,nome,prezzo,unita:document.getElementById('m-pun').value.trim(),codice:codEl?codEl.value.trim():'',ordine,sezioneDescrizione:sezEl?sezEl.value.trim():''};
   let prod;
   if(editId){ prod=S.prodotti.find(x=>x.id===editId); if(prod) Object.assign(prod,data); }
   else{ prod={id:'p'+uid(),...data}; S.prodotti.push(prod); }

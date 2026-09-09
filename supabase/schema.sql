@@ -104,6 +104,7 @@ create table if not exists public.prodotti (
   descrizione  text,
   disponibile  boolean default true,
   ordine       int,   -- posto dentro la sezione del listino; null = in coda
+  sezione_descrizione text,  -- presentazione della sezione, sul prodotto che la apre
   created_at   timestamptz not null default now()
 );
 create index if not exists prodotti_forn_idx on public.prodotti (fornitore_id);
