@@ -519,6 +519,8 @@ export const handler = async (event) => {
         // coda. Number() esplicito perché il client può mandarlo come testo.
         ordine:      (r.ordine === '' || r.ordine === undefined || r.ordine === null || !isFinite(Number(r.ordine)))
                        ? null : Math.trunc(Number(r.ordine)),
+        // Testo di presentazione della sezione, scritto sul prodotto che la apre.
+        sezione_descrizione: orNull(r.sezioneDescrizione),
         updated_at:  new Date().toISOString()
       });
     }
@@ -537,9 +539,9 @@ export const handler = async (event) => {
       // per una modifica che con il resto dei campi passerebbe benissimo.
       // Si riprova una volta senza, così il campo nuovo può viaggiare col
       // file prima della migrazione senza bloccare nessuno.
-      if(tabella === 'prodotti' && /ordine/i.test(txt)){
-        res = await scrivi(righe.map(({ ordine, ...resto }) => resto));
-        if(res.ok) return json(200, { ok:true, salvate: righe.length, ordineIgnorato:true });
+      if(tabella === 'prodotti' && /ordine|sezione_descrizione/i.test(txt)){
+        res = await scrivi(righe.map(({ ordine, sezione_descrizione, ...resto }) => resto));
+        if(res.ok) return json(200, { ok:true, salvate: righe.length, campiNuoviIgnorati:true });
         txt = await res.text().catch(()=> '');
       }
       return json(502, { ok:false, error:'Salvataggio catalogo fallito', detail: txt.slice(0,200) });
