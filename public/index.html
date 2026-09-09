@@ -293,6 +293,11 @@ h1,h2,h3,h4{font-family:var(--font-serif,serif);}
 .cat-prodotti:first-child{margin-top:0;}
 .cat-prodotti-testo{margin:0 0 6px;padding:2px 12px 6px;font-size:.78rem;line-height:1.5;
   color:var(--text-mid);white-space:pre-line;}
+/* Nota di chiusura: staccata dagli articoli, si legge come un'avvertenza a
+   fine pagina e non come la riga di un prodotto. */
+.cat-prodotti-nota{margin:10px 0 4px;padding:8px 12px;font-size:.76rem;line-height:1.5;
+  color:var(--text-mid);font-style:italic;background:var(--bg);border-left:3px solid var(--green-light);
+  border-radius:0 8px 8px 0;white-space:pre-line;}
 .prodotto-price{color:var(--green);font-weight:800;font-size:.95rem;margin-right:12px;}
 .qty-ctrl{display:flex;align-items:center;gap:8px;}
 .qty-btn{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--green-light);background:#fff;cursor:pointer;font-size:1rem;color:var(--green);display:flex;align-items:center;justify-content:center;transition:.2s;font-weight:700;}
@@ -2145,7 +2150,9 @@ const _prodottoDaRiga = p => ({
   // Posto del prodotto dentro la sua sezione. Assente = va in coda.
   ordine: (p.ordine===null||p.ordine===undefined||p.ordine==='') ? null : Number(p.ordine),
   // Testo di presentazione della sezione, sul prodotto che la apre.
-  sezioneDescrizione: p.sezione_descrizione||''
+  sezioneDescrizione: p.sezione_descrizione||'',
+  // Nota che chiude la sezione, dopo l'ultimo articolo.
+  sezioneNota: p.sezione_nota||''
 });
 
 // Avviso quando una scrittura sul server non riesce.
@@ -2279,7 +2286,7 @@ const _CAMPI_FORNITORE = 'id,nome,categoria,emoji,zona,descrizione,vision,caratt
   + 'attivo,contattodiretto,nome_contatto,telefono,whatsapp,email_contatto,'
   + 'telegram_contatto,indirizzo_contatto';
 const _CAMPI_PRODOTTO_BASE = 'id,fornitore_id,nome,prezzo,unita,codice,descrizione,disponibile';
-const _CAMPI_PRODOTTO  = _CAMPI_PRODOTTO_BASE + ',ordine,sezione_descrizione';
+const _CAMPI_PRODOTTO  = _CAMPI_PRODOTTO_BASE + ',ordine,sezione_descrizione,sezione_nota';
 
 // `ordine` e `sezione_descrizione` sono arrivati dopo gli altri campi. Se il
 // database non ha ancora quelle colonne, chiederle farebbe fallire l'INTERA
@@ -2289,7 +2296,7 @@ const _CAMPI_PRODOTTO  = _CAMPI_PRODOTTO_BASE + ',ordine,sezione_descrizione';
 // e testo di sezione, finché le colonne non vengono aggiunte.
 async function _leggiProdotti(sb){
   const r = await sb.from('prodotti').select(_CAMPI_PRODOTTO);
-  if(r.error && /ordine|sezione_descrizione/i.test(r.error.message || '')){
+  if(r.error && /ordine|sezione_descrizione|sezione_nota/i.test(r.error.message || '')){
     console.warn('Colonne nuove non presenti: leggo il catalogo senza.');
     return await sb.from('prodotti').select(_CAMPI_PRODOTTO_BASE);
   }
@@ -3097,12 +3104,41 @@ function nomeProdottoSenzaCategoria(p){
 // degli articoli. Quel testo si scrive sul PRIMO prodotto della sezione — è
 // quello che apre l'intestazione — e da lì viene mostrato una volta sola.
 // Sezioni senza testo restano il titolo secco di sempre.
+// Alcune sezioni si chiudono con una nota staccata — "questi prodotti non
+// temono la temperatura", una condizione di vendita, un avvertimento — che sul
+// listino sta DOPO l'ultimo articolo, non prima del primo. Vale per tutta la
+// sezione, quindi si scrive su un prodotto qualunque di quella sezione e
+// compare una volta sola, quando la sezione finisce.
+//
+// Lo stato va preparato sulla lista già ordinata: le note si raccolgono in
+// anticipo, altrimenti quando la sezione finisce sarebbe troppo tardi per
+// sapere se ne aveva una.
+function _statoSezioni(lista){
+  const note = {};
+  (lista||[]).forEach(p=>{
+    const c = categoriaProdotto(p).toLowerCase();
+    if(!c) return;
+    const n = (p && p.sezioneNota) ? String(p.sezioneNota).trim() : '';
+    if(n && !note[c]) note[c] = n;
+  });
+  return { ultima:'', note };
+}
+// Nota della sezione attualmente aperta, da stampare quando si chiude.
+function chiusuraSezione(stato){
+  if(!stato || !stato.ultima) return '';
+  const n = stato.note ? stato.note[stato.ultima.toLowerCase()] : '';
+  return n ? '<div class="cat-prodotti-nota">'+escHtml(n)+'</div>' : '';
+}
 function intestazioneCategoria(p, stato){
   const cat=categoriaProdotto(p);
-  if(!cat || cat===stato.ultima) return '';
+  if(cat===stato.ultima) return '';
+  // Cambio di sezione: prima si chiude quella precedente con la sua nota.
+  const chiusura=chiusuraSezione(stato);
   stato.ultima=cat;
+  if(!cat) return chiusura;
   const testo=(p && p.sezioneDescrizione) ? String(p.sezioneDescrizione).trim() : '';
-  return '<div class="cat-prodotti">'+escHtml(cat)+'</div>'
+  return chiusura
+    + '<div class="cat-prodotti">'+escHtml(cat)+'</div>'
     + (testo ? '<div class="cat-prodotti-testo">'+escHtml(testo)+'</div>' : '');
 }
 
@@ -3218,7 +3254,7 @@ function openFornitoreOspite(id){
   if(prods.length){
     html+='<div class="card">'
       +'<h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">📦 Prodotti e servizi offerti</h3>'
-      +(function(){ const statoCat={ultima:''}; return prods.map(p=>
+      +(function(){ const statoCat=_statoSezioni(prods); return prods.map(p=>
         intestazioneCategoria(p, statoCat)
         +'<div class="prodotto-row">'
         +'<div style="flex:1;"><div class="prodotto-name">'+escHtml(nomeProdottoSenzaCategoria(p))+'</div>'
@@ -3226,7 +3262,7 @@ function openFornitoreOspite(id){
         +'<div style="font-size:.75rem;color:var(--text-light);">'+escHtml(p.unita)+'</div></div>'
         +'<div class="prodotto-price">'+(p.prezzo>0?'&euro;'+p.prezzo.toFixed(2):(function(){const u=(p.unita||'').toLowerCase();return u.includes('appuntamento')?'Su appuntamento':u.includes('preventivo')?'Su preventivo':u.includes('notte')&&p.prezzo===0?'Stagionale':u.includes('omaggio')?'Gratuito':'Gratuito';})())+'</div>'
         +'</div>'
-      ).join(''); })()
+      ).join('') + chiusuraSezione(statoCat); })()
       +'</div>';
   } else {
     html+='<div class="alert alert-info">Nessun prodotto disponibile al momento.</div>';
@@ -4490,7 +4526,7 @@ function openFornitore(id){
     }
     html+='<div style="margin-bottom:12px;"><input id="search-prodotti" type="search" placeholder="🔍 Cerca prodotto o codice..." style="width:100%;padding:9px 14px;border:1.5px solid var(--border);border-radius:20px;font-family:\'Nunito\',sans-serif;font-size:.9rem;outline:none;"></div>'
       +'<h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">Prodotti</h3>'
-      +(function(){ const statoCat={ultima:''}; return prods.map(p=>{
+      +(function(){ const statoCat=_statoSezioni(prods); return prods.map(p=>{
         const qty=getCartQty(p.id);
         const disp = p.disponibile !== false;
         const codBadge = p.codice ? '<span style="font-family:monospace;background:#e8f5e9;color:var(--green-dark);font-size:.7rem;padding:1px 6px;border-radius:4px;font-weight:700;margin-left:6px;">cod. '+escHtml(p.codice)+'</span>' : '';
@@ -4524,7 +4560,7 @@ function openFornitore(id){
             +label
             +'</div>';
         }
-      }).join(''); })()
+      }).join('') + chiusuraSezione(statoCat); })()
       +'</div>';
   } else {
     html+='<div class="alert alert-info">Nessun prodotto disponibile al momento.</div>';
@@ -4537,12 +4573,23 @@ function openFornitore(id){
     const q=this.value.toLowerCase().trim();
     // Le intestazioni di categoria vanno nascoste insieme ai loro prodotti,
     // altrimenti una ricerca lascia sullo schermo titoli senza niente sotto.
-    let intestaCorrente=null, trovatiNelGruppo=0;
-    const chiudiGruppo=()=>{ if(intestaCorrente) intestaCorrente.style.display=trovatiNelGruppo?'':'none'; };
-    document.querySelectorAll('#forn-detail-content .cat-prodotti, #forn-detail-content .prodotto-row').forEach(el=>{
+    // Il gruppo non è solo il titolo: comprende la presentazione della sezione
+    // e la nota di chiusura. Sparisce o riappare tutto insieme, altrimenti una
+    // ricerca lascia sullo schermo un testo di presentazione senza il titolo a
+    // cui appartiene, o una nota sospesa in fondo al nulla.
+    let gruppoCorrente=[], trovatiNelGruppo=0;
+    const chiudiGruppo=()=>{ gruppoCorrente.forEach(e=>{ e.style.display=trovatiNelGruppo?'':'none'; }); };
+    document.querySelectorAll('#forn-detail-content .cat-prodotti, #forn-detail-content .cat-prodotti-testo, #forn-detail-content .cat-prodotti-nota, #forn-detail-content .prodotto-row').forEach(el=>{
       if(el.classList.contains('cat-prodotti')){
         chiudiGruppo();
-        intestaCorrente=el; trovatiNelGruppo=0;
+        gruppoCorrente=[el]; trovatiNelGruppo=0;
+        return;
+      }
+      // Presentazione e nota seguono la sorte del titolo che le precede. La
+      // nota compare prima del titolo successivo, quindi appartiene sempre al
+      // gruppo ancora aperto.
+      if(el.classList.contains('cat-prodotti-testo') || el.classList.contains('cat-prodotti-nota')){
+        gruppoCorrente.push(el);
         return;
       }
       const visibile = !q || (el.getAttribute('data-name')||'').includes(q);
@@ -6182,7 +6229,8 @@ function prodForm(p){
       <div class="field"><label>Ordine <span style="font-size:.72rem;color:var(--text-light);font-weight:400;">(opzionale, posto nella sezione)</span></label><input id="m-pord" type="number" step="1" value="${p.ordine===null||p.ordine===undefined?'':escHtml(String(p.ordine))}" placeholder="es. 1"></div>
     </div>
     <div style="font-size:.72rem;color:var(--text-light);margin:-4px 0 4px;">Scrivi la sezione nel nome con il separatore <strong>&nbsp;·&nbsp;</strong> — es. <em>KRINOSAN 01 · Shampoo 250 ml</em>. Il numero in "Ordine" decide il posto del prodotto e, di riflesso, quello della sezione; senza numero il prodotto va in coda, in ordine alfabetico.</div>
-    <div class="field"><label>Presentazione della sezione <span style="font-size:.72rem;color:var(--text-light);font-weight:400;">(facoltativa, si mostra sotto il titolo della sezione)</span></label><textarea id="m-psez" rows="3" placeholder="Testo che presenta la linea, come sul listino. Scrivilo sul primo prodotto della sezione.">${escHtml(p.sezioneDescrizione||'')}</textarea></div>`;
+    <div class="field"><label>Presentazione della sezione <span style="font-size:.72rem;color:var(--text-light);font-weight:400;">(facoltativa, si mostra sotto il titolo della sezione)</span></label><textarea id="m-psez" rows="3" placeholder="Testo che presenta la linea, come sul listino. Scrivilo sul primo prodotto della sezione.">${escHtml(p.sezioneDescrizione||'')}</textarea></div>
+    <div class="field"><label>Nota a fine sezione <span style="font-size:.72rem;color:var(--text-light);font-weight:400;">(facoltativa, si mostra dopo l'ultimo articolo)</span></label><textarea id="m-pnota" rows="2" placeholder="es. n.b. Questi prodotti non sono soggetti a scadenza. Vale per tutta la sezione: basta scriverla su un prodotto qualunque.">${escHtml(p.sezioneNota||'')}</textarea></div>`;
 }
 
 function modalNewProdotto(){
@@ -6217,7 +6265,7 @@ async function saveProdotto(editId){
   const ordNum=ordEl?parseInt(ordEl.value,10):NaN;
   const ordine=isFinite(ordNum)?ordNum:null;
   const sezEl=document.getElementById('m-psez');
-  const data={fornitorId:document.getElementById('m-pforn').value,nome,prezzo,unita:document.getElementById('m-pun').value.trim(),codice:codEl?codEl.value.trim():'',ordine,sezioneDescrizione:sezEl?sezEl.value.trim():''};
+  const data={fornitorId:document.getElementById('m-pforn').value,nome,prezzo,unita:document.getElementById('m-pun').value.trim(),codice:codEl?codEl.value.trim():'',ordine,sezioneDescrizione:sezEl?sezEl.value.trim():'',sezioneNota:(document.getElementById('m-pnota')||{}).value?document.getElementById('m-pnota').value.trim():''};
   let prod;
   if(editId){ prod=S.prodotti.find(x=>x.id===editId); if(prod) Object.assign(prod,data); }
   else{ prod={id:'p'+uid(),...data}; S.prodotti.push(prod); }

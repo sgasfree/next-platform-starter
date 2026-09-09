@@ -21,3 +21,12 @@ alter table public.prodotti add column if not exists ordine int;
 -- quello che apre l'intestazione — e da lì viene mostrato una volta sola.
 -- Anche questa facoltativa: le sezioni senza testo restano il titolo secco.
 alter table public.prodotti add column if not exists sezione_descrizione text;
+
+-- Nota di chiusura della sezione.
+--
+-- Certe sezioni si chiudono con un'avvertenza che sul listino sta DOPO
+-- l'ultimo articolo, non prima del primo: "questi prodotti non sono soggetti
+-- a scadenza e non temono la temperatura". Vale per tutta la sezione, quindi
+-- si scrive su un prodotto qualunque di quella sezione e compare una volta
+-- sola, alla fine.
+alter table public.prodotti add column if not exists sezione_nota text;
