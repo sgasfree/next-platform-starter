@@ -2139,7 +2139,9 @@ const _prodottoDaRiga = p => ({
   id:p.id, fornitorId:p.fornitore_id||'', nome:p.nome||'',
   prezzo: typeof p.prezzo==='number'?p.prezzo:parseFloat(p.prezzo)||0,
   unita:p.unita||'', codice:p.codice||'', descrizione:p.descrizione||'',
-  disponibile: p.disponibile!==false, foto:p.foto||null
+  disponibile: p.disponibile!==false, foto:p.foto||null,
+  // Posto del prodotto dentro la sua sezione. Assente = va in coda.
+  ordine: (p.ordine===null||p.ordine===undefined||p.ordine==='') ? null : Number(p.ordine)
 });
 
 // Avviso quando una scrittura sul server non riesce.
@@ -2272,7 +2274,23 @@ function _aggiornaVisteAperte(){
 const _CAMPI_FORNITORE = 'id,nome,categoria,emoji,zona,descrizione,vision,caratteristiche,'
   + 'attivo,contattodiretto,nome_contatto,telefono,whatsapp,email_contatto,'
   + 'telegram_contatto,indirizzo_contatto';
-const _CAMPI_PRODOTTO  = 'id,fornitore_id,nome,prezzo,unita,codice,descrizione,disponibile';
+const _CAMPI_PRODOTTO_BASE = 'id,fornitore_id,nome,prezzo,unita,codice,descrizione,disponibile';
+const _CAMPI_PRODOTTO  = _CAMPI_PRODOTTO_BASE + ',ordine';
+
+// `ordine` è arrivato dopo gli altri campi. Se il database non ha ancora la
+// colonna, chiederla farebbe fallire l'INTERA lettura del catalogo — prezzi e
+// disponibilità compresi — e il socio resterebbe con la copia vecchia senza
+// che nulla lo dica. Qui si riprova una volta senza quel campo: l'app
+// funziona identica, solo senza l'ordine personalizzato, finché la colonna
+// non viene aggiunta.
+async function _leggiProdotti(sb){
+  const r = await sb.from('prodotti').select(_CAMPI_PRODOTTO);
+  if(r.error && /ordine/i.test(r.error.message || '')){
+    console.warn('Colonna `ordine` non presente: leggo il catalogo senza.');
+    return await sb.from('prodotti').select(_CAMPI_PRODOTTO_BASE);
+  }
+  return r;
+}
 
 // Scarica loghi e banner e li innesta nei fornitori già in memoria, poi
 // ridisegna. Non blocca nulla: se fallisce, il catalogo resta corretto e senza
@@ -2303,7 +2321,7 @@ async function sincronizzaCatalogo(){
   let righeF, righeP;
   try{
     const rf = await sb.from('fornitori').select(_CAMPI_FORNITORE);
-    const rp = await sb.from('prodotti').select(_CAMPI_PRODOTTO);
+    const rp = await _leggiProdotti(sb);
     if(rf.error || rp.error || !Array.isArray(rf.data) || !Array.isArray(rp.data)){
       console.warn('Lettura catalogo non riuscita:', (rf.error||rp.error));
       return false;
@@ -2997,10 +3015,55 @@ function backToCatalogo(){
 // Prodotti di un fornitore in ordine alfabetico, come nell'elenco admin
 // (renderProdotti_admin): il tesserato e l'ospite devono ritrovare le voci
 // nello stesso ordine con cui l'admin le vede e le gestisce.
+// Ordine dei prodotti dentro la scheda di un fornitore.
+//
+// Il campo `ordine` è il posto del prodotto nel listino del suo fornitore, e
+// da solo decide due cose: dove va il prodotto dentro la sua sezione, e in
+// che ordine compaiono le sezioni — una sezione vale quanto il suo prodotto
+// col numero più basso. Così le intestazioni si possono scrivere come sul
+// listino cartaceo ("KRINOSAN 01", col numero in fondo) e le sezioni escono
+// lo stesso nell'ordine giusto: basta numerare i prodotti di seguito,
+// 1..7 KRINOSAN, 8..16 PYTYSAN, e via così.
+//
+// Serve perché dentro una sezione l'alfabeto spesso è sbagliato: in una linea
+// cosmetica la sequenza è informazione — detergente, tonico, crema — e
+// l'ordine alfabetico metterebbe la crema Over 35 prima del detergente.
+//
+// Tutto facoltativo. Chi non ha `ordine` finisce in coda, in ordine
+// alfabetico, e le sezioni senza nemmeno un prodotto numerato restano
+// ordinate per nome: un catalogo che non usa il campo non cambia di una
+// virgola rispetto a prima.
+const _ordineProdotto = p => {
+  const n = Number(p && p.ordine);
+  return (p && p.ordine !== null && p.ordine !== undefined && p.ordine !== '' && isFinite(n))
+    ? n : Number.POSITIVE_INFINITY;
+};
 function _prodottiOrdinati(fornitorId){
-  return S.prodotti
-    .filter(p=>p.fornitorId===fornitorId)
-    .sort((a,b)=>(a.nome||'').toLowerCase().localeCompare((b.nome||'').toLowerCase(),'it'));
+  const lista = S.prodotti.filter(p=>p.fornitorId===fornitorId);
+  // Peso di ogni sezione: il numero più basso fra i suoi prodotti.
+  //
+  // I prodotti senza sezione vengono sempre per primi. Non è una preferenza:
+  // non avendo intestazione, se finissero in fondo si leggerebbero come se
+  // appartenessero all'ultima sezione aperta — un articolo sciolto stampato
+  // sotto il titolo sbagliato. Davanti a tutto invece non equivocano.
+  const pesoSez = { '': Number.NEGATIVE_INFINITY };
+  lista.forEach(p=>{
+    const c = categoriaProdotto(p).toLowerCase();
+    if(c === '') return;
+    const o = _ordineProdotto(p);
+    if(pesoSez[c] === undefined || o < pesoSez[c]) pesoSez[c] = o;
+  });
+  return lista.sort((a,b)=>{
+    const ca=categoriaProdotto(a).toLowerCase(), cb=categoriaProdotto(b).toLowerCase();
+    if(ca!==cb){
+      const pa=pesoSez[ca], pb=pesoSez[cb];
+      if(pa!==pb) return pa-pb;
+      return ca.localeCompare(cb,'it');
+    }
+    const oa=_ordineProdotto(a), ob=_ordineProdotto(b);
+    if(oa!==ob) return oa-ob;
+    return (a.nome||'').toLowerCase().localeCompare((b.nome||'').toLowerCase(),'it');
+  });
 }
 
 // ── Prodotti raggruppati per categoria dentro la scheda del fornitore ──
@@ -5986,14 +6049,18 @@ function deleteFornitore(id){
 
 // ════════════════════ ADMIN — PRODOTTI ════════════════════
 function renderProdotti_admin(){
-  const sorted=[...S.prodotti].sort((a,b)=>{
-    const fa=S.fornitori.find(x=>x.id===a.fornitorId);
-    const fb=S.fornitori.find(x=>x.id===b.fornitorId);
-    const na=(fa?fa.nome:'').toLowerCase();
-    const nb=(fb?fb.nome:'').toLowerCase();
-    if(na!==nb) return na.localeCompare(nb,'it');
-    return (a.nome||'').toLowerCase().localeCompare((b.nome||'').toLowerCase(),'it');
-  });
+  // Fornitori in ordine alfabetico e, dentro ciascuno, gli stessi criteri
+  // della vista tesserato — sezioni e campo `ordine`. L'admin deve vedere
+  // l'elenco nella sequenza in cui lo vede il socio, altrimenti non può
+  // controllare l'effetto di quello che ha appena scritto.
+  const sorted=[];
+  [...S.fornitori]
+    .sort((a,b)=>(a.nome||'').toLowerCase().localeCompare((b.nome||'').toLowerCase(),'it'))
+    .forEach(f=>_prodottiOrdinati(f.id).forEach(p=>sorted.push(p)));
+  // I prodotti il cui fornitore non esiste più restano in coda: il riquadro
+  // giallo qui sotto li segnala comunque.
+  const _idsFornEsistenti=new Set(S.fornitori.map(f=>f.id));
+  S.prodotti.filter(p=>!_idsFornEsistenti.has(p.fornitorId)).forEach(p=>sorted.push(p));
   let lastForn='';
   const rows=sorted.map(p=>{
     const f=S.fornitori.find(x=>x.id===p.fornitorId);
@@ -6099,7 +6166,11 @@ function prodForm(p){
       <div class="field"><label>Prezzo (€)</label><input id="m-ppr" type="text" inputmode="decimal" value="${escHtml(_prezzoPerModulo(p.prezzo))}" placeholder="es. 15,60"></div>
       <div class="field"><label>Unità</label><input id="m-pun" type="text" value="${escHtml(p.unita||'')}" placeholder="kg, vasetto, pezzo..."></div>
     </div>
-    <div class="field"><label>Codice articolo <span style="font-size:.72rem;color:var(--text-light);font-weight:400;">(opzionale, per riordino fornitore)</span></label><input id="m-pcod" type="text" value="${escHtml(p.codice||'')}" placeholder="es. 22-A"></div>`;
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="field"><label>Codice articolo <span style="font-size:.72rem;color:var(--text-light);font-weight:400;">(opzionale, per riordino fornitore)</span></label><input id="m-pcod" type="text" value="${escHtml(p.codice||'')}" placeholder="es. 22-A"></div>
+      <div class="field"><label>Ordine <span style="font-size:.72rem;color:var(--text-light);font-weight:400;">(opzionale, posto nella sezione)</span></label><input id="m-pord" type="number" step="1" value="${p.ordine===null||p.ordine===undefined?'':escHtml(String(p.ordine))}" placeholder="es. 1"></div>
+    </div>
+    <div style="font-size:.72rem;color:var(--text-light);margin:-4px 0 4px;">Scrivi la sezione nel nome con il separatore <strong>&nbsp;·&nbsp;</strong> — es. <em>01 KRINOSAN · Shampoo 250 ml</em>. Il numero in "Ordine" decide il posto dentro quella sezione; senza numero il prodotto va in coda, in ordine alfabetico.</div>`;
 }
 
 function modalNewProdotto(){
@@ -6128,7 +6199,12 @@ async function saveProdotto(editId){
   const prezzo=_leggiPrezzo(document.getElementById('m-ppr').value);
   if(prezzo===null){toast('⚠️ Prezzo mancante o non valido — scrivilo così: 15,60');return;}
   const codEl=document.getElementById('m-pcod');
-  const data={fornitorId:document.getElementById('m-pforn').value,nome,prezzo,unita:document.getElementById('m-pun').value.trim(),codice:codEl?codEl.value.trim():''};
+  // Ordine: campo facoltativo. Vuoto o illeggibile = nessun posto assegnato,
+  // il prodotto va in coda alla sua sezione.
+  const ordEl=document.getElementById('m-pord');
+  const ordNum=ordEl?parseInt(ordEl.value,10):NaN;
+  const ordine=isFinite(ordNum)?ordNum:null;
+  const data={fornitorId:document.getElementById('m-pforn').value,nome,prezzo,unita:document.getElementById('m-pun').value.trim(),codice:codEl?codEl.value.trim():'',ordine};
   let prod;
   if(editId){ prod=S.prodotti.find(x=>x.id===editId); if(prod) Object.assign(prod,data); }
   else{ prod={id:'p'+uid(),...data}; S.prodotti.push(prod); }
