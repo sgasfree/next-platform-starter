@@ -2106,7 +2106,7 @@ async function _eliminaRaccoltaSulServer(id){
 // Salva una raccolta e avvisa se è rimasta solo in locale.
 async function _persistiRaccolta(r){
   const esito = await _salvaRaccolteSulServer(r);
-  if(esito !== true) _avvisaScritturaFallita(esito);
+  if(esito !== true) _avvisaScritturaFallita(esito, 'la raccolta "' + ((r && r.nome) || '?') + '"');
   return esito === true;
 }
 
@@ -2165,14 +2165,35 @@ const _prodottoDaRiga = p => ({
 // e da quel momento OGNI modifica resta solo sul dispositivo. Prima l'unico
 // segnale era un messaggio che spariva in tre secondi e diceva "riprova tra
 // poco" — cosa che non risolve nulla. Qui l'avviso è bloccante e dice cosa fare.
-function _avvisaScritturaFallita(motivo){
+//
+// Vale però anche per il server che rifiuta o non risponde: il risultato è lo
+// stesso, la modifica resta solo su questo dispositivo. E resta INVISIBILE,
+// perché lo schermo continua a mostrare il valore appena scritto: catalogo e
+// raccolte vengono riletti dalle tabelle a ogni avvio, senza confronto di
+// date, quindi al primo collegamento riuscito il valore vecchio del server
+// torna al suo posto. È così che una correzione di prezzo può sembrare
+// applicata per giorni e poi "tornare indietro da sola". Un messaggio che
+// sparisce in tre secondi non basta a farlo capire: anche qui ci vuole un
+// avviso bloccante, che dica che cosa non è stato salvato.
+//
+// `cosa` descrive la modifica ("il prezzo di Birra al riso"): comparirà
+// nell'avviso, così si sa esattamente che cosa va ripetuto.
+function _avvisaScritturaFallita(motivo, cosa){
+  const oggetto = cosa ? '\n\nModifica non salvata: ' + cosa + '.' : '';
   if(motivo === 'nosessione'){
-    alert('🔒 Sessione scaduta — la modifica NON è stata salvata\n\n'
+    alert('🔒 Sessione scaduta — la modifica NON è stata salvata'
+      + oggetto + '\n\n'
       + 'Per motivi di sicurezza la password non resta memorizzata, e '
       + 'l\'autorizzazione a scrivere è scaduta.\n\n'
       + 'Esci e rientra, poi ripeti la modifica.');
   } else {
-    toast('⚠️ Modifica salvata solo su questo dispositivo — riprova tra poco.');
+    alert('⚠️ Il server non ha accettato la modifica — NON è stata salvata'
+      + oggetto + '\n\n'
+      + 'Per ora resta solo su questo dispositivo: la vedi tu, ma gli altri no, '
+      + 'e al prossimo collegamento riuscito verrà sostituita dal valore che '
+      + 'sta sul server.\n\n'
+      + 'Controlla la connessione e ripeti la modifica. Se l\'avviso torna, '
+      + 'esci e rientra prima di riprovare.');
   }
 }
 
@@ -2206,9 +2227,11 @@ async function _eliminaCatalogoSulServer(tabella, ids){
 }
 
 // Salva un record e avvisa se è rimasto solo in locale.
-async function _persistiCatalogo(tabella, riga){
+async function _persistiCatalogo(tabella, riga, cosa){
   const esito = await _salvaCatalogoSulServer(tabella, riga);
-  if(esito !== true) _avvisaScritturaFallita(esito);
+  if(esito !== true)
+    _avvisaScritturaFallita(esito, cosa || ((tabella === 'prodotti' ? 'il prodotto ' : 'il fornitore ')
+      + '"' + ((riga && riga.nome) || '?') + '"'));
   return esito === true;
 }
 
@@ -5963,7 +5986,7 @@ function deleteFornitore(id){
   saveState(); renderFornitori_admin(); toast('Fornitore eliminato');
   _eliminaCatalogoSulServer('prodotti', prodottiDelForn)
     .then(()=>_eliminaCatalogoSulServer('fornitori', id))
-    .then(esito=>{ if(esito !== true) _avvisaScritturaFallita(esito); });
+    .then(esito=>{ if(esito !== true) _avvisaScritturaFallita(esito, 'l\'eliminazione del fornitore'); });
 }
 
 // ════════════════════ ADMIN — PRODOTTI ════════════════════
@@ -6041,12 +6064,44 @@ function filterAdminProdotti(q){
   });
 }
 
+// Legge un prezzo scritto a mano accettando sia la virgola sia il punto.
+// Restituisce null quando il campo è vuoto o non contiene un numero valido:
+// chi chiama deve fermarsi, NON salvare zero.
+//
+// Prima il campo era <input type="number"> letto con `parseFloat(...)||0`.
+// Scrivendo il prezzo come si scrive in italiano — "15,60" — il campo
+// risultava non valido per il browser, `.value` tornava stringa vuota e il
+// prodotto veniva salvato a 0 € senza il minimo avviso. Stesso esito per un
+// campo lasciato vuoto per sbaglio: un prodotto gratis, in silenzio.
+function _leggiPrezzo(testo){
+  let s = String(testo == null ? '' : testo).trim().replace(/[€\s]/g, '');
+  if(!s) return null;
+  const punto = s.lastIndexOf('.'), virgola = s.lastIndexOf(',');
+  if(punto >= 0 && virgola >= 0){
+    // Con entrambi i separatori l'ultimo è quello decimale, l'altro divide le
+    // migliaia: "1.234,50" e "1,234.50" valgono tutti e due 1234.50.
+    const dec = Math.max(punto, virgola);
+    s = s.slice(0, dec).replace(/[.,]/g, '') + '.' + s.slice(dec + 1);
+  } else {
+    s = s.replace(',', '.');
+  }
+  // Accetta anche le forme incomplete ma non ambigue: "15," vale 15 e ",50"
+  // vale 0,50. Restano fuori solo le scritture da cui non si capisce il prezzo.
+  if(!/^(\d+(\.\d*)?|\.\d+)$/.test(s)) return null;
+  const n = parseFloat(s);
+  return isFinite(n) ? n : null;
+}
+
+// Il prezzo nel modulo si mostra con la virgola, come lo si scrive.
+const _prezzoPerModulo = v =>
+  (typeof v === 'number' && isFinite(v)) ? String(v).replace('.', ',') : '';
+
 function prodForm(p){
   const fornOpts=S.fornitori.filter(f=>f.attivo!==false).map(f=>`<option value="${f.id}" ${p.fornitorId===f.id?'selected':''}>${f.emoji||''} ${escHtml(f.nome)}</option>`).join('');
   return `<div class="field"><label>Fornitore</label><select id="m-pforn">${fornOpts}</select></div>
     <div class="field"><label>Nome prodotto</label><input id="m-pnome" type="text" value="${escHtml(p.nome||'')}" placeholder="es. Miele di Acacia Bio"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-      <div class="field"><label>Prezzo (€)</label><input id="m-ppr" type="number" step="0.01" value="${p.prezzo||0}"></div>
+      <div class="field"><label>Prezzo (€)</label><input id="m-ppr" type="text" inputmode="decimal" value="${escHtml(_prezzoPerModulo(p.prezzo))}" placeholder="es. 15,60"></div>
       <div class="field"><label>Unità</label><input id="m-pun" type="text" value="${escHtml(p.unita||'')}" placeholder="kg, vasetto, pezzo..."></div>
     </div>
     <div class="field"><label>Codice articolo <span style="font-size:.72rem;color:var(--text-light);font-weight:400;">(opzionale, per riordino fornitore)</span></label><input id="m-pcod" type="text" value="${escHtml(p.codice||'')}" placeholder="es. 22-A"></div>`;
@@ -6072,13 +6127,19 @@ function modalEditProdotto(id){
 async function saveProdotto(editId){
   const nome=document.getElementById('m-pnome').value.trim();
   if(!nome){toast('Nome obbligatorio');return;}
+  // Prezzo: nessun valore di ripiego. Un campo vuoto o scritto male ferma il
+  // salvataggio invece di diventare 0 € — la finestra resta aperta, con dentro
+  // quello che si stava scrivendo, e si corregge solo il prezzo.
+  const prezzo=_leggiPrezzo(document.getElementById('m-ppr').value);
+  if(prezzo===null){toast('⚠️ Prezzo mancante o non valido — scrivilo così: 15,60');return;}
   const codEl=document.getElementById('m-pcod');
-  const data={fornitorId:document.getElementById('m-pforn').value,nome,prezzo:parseFloat(document.getElementById('m-ppr').value)||0,unita:document.getElementById('m-pun').value.trim(),codice:codEl?codEl.value.trim():''};
+  const data={fornitorId:document.getElementById('m-pforn').value,nome,prezzo,unita:document.getElementById('m-pun').value.trim(),codice:codEl?codEl.value.trim():''};
   let prod;
   if(editId){ prod=S.prodotti.find(x=>x.id===editId); if(prod) Object.assign(prod,data); }
   else{ prod={id:'p'+uid(),...data}; S.prodotti.push(prod); }
   saveState(); closeModal(); renderProdotti_admin(); toast('✅ Prodotto salvato');
-  if(prod) await _persistiCatalogo('prodotti', prod);
+  if(prod) await _persistiCatalogo('prodotti', prod,
+    'il prodotto "'+prod.nome+'" (prezzo €'+_prezzoPerModulo(prod.prezzo)+')');
 }
 
 function deleteProdotto(id){
@@ -6087,7 +6148,7 @@ function deleteProdotto(id){
   S.prodotti=S.prodotti.filter(p=>p.id!==id);
   saveState(); renderProdotti_admin(); toast('Prodotto eliminato');
   _eliminaCatalogoSulServer('prodotti', id).then(esito=>{
-    if(esito !== true) _avvisaScritturaFallita(esito);
+    if(esito !== true) _avvisaScritturaFallita(esito, 'l\'eliminazione del prodotto');
   });
 }
 
@@ -6384,7 +6445,7 @@ function deleteRaccolta(id){
   S.raccolte=S.raccolte.filter(r=>r.id!==id);
   saveState(); renderRaccolte(); toast('Raccolta eliminata');
   _eliminaRaccoltaSulServer(id).then(esito=>{
-    if(esito !== true) _avvisaScritturaFallita(esito);
+    if(esito !== true) _avvisaScritturaFallita(esito, 'l\'eliminazione della raccolta');
   });
 }
 
@@ -9092,7 +9153,7 @@ function openModalNuovaPrenotazione(editId){
 function rigaProdsHTML(i,nome,prezzo,qtyMin){
   return `<div class="pren-riga" style="display:grid;grid-template-columns:1fr auto auto auto;gap:6px;align-items:center;">
     <input class="form-input" placeholder="Nome prodotto" value="${escHtml(nome)}" style="font-size:.85rem;"/>
-    <input class="form-input" placeholder="€ prezzo" value="${escHtml(prezzo)}" style="width:80px;font-size:.85rem;"/>
+    <input class="form-input" inputmode="decimal" placeholder="€ prezzo" value="${escHtml(typeof prezzo==='number'?_prezzoPerModulo(prezzo):(prezzo||''))}" style="width:80px;font-size:.85rem;"/>
     <input class="form-input" placeholder="Qty min" value="${escHtml(qtyMin||'')}" style="width:72px;font-size:.85rem;" title="Quantità minima ordinabile (opzionale)"/>
     <button class="btn btn-secondary btn-sm" onclick="this.closest('.pren-riga').remove()" style="padding:6px 10px;">✕</button>
   </div>`;
@@ -9116,11 +9177,16 @@ function salvaPrenotazione(editId){
   if(!titolo||!fornitorId){toast('⚠️ Compila titolo e fornitore','error');return;}
 
   const righe=[...document.querySelectorAll('#pren-prods-wrap .pren-riga')];
+  // Stessa regola del catalogo: la virgola va bene, un prezzo illeggibile no.
+  // Prima diventava 0 € in silenzio, e il prodotto finiva in prenotazione
+  // come se fosse gratis.
   const prodotti=righe.map(r=>{
     const inputs=r.querySelectorAll('input');
-    return {nome:inputs[0].value.trim(), prezzo:parseFloat(inputs[1].value)||0, qtyMin:parseInt(inputs[2].value)||1};
+    return {nome:inputs[0].value.trim(), prezzo:_leggiPrezzo(inputs[1].value), qtyMin:parseInt(inputs[2].value)||1};
   }).filter(r=>r.nome);
   if(!prodotti.length){toast('⚠️ Aggiungi almeno un prodotto','error');return;}
+  const senzaPrezzo=prodotti.find(p=>p.prezzo===null);
+  if(senzaPrezzo){toast('⚠️ Prezzo mancante o non valido per "'+senzaPrezzo.nome+'" — scrivilo così: 15,60');return;}
 
   let saved;
   if(editId){
