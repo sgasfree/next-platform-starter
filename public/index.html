@@ -3161,20 +3161,25 @@ function nomeProdottoSenzaCategoria(p){
 // Lo stato va preparato sulla lista già ordinata: le note si raccolgono in
 // anticipo, altrimenti quando la sezione finisce sarebbe troppo tardi per
 // sapere se ne aveva una.
+// I prodotti senza sezione contano come un gruppo anche loro, con la chiave ''.
+// Prima venivano saltati, e la conseguenza era peggiore di un errore visibile:
+// un fornitore non ancora diviso in sezioni accettava la nota, la salvava, e
+// non la mostrava a nessuno. L'amministratore la riscriveva convinto di aver
+// sbagliato qualcosa. Ora la nota si vede sempre: in coda alla lista se le
+// sezioni non ci sono, in fondo alla propria sezione se ci sono.
 function _statoSezioni(lista){
   const note = {};
   (lista||[]).forEach(p=>{
     const c = categoriaProdotto(p).toLowerCase();
-    if(!c) return;
     const n = (p && p.sezioneNota) ? String(p.sezioneNota).trim() : '';
     if(n && !note[c]) note[c] = n;
   });
   return { ultima:'', note };
 }
-// Nota della sezione attualmente aperta, da stampare quando si chiude.
+// Nota del gruppo attualmente aperto, da stampare quando si chiude.
 function chiusuraSezione(stato){
-  if(!stato || !stato.ultima) return '';
-  const n = stato.note ? stato.note[stato.ultima.toLowerCase()] : '';
+  if(!stato || !stato.note) return '';
+  const n = stato.note[String(stato.ultima || '').toLowerCase()];
   return n ? '<div class="cat-prodotti-nota">'+escHtml(n)+'</div>' : '';
 }
 function intestazioneCategoria(p, stato){
@@ -6300,7 +6305,8 @@ function prodForm(p){
     </div>
     <div style="font-size:.72rem;color:var(--text-light);margin:-4px 0 4px;">Scrivi la sezione nel nome con il separatore <strong>&nbsp;·&nbsp;</strong> — es. <em>KRINOSAN 01 · Shampoo 250 ml</em>. Il numero in "Ordine" decide il posto del prodotto e, di riflesso, quello della sezione; senza numero il prodotto va in coda, in ordine alfabetico.</div>
     <div class="field"><label>Presentazione della sezione <span style="font-size:.72rem;color:var(--text-light);font-weight:400;">(facoltativa, si mostra sotto il titolo della sezione)</span></label><textarea id="m-psez" rows="3" placeholder="Testo che presenta la linea, come sul listino. Scrivilo sul primo prodotto della sezione.">${escHtml(p.sezioneDescrizione||'')}</textarea></div>
-    <div class="field"><label>Nota a fine sezione <span style="font-size:.72rem;color:var(--text-light);font-weight:400;">(facoltativa, si mostra dopo l'ultimo articolo)</span></label><textarea id="m-pnota" rows="2" placeholder="es. n.b. Questi prodotti non sono soggetti a scadenza. Vale per tutta la sezione: basta scriverla su un prodotto qualunque.">${escHtml(p.sezioneNota||'')}</textarea></div>`;
+    <div class="field"><label>Nota a fine elenco <span style="font-size:.72rem;color:var(--text-light);font-weight:400;">(facoltativa)</span></label><textarea id="m-pnota" rows="2" placeholder="es. n.b. Il peso non è definibile con precisione. Vale per tutto il gruppo: basta scriverla su un prodotto qualunque.">${escHtml(p.sezioneNota||'')}</textarea></div>
+    <div style="font-size:.72rem;color:var(--text-light);margin:-4px 0 4px;">La nota compare una volta sola, in fondo alla sezione del prodotto — o in fondo all'elenco del fornitore, se le sezioni non ci sono.</div>`;
 }
 
 function modalNewProdotto(){
