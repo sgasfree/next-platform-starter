@@ -3056,6 +3056,23 @@ const _ordineProdotto = p => {
 // bene l'unità ha già detto tutto quello che serve.
 const _eServizio = p => /appuntament|preventiv|notte|omaggio/i.test((p && p.unita) || '');
 
+// Che cosa scrivere al posto del prezzo quando il prezzo non c'è.
+//
+// Un prodotto a zero quasi mai è gratis: di solito è una prestazione che si
+// concorda, e lo dice l'unità — la stessa che distingue un servizio da un
+// prodotto. La vetrina lo scriveva già per esteso, la vista tesserato no: lì
+// tutto ciò che non aveva un prezzo diventava "Gratuito", quindi gli undici
+// servizi su preventivo di una tipografia e le camere di un B&B si
+// presentavano al socio come regalati. Ora le due viste dicono la stessa cosa.
+function etichettaPrezzo(p){
+  if(p && p.prezzo > 0) return '&euro;' + p.prezzo.toFixed(2);
+  const u = ((p && p.unita) || '').toLowerCase();
+  if(u.includes('appuntamento')) return 'Su appuntamento';
+  if(u.includes('preventiv'))    return 'Su preventivo';
+  if(u.includes('notte'))        return 'Stagionale';
+  return 'Gratuito';
+}
+
 // Titolo dell'elenco nella scheda del fornitore.
 //
 // Era fisso: "Prodotti e servizi offerti" per tutti. Ma la maggior parte dei
@@ -3286,7 +3303,7 @@ function openFornitoreOspite(id){
         +'<div style="flex:1;"><div class="prodotto-name">'+escHtml(nomeProdottoSenzaCategoria(p))+'</div>'
         +(p.descrizione?'<div style="font-size:.75rem;color:var(--text-mid);margin-top:2px;line-height:1.4;">'+escHtml(p.descrizione)+'</div>':'')
         +'<div style="font-size:.75rem;color:var(--text-light);">'+escHtml(p.unita)+'</div></div>'
-        +'<div class="prodotto-price">'+(p.prezzo>0?'&euro;'+p.prezzo.toFixed(2):(function(){const u=(p.unita||'').toLowerCase();return u.includes('appuntamento')?'Su appuntamento':u.includes('preventivo')?'Su preventivo':u.includes('notte')&&p.prezzo===0?'Stagionale':u.includes('omaggio')?'Gratuito':'Gratuito';})())+'</div>'
+        +'<div class="prodotto-price">'+etichettaPrezzo(p)+'</div>'
         +'</div>'
       ).join('') + chiusuraSezione(statoCat); })()
       +'</div>';
@@ -4567,7 +4584,7 @@ function openFornitore(id){
             +'<div><div class="prodotto-name">'+titolo+codBadge+'</div>'
             +(p.descrizione?'<div style="font-size:.75rem;color:var(--text-mid);margin-top:2px;line-height:1.4;">'+escHtml(p.descrizione)+'</div>':'')
             +'<div style="font-size:.75rem;color:var(--text-light);">'+escHtml(p.unita)+'</div></div>'
-            +'<div class="prodotto-price">'+(p.prezzo>0?'&#8364;'+p.prezzo.toFixed(2):(p.unita&&p.unita.toLowerCase().includes('appuntamento')?'':'Gratuito'))+'</div>'
+            +'<div class="prodotto-price">'+etichettaPrezzo(p)+'</div>'
             +'<div class="qty-ctrl">'
             +'<button class="qty-btn" onclick="cartChange(&#39;'+p.id+'&#39;,-1)">&#8722;</button>'
             +'<span class="qty-num" id="qty-'+p.id+'">'+qty+'</span>'
@@ -4582,7 +4599,7 @@ function openFornitore(id){
             +'<div><div class="prodotto-name" style="color:var(--text-light);">'+titolo+codBadge+'</div>'
             +(p.descrizione?'<div style="font-size:.75rem;color:var(--text-light);margin-top:2px;line-height:1.4;">'+escHtml(p.descrizione)+'</div>':'')
             +'<div style="font-size:.75rem;color:var(--text-light);">'+escHtml(p.unita)+'</div></div>'
-            +'<div class="prodotto-price" style="color:var(--text-light);">'+(p.prezzo>0?'&#8364;'+p.prezzo.toFixed(2):'—')+'</div>'
+            +'<div class="prodotto-price" style="color:var(--text-light);">'+etichettaPrezzo(p)+'</div>'
             +label
             +'</div>';
         }
