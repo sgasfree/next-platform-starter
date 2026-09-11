@@ -3049,6 +3049,29 @@ const _ordineProdotto = p => {
   return (p && p.ordine !== null && p.ordine !== undefined && p.ordine !== '' && isFinite(n))
     ? n : Number.POSITIVE_INFINITY;
 };
+// Un servizio non si vende a pezzo: si concorda. Lo si riconosce dall'unità —
+// "su appuntamento", "su preventivo", "notte", "omaggio soci" — cioè dalla
+// stessa informazione che l'app usa già per scrivere "Su preventivo" al posto
+// del prezzo. Nessun campo nuovo da compilare per l'amministratore: chi scrive
+// bene l'unità ha già detto tutto quello che serve.
+const _eServizio = p => /appuntament|preventiv|notte|omaggio/i.test((p && p.unita) || '');
+
+// Titolo dell'elenco nella scheda del fornitore.
+//
+// Era fisso: "Prodotti e servizi offerti" per tutti. Ma la maggior parte dei
+// fornitori vende solo prodotti, e sotto a un banco di riso o di confetture la
+// parola "servizi" non significa niente; al contrario, il parrucchiere e la
+// tipografia non vendono prodotti, e "Prodotti" lì è altrettanto fuori posto.
+// Il titolo ora dice quello che quel fornitore offre davvero.
+function titoloOfferta(prods){
+  const lista = prods || [];
+  const conServizi  = lista.some(_eServizio);
+  const conProdotti = lista.some(p => !_eServizio(p));
+  if(conServizi && conProdotti) return 'Prodotti e servizi offerti';
+  if(conServizi)                return 'Servizi offerti';
+  return 'Prodotti offerti';
+}
+
 function _prodottiOrdinati(fornitorId){
   const lista = S.prodotti.filter(p=>p.fornitorId===fornitorId);
   // Peso di ogni sezione: il numero più basso fra i suoi prodotti.
@@ -3253,7 +3276,10 @@ function openFornitoreOspite(id){
 
   if(prods.length){
     html+='<div class="card">'
-      +'<h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">📦 Prodotti e servizi offerti</h3>'
+      // L'icona segue il titolo: la scatola non ha senso sopra un elenco di
+      // sole prestazioni da concordare.
+      +'<h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">'
+        +(prods.every(_eServizio) ? '🤝' : '📦')+' '+titoloOfferta(prods)+'</h3>'
       +(function(){ const statoCat=_statoSezioni(prods); return prods.map(p=>
         intestazioneCategoria(p, statoCat)
         +'<div class="prodotto-row">'
@@ -4525,7 +4551,7 @@ function openFornitore(id){
         +'</div></div>';
     }
     html+='<div style="margin-bottom:12px;"><input id="search-prodotti" type="search" placeholder="🔍 Cerca prodotto o codice..." style="width:100%;padding:9px 14px;border:1.5px solid var(--border);border-radius:20px;font-family:\'Nunito\',sans-serif;font-size:.9rem;outline:none;"></div>'
-      +'<h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">Prodotti</h3>'
+      +'<h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">'+titoloOfferta(prods)+'</h3>'
       +(function(){ const statoCat=_statoSezioni(prods); return prods.map(p=>{
         const qty=getCartQty(p.id);
         const disp = p.disponibile !== false;
