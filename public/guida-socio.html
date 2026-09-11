@@ -167,6 +167,7 @@
   <a href="#ordine">📦 Ordine</a>
   <a href="#messaggio">💬 Messaggio</a>
   <a href="#prenotazione">📋 Prenotazione</a>
+  <a href="#gruppo">👥 Gruppo</a>
   <a href="#assistenza">🆘 Assistenza</a>
   <a href="index.html#vetrina">🏠 Torna Vetrina</a>
 </nav>
@@ -644,6 +645,20 @@
 
   <div class="alert ok">🔄 <strong>Il carrello si salva da solo:</strong> puoi chiudere l'app e tornare dopo — trovi tutto come l'avevi lasciato. Per modificare: ✕ rimuove un prodotto, «🗑 Svuota carrello» cancella tutto.</div>
 
+  <div class="alert info">📑 <strong>I prodotti sono divisi in sezioni</strong>, nello stesso ordine del listino cartaceo del fornitore. Sotto al titolo di una sezione puoi trovare una breve presentazione, e <strong>in fondo una nota</strong>: leggila, perché a volte riguarda il tuo ordine — per esempio un contributo per le spese di trasporto, o l'avviso che le quantità sono limitate.</div>
+
+  <div class="alert warn">🏷️ <strong>Al posto del prezzo può esserci una scritta.</strong> Non vuol dire che sia gratis: vuol dire che il prezzo si concorda con il fornitore.
+    <table class="tbl" style="margin-top:10px;">
+      <thead><tr><th>Cosa leggi</th><th>Cosa significa</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Su preventivo</strong></td><td>Il costo dipende dal lavoro richiesto: lo concordi prima</td></tr>
+        <tr><td><strong>Su appuntamento</strong></td><td>È un servizio da prenotare, non un prodotto da carrello</td></tr>
+        <tr><td><strong>Stagionale</strong></td><td>Disponibilità e prezzo variano nel periodo</td></tr>
+        <tr><td><strong>Gratuito</strong></td><td>Questo sì: è un omaggio riservato ai tesserati</td></tr>
+      </tbody>
+    </table>
+  </div>
+
   <!-- ══ TROVARE UN PRODOTTO CON LA RICERCA ══ -->
   <hr style="border:none;border-top:2px solid var(--green-pale);margin:28px 0 20px;">
   <div class="sec-title" style="font-size:18px;">🔍 Trovare in fretta un prodotto</div>
@@ -811,6 +826,47 @@
 <!-- ══════════════════════════════════════════════════════ -->
 <!--  7. ASSISTENZA                                         -->
 <!-- ══════════════════════════════════════════════════════ -->
+<section class="sec" id="gruppo">
+  <div class="sec-title">👥 Il gruppo Telegram dei tesserati</div>
+  <div class="sec-sub">È lì che si svolgono le raccolte — lo raggiungi dalla tua scheda</div>
+
+  <div class="mock" style="max-width:330px;">
+    <div class="m-nav">
+      <span class="brand"><img src="icon-192.png" alt="" style="width:16px;height:16px;border-radius:50%;object-fit:contain;background:#fff;padding:1px;"> S-GAS</span>
+      <span class="ico">💬</span>
+      <span class="ico">👤<span class="ico-lbl">Profilo</span></span>
+      <span style="color:var(--red);font-weight:900;font-size:10px;">← tocca 👤</span>
+      <span class="esci">Esci</span>
+    </div>
+    <div class="mock-body" style="padding:12px;">
+      <div style="font-weight:800;font-size:13px;margin-bottom:8px;">👤 SGAS-00016</div>
+      <div style="border:1px solid #e0e0e0;border-radius:8px;padding:8px 10px;font-size:11px;color:#555;">
+        <span style="color:#2e7d32;">●</span> <strong>Tessera valida</strong>
+      </div>
+      <div style="border-top:1px solid #eee;margin-top:10px;padding-top:10px;">
+        <div style="display:inline-block;background:#29a8e0;color:#fff;border-radius:20px;padding:7px 14px;font-size:11px;font-weight:800;">✈ Gruppo Telegram dei tesserati</div>
+        <div class="tag-below" style="margin-top:6px;">↑ in fondo alla tua scheda</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step"><div class="step-num">1</div><div class="step-body">
+    <strong>Tocca 👤 in alto</strong>
+    <p>Si apre la tua scheda personale, con numero di tessera, dati e validità.</p>
+  </div></div>
+
+  <div class="step"><div class="step-num">2</div><div class="step-body">
+    <strong>Scorri in fondo e premi il pulsante azzurro</strong>
+    <p>Si apre Telegram direttamente sul gruppo, senza doverlo cercare fra le chat.</p>
+  </div></div>
+
+  <div class="alert info">🔒 <strong>Il gruppo è riservato ai tesserati</strong> e si entra solo dopo la verifica del versamento della tessera. Per questo il pulsante compare soltanto nella tua scheda personale, e non nella vetrina pubblica.</div>
+
+  <div class="alert warn">❓ <strong>Il pulsante non apre niente?</strong> Vuol dire che non fai ancora parte del gruppo: il collegamento funziona solo per chi è già dentro. Non è un guasto dell'app — scrivi all'assistenza 🪪 <strong>Tesserato</strong> per essere aggiunto.</div>
+</section>
+
+<hr class="divider">
+
 <section class="sec" id="assistenza">
   <div class="sec-title">🆘 Contattare l'assistenza</div>
   <div class="sec-sub">Tre canali Telegram, uno per ogni tipo di problema</div>
@@ -866,6 +922,9 @@
       <tr><td>💾 Modificare l'ordine</td><td>🛒 Carrello (si salva da solo)</td></tr>
       <tr><td>💬 Scrivere all'admin</td><td>Icona 💬 in alto</td></tr>
       <tr><td>📋 Prenotare</td><td>Icona 📅 → quantità → Prenota</td></tr>
+      <tr><td>👥 Entrare nel gruppo Telegram</td><td>👤 <strong>Profilo</strong> → in fondo, pulsante «Gruppo Telegram dei tesserati». Si apre solo se ne fai già parte: altrimenti scrivi all'assistenza 🪪</td></tr>
+      <tr><td>📑 Leggere le note del fornitore</td><td>In fondo a ogni sezione del catalogo: possono esserci spese di trasporto o avvisi sulle quantità</td></tr>
+      <tr><td>🏷️ Capire «Su preventivo»</td><td>Il prezzo non è fisso, si concorda col fornitore. Vale anche per «Su appuntamento» e «Stagionale»</td></tr>
       <tr><td>🆘 Chiedere aiuto</td><td>Pulsante SOS in alto (3 canali Telegram)</td></tr>
     </tbody>
   </table>
