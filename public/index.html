@@ -4844,7 +4844,10 @@ function submitOrder(){
   notificaAdminNuovoOrdine(buildOrderTgMsg(ord, false));
   const socioChatId = (currentUser.telegramChatId||'').trim();
   if(socioChatId) sendTelegramMsg(socioChatId, buildOrderTgMsg(ord, true));
-  toast('✅ Ordine inviato! Documento Word scaricato.');
+  // Il Word ha il proprio toast (successo o errore), mostrato in modo
+  // asincrono da exportOrderWord: qui non anticipiamo un esito che ancora
+  // non è noto (la libreria potrebbe dover ancora scaricarsi).
+  toast('✅ Ordine inviato!');
   backToCatalogo();
 }
 
@@ -4977,6 +4980,7 @@ function exportOrderWord(ord){
     const a=document.createElement('a');
     a.href=url;a.download=fname;a.click();
     URL.revokeObjectURL(url);
+    toast('📄 Word ordine '+ord.id+' scaricato');
   }).catch(e=>{console.error(e);toast('⚠️ Word non generato, riprova');});
 }
 
@@ -5012,6 +5016,8 @@ async function _ordiniPropriDaSupabase(){
       socioTessera:  currentUser.tessera||'',
       socioNome:     currentUser.nome||'',
       socioCognome:  currentUser.cognome||'',
+      socioCellulare:currentUser.cellulare||currentUser.telefono||'',
+      socioTelegram: currentUser.telegram||'',
       raccoltaId:    o.raccolta_id||'',
       raccoltaNome:  (S.ordini||[]).find(x=>x.id===o.id)?.raccoltaNome || '',
       items:         Array.isArray(o.items) ? o.items : [],
@@ -5030,6 +5036,30 @@ function renderProfilo(){
   _renderProfiloBody();
 }
 
+// Stessa logica di scelta della fonte usata da _renderProfiloBody: preferisce
+// gli ordini letti dalla tabella dedicata (fonte autorevole), ricade sullo
+// stato condiviso finché non sono disponibili. Condivisa anche dal bottone
+// "Scarica Word" del tesserato per non doverla duplicare.
+function _ordiniSocioCorrente(){
+  const s=currentUser;
+  if(!s) return [];
+  return (_ordiniPropri && _ordiniPropri.uid===s.id)
+    ? _ordiniPropri.lista
+    : S.ordini.filter(o=>o.socioId===s.id);
+}
+
+// Bottone "📄 Word" nella scheda "I miei ordini" del profilo: il tesserato
+// riceveva il Word solo una volta, in automatico, al momento dell'ordine
+// (submitOrder → exportOrderWord). Se quel download automatico falliva o
+// veniva bloccato dal browser/OS, non c'era più modo di recuperarlo: qui
+// rigeneriamo lo stesso documento su richiesta, in qualsiasi momento.
+function scaricaWordOrdineProprio(oid){
+  const ord=_ordiniSocioCorrente().find(o=>o.id===oid);
+  if(!ord){ toast('❌ Ordine non trovato'); return; }
+  try{ exportOrderWord(ord); }
+  catch(e){ console.warn('Word gen error:',e); toast('⚠️ Word non generato, riprova'); }
+}
+
 function _renderProfiloBody(){
   const s=currentUser;
   const today=new Date(); today.setHours(0,0,0,0);
@@ -5040,11 +5070,7 @@ function _renderProfiloBody(){
     if(diff<0){semClass='sem-red';semLabel='Tessera scaduta';}
     else if(diff<=30){semClass='sem-yellow';semLabel='In scadenza (ultimi 30 giorni)';}
   }
-  // Preferisci gli ordini letti dalla tabella dedicata (fonte autorevole);
-  // ricadi sullo stato condiviso finché non sono disponibili.
-  const ordiniSocio = (_ordiniPropri && _ordiniPropri.uid===s.id)
-    ? _ordiniPropri.lista
-    : S.ordini.filter(o=>o.socioId===s.id);
+  const ordiniSocio = _ordiniSocioCorrente();
   const totaleSpeso=ordiniSocio.reduce((a,o)=>a+o.totale,0);
 
   // --- chart data ---
@@ -5084,9 +5110,12 @@ function _renderProfiloBody(){
 
   const ordHtml=ordiniSocio.slice().reverse().map(o=>{
     const _rn=_ordRaccoltaNome(o);
-    return `<div class="card-sm" style="display:flex;justify-content:space-between;align-items:center;">
+    return `<div class="card-sm" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
       <div><div style="font-weight:700;font-size:.9rem;">${escHtml(o.id)}</div><div style="font-size:.78rem;color:var(--text-light);">${_rn==='—'?'':escHtml(_rn)+' · '}${new Date(o.data).toLocaleDateString('it-IT')}</div></div>
-      <div style="font-weight:800;color:var(--green);">€${o.totale.toFixed(2)}</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="font-weight:800;color:var(--green);">€${o.totale.toFixed(2)}</div>
+        <button class="btn btn-xs btn-secondary" onclick="scaricaWordOrdineProprio('${o.id}')" title="Scarica Word">📄 Word</button>
+      </div>
     </div>`;
   }).join('')||`<div class="empty" style="padding:24px;"><p>Nessun ordine ancora</p></div>`;
 
