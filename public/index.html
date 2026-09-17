@@ -2793,7 +2793,12 @@ async function notificaAdminNuovoOrdine(testo){
   }catch(e){ console.warn('Notifica admin fallita:', e); }
 }
 
-function buildOrderTgMsg(ord, forSocio){
+// Un solo testo per admin e socio: prima erano due messaggi diversi
+// ("Nuovo ordine ricevuto!" all'admin, "Ordine confermato!" al socio), e chi
+// riceveva entrambi — un admin che ordina per sé — si vedeva arrivare due
+// notifiche per lo stesso ordine. Ora è lo stesso identico messaggio per
+// chiunque lo riceva.
+function buildOrderTgMsg(ord){
   const raccNome = _ordRaccoltaNome(ord);
   let righe = '';
   ord.items.forEach(i=>{
@@ -2802,23 +2807,13 @@ function buildOrderTgMsg(ord, forSocio){
     const codStr = (p&&p.codice) ? ' <code>['+p.codice+']</code>' : '';
     righe += `  • ${p?p.nome:'?'}${codStr} (${f?f.nome:'?'}) × ${i.qty} = €${p?(p.prezzo*i.qty).toFixed(2):'?'}\n`;
   });
-  if(forSocio){
-    return `✅ <b>Ordine confermato!</b>\n`+
-      `📋 <b>${ord.id}</b>\n`+
-      `🗓 Raccolta: ${raccNome}\n`+
-      `👤 ${ord.socioNome} ${ord.socioCognome}\n\n`+
-      `${righe}\n`+
-      `💶 <b>Totale: €${ord.totale.toFixed(2)}</b>\n\n`+
-      `Grazie per il tuo ordine!`;
-  } else {
-    return `🛒 <b>Nuovo ordine ricevuto!</b>\n`+
-      `📋 <b>${ord.id}</b>\n`+
-      `🗓 Raccolta: ${raccNome}\n`+
-      `👤 ${ord.socioNome} ${ord.socioCognome}\n`+
-      `📱 ${ord.socioCellulare||'—'}  🔵 ${ord.socioTelegram?'@'+ord.socioTelegram:'—'}\n\n`+
-      `${righe}\n`+
-      `💶 <b>Totale: €${ord.totale.toFixed(2)}</b>`;
-  }
+  return `📦 <b>Ordine ricevuto!</b>\n`+
+    `📋 <b>${ord.id}</b>\n`+
+    `🗓 Raccolta: ${raccNome}\n`+
+    `👤 ${ord.socioNome} ${ord.socioCognome}\n`+
+    `📱 ${ord.socioCellulare||'—'}  🔵 ${ord.socioTelegram?'@'+ord.socioTelegram:'—'}\n\n`+
+    `${righe}\n`+
+    `💶 <b>Totale: €${ord.totale.toFixed(2)}</b>`;
 }
 
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
@@ -4841,9 +4836,10 @@ function submitOrder(){
   sendPush('📦 Ordine confermato!', 'Il tuo ordine '+ord.id+' è stato ricevuto — Totale: €'+ord.totale.toFixed(2), window.location.origin);
   // Notifiche Telegram. Agli admin la manda il SERVER: il browser non
   // conosce più i loro Chat ID, sa solo chiedere di avvisarli.
-  notificaAdminNuovoOrdine(buildOrderTgMsg(ord, false));
+  const msgOrdine = buildOrderTgMsg(ord);
+  notificaAdminNuovoOrdine(msgOrdine);
   const socioChatId = (currentUser.telegramChatId||'').trim();
-  if(socioChatId) sendTelegramMsg(socioChatId, buildOrderTgMsg(ord, true));
+  if(socioChatId) sendTelegramMsg(socioChatId, msgOrdine);
   // Il Word ha il proprio toast (successo o errore), mostrato in modo
   // asincrono da exportOrderWord: qui non anticipiamo un esito che ancora
   // non è noto (la libreria potrebbe dover ancora scaricarsi).
