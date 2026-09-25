@@ -126,7 +126,14 @@ export const handler = async () => {
     daInviare.push({ socio: s, chatId, giorni, chiave });
   }
 
-  if(!daInviare.length) return { statusCode: 200, body: 'nessun avviso da mandare oggi' };
+  // Anche qui una riga esplicita, non solo il ritorno: senza, un'esecuzione
+  // regolare che semplicemente non trova nessuno a 90/30 giorni lascia nel
+  // pannello Netlify solo la riga automatica di durata/memoria — indistingui-
+  // bile a colpo d'occhio da un'esecuzione fallita prima di arrivare qui.
+  if(!daInviare.length){
+    console.log(`promemoria-scadenze: nessun tesserato a 90/30 giorni oggi (${oggiStr})`);
+    return { statusCode: 200, body: 'nessun avviso da mandare oggi' };
+  }
 
   const esiti = await Promise.all(daInviare.map(({ socio, chatId, giorni }) => {
     const scadenzaFmt = new Date(socio.scadenza).toLocaleDateString('it-IT', { timeZone: 'UTC' });
