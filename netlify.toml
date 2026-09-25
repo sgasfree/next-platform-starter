@@ -3,6 +3,15 @@
   command = ""
   functions = "netlify/functions"
 
+# Scheduled Function: promemoria scadenza tessera (90 e 30 giorni prima).
+# Cron in UTC: le 7:00 UTC sono le 8:00 o le 9:00 ora italiana a seconda
+# dell'ora legale — non serve precisione al minuto per un avviso giornaliero,
+# ma abbastanza presto da non arrivare la sera. Il fuso corretto per il
+# calcolo dei giorni alla scadenza è comunque gestito dentro la function
+# stessa (Europe/Rome), indipendentemente da dove gira il server.
+[functions."promemoria-scadenze"]
+  schedule = "0 7 * * *"
+
 [build.environment]
   NETLIFY_NEXT_PLUGIN_SKIP = "true"
   # ── Secret scanning di Netlify: DISATTIVATO ──────────────────────────────────
