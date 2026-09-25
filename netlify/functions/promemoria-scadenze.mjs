@@ -1,14 +1,15 @@
-// promemoria-scadenze — avviso Telegram automatico a 90 e 30 giorni dalla
-// scadenza della tessera.
+// promemoria-scadenze — avviso automatico a 90 e 30 giorni dalla scadenza
+// della tessera, su due canali indipendenti: Telegram e messaggistica
+// interna dell'app.
 //
 // Gira una volta al giorno come Netlify Scheduled Function (orario e
 // frequenza in netlify.toml, non qui). Non riceve nessuna richiesta HTTP da
 // un utente: legge i soci con la service_role e scrive direttamente
-// all'API di Telegram, come già fa state-save.mjs per le notifiche interne
-// (notify-admins, recupero password). Per questo NON passa da telegram.mjs:
-// quella function pretende un token di sessione firmato da un login, che
-// qui non esiste — non c'è nessuno collegato, è il server che agisce da
-// solo.
+// all'API di Telegram e alla tabella `messaggi`, come già fa state-save.mjs
+// per le notifiche interne (notify-admins, recupero password). Per questo
+// NON passa da telegram.mjs: quella function pretende un token di sessione
+// firmato da un login, che qui non esiste — non c'è nessuno collegato, è il
+// server che agisce da solo.
 //
 // Stessa logica del semaforo tessera nel pannello (_renderProfiloBody):
 // giorni alla scadenza = differenza in giorni fra oggi e la data di
@@ -17,12 +18,20 @@
 // un avviso "a 30 giorni esatti" potrebbe scattare un giorno prima o dopo
 // a seconda di dove gira la funzione quella settimana.
 //
+// Il messaggio interno raggiunge TUTTI i tesserati attivi con una scadenza
+// in finestra, anche chi non ha Telegram collegato — è l'unico avviso che
+// riceverebbero, altrimenti nessuno. Il Telegram resta riservato a chi ha
+// il chat ID registrato.
+//
 // Anti-doppio-invio: gli avvisi scattano su un giorno ESATTO (90 o 30), non
 // su una finestra, quindi un solo giorno di calendario è a rischio — ma se
 // la funzione viene rilanciata due volte nello stesso giorno (un retry di
 // Netlify, un test manuale) manderebbe comunque il messaggio due volte.
-// Per evitarlo teniamo in `config` un piccolo registro di chi è già stato
-// avvisato OGGI, e lo saltiamo alla seconda esecuzione.
+// Per evitarlo teniamo in `config` un registro di chi è già stato avvisato
+// OGGI — un ingresso per canale, non uno per socio: se il Telegram va a
+// buon fine ma l'inserimento del messaggio interno fallisce (o viceversa),
+// un rilancio riprova solo il canale mancante, senza duplicare quello
+// riuscito.
 //
 // Env richieste: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, TELEGRAM_BOT_TOKEN
 
@@ -83,12 +92,23 @@ const scriviStatoOggi = (url, key, stato) =>
     })
   });
 
-function testoPromemoria(socio, giorni, scadenzaFmt){
+// Testo per Telegram: parse_mode HTML, quindi il grassetto è markup vero.
+function testoTelegram(socio, giorni, scadenzaFmt){
   const nome = socio.nome ? `Ciao ${socio.nome},` : 'Ciao,';
   if(giorni === 90){
     return `🪪 <b>Promemoria tessera SGAS</b>\n\n${nome} la tua tessera <b>${socio.tessera}</b> scade tra <b>90 giorni</b>, il ${scadenzaFmt}.\n\nNessuna azione richiesta ora — è solo un promemoria.`;
   }
   return `🪪 <b>Promemoria tessera SGAS</b>\n\n${nome} la tua tessera <b>${socio.tessera}</b> scade tra <b>30 giorni</b>, il ${scadenzaFmt}.\n\nSe vuoi rinnovarla, contatta chi amministra il gruppo.`;
+}
+
+// Testo per la messaggistica interna: la bolla mostra il testo in chiaro
+// (escHtml lato client), quindi niente tag — stesso contenuto, senza markup.
+function testoInterno(socio, giorni, scadenzaFmt){
+  const nome = socio.nome ? `Ciao ${socio.nome},` : 'Ciao,';
+  if(giorni === 90){
+    return `🪪 Promemoria tessera SGAS\n\n${nome} la tua tessera ${socio.tessera} scade tra 90 giorni, il ${scadenzaFmt}.\n\nNessuna azione richiesta ora — è solo un promemoria.`;
+  }
+  return `🪪 Promemoria tessera SGAS\n\n${nome} la tua tessera ${socio.tessera} scade tra 30 giorni, il ${scadenzaFmt}.\n\nSe vuoi rinnovarla, contatta chi amministra il gruppo.`;
 }
 
 export const handler = async () => {
@@ -113,47 +133,74 @@ export const handler = async () => {
   if(!Array.isArray(soci)) return { statusCode: 200, body: 'risposta soci non valida' };
 
   const stato = await leggiStatoOggi(SUPA_URL, SUPA_KEY, oggiStr);
-  const giaInviati = new Set(stato.inviati);
+  const giaFatti = new Set(stato.inviati);
 
-  const daInviare = [];
+  // Un candidato per ogni socio in finestra (90 o 30 giorni), a prescindere
+  // dal Telegram: il messaggio interno vale per tutti. Chi ha già ricevuto
+  // ENTRAMBI i canali oggi (rilancio della funzione) non genera nulla.
+  const candidati = [];
   for(const s of soci){
-    const chatId = String(s.telegram_chat_id || '').trim();
-    if(!chatId) continue; // nessun Telegram collegato: non c'è dove mandarlo
     const giorni = giorniAllaScadenza(s.scadenza, oggi);
     if(giorni === null || !SOGLIE.includes(giorni)) continue;
-    const chiave = `${s.id}:${giorni}`;
-    if(giaInviati.has(chiave)) continue; // già mandato oggi (rilancio della funzione)
-    daInviare.push({ socio: s, chatId, giorni, chiave });
+    const chatId = String(s.telegram_chat_id || '').trim();
+    const chiaveTg  = `${s.id}:${giorni}:tg`;
+    const chiaveMsg = `${s.id}:${giorni}:msg`;
+    const serveTg  = chatId && !giaFatti.has(chiaveTg);
+    const serveMsg = !giaFatti.has(chiaveMsg);
+    if(!serveTg && !serveMsg) continue;
+    candidati.push({ socio: s, giorni, chatId, serveTg, serveMsg, chiaveTg, chiaveMsg });
   }
 
-  // Anche qui una riga esplicita, non solo il ritorno: senza, un'esecuzione
-  // regolare che semplicemente non trova nessuno a 90/30 giorni lascia nel
+  // Riga esplicita anche qui, non solo il ritorno: senza, un'esecuzione
+  // regolare che semplicemente non trova nessuno in finestra lascia nel
   // pannello Netlify solo la riga automatica di durata/memoria — indistingui-
   // bile a colpo d'occhio da un'esecuzione fallita prima di arrivare qui.
-  if(!daInviare.length){
+  if(!candidati.length){
     console.log(`promemoria-scadenze: nessun tesserato a 90/30 giorni oggi (${oggiStr})`);
     return { statusCode: 200, body: 'nessun avviso da mandare oggi' };
   }
 
-  const esiti = await Promise.all(daInviare.map(({ socio, chatId, giorni }) => {
+  // ── Canale Telegram ────────────────────────────────────────────────────
+  const daTg = candidati.filter(c => c.serveTg);
+  const esitiTg = await Promise.all(daTg.map(({ socio, giorni }) => {
     const scadenzaFmt = new Date(socio.scadenza).toLocaleDateString('it-IT', { timeZone: 'UTC' });
     return fetch(`https://api.telegram.org/bot${BOT}/sendMessage`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        chat_id: chatId,
-        text: testoPromemoria(socio, giorni, scadenzaFmt),
+        chat_id: String(socio.telegram_chat_id).trim(),
+        text: testoTelegram(socio, giorni, scadenzaFmt),
         parse_mode: 'HTML'
       })
     }).then(r => r.json()).catch(e => ({ ok: false, description: String(e) }));
   }));
+  daTg.forEach((c, i) => { if(esitiTg[i] && esitiTg[i].ok) giaFatti.add(c.chiaveTg); });
 
-  // Registra come inviati SOLO quelli riusciti: un fallimento di rete non
-  // deve far sparire il promemoria di domani, deve solo far riprovare oggi
-  // stesso se la funzione viene rilanciata.
-  daInviare.forEach((item, i) => { if(esiti[i] && esiti[i].ok) giaInviati.add(item.chiave); });
-  await scriviStatoOggi(SUPA_URL, SUPA_KEY, { giorno: oggiStr, inviati: [...giaInviati] });
+  // ── Canale messaggistica interna ───────────────────────────────────────
+  // Un unico insert multiplo invece di N chiamate separate: la tabella non
+  // ha vincoli che richiedano un ordine, e un batch fallisce o riesce
+  // insieme — qui va bene, perché il registro segna "riuscito" solo se
+  // l'intero batch è passato (vedi sotto).
+  const daMsg = candidati.filter(c => c.serveMsg);
+  let msgOk = false;
+  if(daMsg.length){
+    const righe = daMsg.map(({ socio, giorni }) => ({
+      socio_id:   socio.id,
+      mittente:   'admin',
+      testo:      testoInterno(socio, giorni,
+                    new Date(socio.scadenza).toLocaleDateString('it-IT', { timeZone: 'UTC' })),
+      letto:      false
+    }));
+    const resMsg = await sbFetch(SUPA_URL, SUPA_KEY, '/rest/v1/messaggi', {
+      method: 'POST', prefer: 'return=minimal', body: JSON.stringify(righe)
+    });
+    msgOk = resMsg.ok;
+    if(!resMsg.ok) console.error('promemoria-scadenze: insert messaggi interni fallito', resMsg.status);
+  }
+  if(msgOk) daMsg.forEach(c => giaFatti.add(c.chiaveMsg));
 
-  const riusciti = esiti.filter(e => e && e.ok).length;
-  console.log(`promemoria-scadenze: ${riusciti}/${daInviare.length} avvisi inviati (${oggiStr})`);
-  return { statusCode: 200, body: `${riusciti}/${daInviare.length} inviati` };
+  await scriviStatoOggi(SUPA_URL, SUPA_KEY, { giorno: oggiStr, inviati: [...giaFatti] });
+
+  const tgRiusciti = esitiTg.filter(e => e && e.ok).length;
+  console.log(`promemoria-scadenze: Telegram ${tgRiusciti}/${daTg.length}, interni ${msgOk ? daMsg.length : 0}/${daMsg.length} (${oggiStr})`);
+  return { statusCode: 200, body: `tg ${tgRiusciti}/${daTg.length}, interni ${msgOk ? daMsg.length : 0}/${daMsg.length}` };
 };
