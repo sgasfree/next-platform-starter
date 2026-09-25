@@ -3092,7 +3092,20 @@ function titoloOfferta(prods){
   return 'Prodotti offerti';
 }
 
-function _prodottiOrdinati(fornitorId){
+// `inCimaIDisponibili`: solo a raccolta aperta, quando il tesserato può
+// davvero mettere qualcosa nel carrello. Serve ai fornitori del fresco (un
+// ortolano, per esempio) dove la disponibilità cambia raccolta per
+// raccolta: senza, un socio deve scorrere tutta la sezione "Ortaggi" per
+// capire cosa oggi può prendere davvero.
+//
+// I finiti scendono in fondo alla LORO sezione, non in fondo a tutto il
+// fornitore: le sezioni restano nell'ordine del listino cartaceo — è il
+// peso di sezione (sotto) a deciderlo, e non guarda la disponibilità — e
+// dentro ciascuna i finiti si spostano dopo i disponibili, invece di
+// restare mescolati come oggi. A raccolta chiusa (o in vetrina) il
+// parametro è assente: si guarda soltanto, e lì l'ordine del foglio conta
+// più della disponibilità del momento.
+function _prodottiOrdinati(fornitorId, inCimaIDisponibili){
   const lista = S.prodotti.filter(p=>p.fornitorId===fornitorId);
   // Peso di ogni sezione: il numero più basso fra i suoi prodotti.
   //
@@ -3113,6 +3126,10 @@ function _prodottiOrdinati(fornitorId){
       const pa=pesoSez[ca], pb=pesoSez[cb];
       if(pa!==pb) return pa-pb;
       return ca.localeCompare(cb,'it');
+    }
+    if(inCimaIDisponibili){
+      const da=a.disponibile!==false, db=b.disponibile!==false;
+      if(da!==db) return da?-1:1;
     }
     const oa=_ordineProdotto(a), ob=_ordineProdotto(b);
     if(oa!==ob) return oa-ob;
@@ -4491,7 +4508,13 @@ function openFornitore(id){
   currentFornId=id;
   const f=S.fornitori.find(x=>x.id===id);
   if(!f) return;
-  const prods=_prodottiOrdinati(id);
+  // Serve qui, prima dell'elenco: quando si può ordinare, i prodotti finiti
+  // scendono in fondo alla propria sezione (vedi _prodottiOrdinati). A
+  // raccolta chiusa si guarda soltanto, e lì l'ordine del listino conta più
+  // della disponibilità — quindi resta quello del foglio cartaceo.
+  const openRacc=getFornOpenRaccolte(id);
+  const canOrder=openRacc.length>0;
+  const prods=_prodottiOrdinati(id, canOrder);
   const chars=f.caratteristiche||[];
   const logoHtml=(f.banner||f.logo)
     ?`<div style="margin-bottom:0;overflow:hidden;border-radius:14px 14px 0 0;"><img src="${f.banner||f.logo}" style="width:100%;max-height:180px;object-fit:cover;display:block;" alt="${escHtml(f.nome)}"></div>`
@@ -4543,8 +4566,7 @@ function openFornitore(id){
     }
   }
 
-  const openRacc=getFornOpenRaccolte(id);
-  const canOrder=openRacc.length>0;
+  // openRacc/canOrder già calcolati sopra, prima di ordinare i prodotti.
 
   // Prodotti — sempre visibili, ma +/− bloccati se nessuna raccolta aperta
   if(prods.length){
