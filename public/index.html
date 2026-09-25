@@ -4844,9 +4844,17 @@ function submitOrder(){
     if(!validItems.length) return;
   }
   let total=0;
-  S.cart.items.forEach(i=>{const p=S.prodotti.find(x=>x.id===i.prodottoId);if(p)total+=p.prezzo*i.qty;});
+  // Congeliamo nome/prezzo/codice/unità del prodotto nella riga d'ordine:
+  // se il prodotto viene poi modificato o rimosso dal catalogo, i riepiloghi
+  // di questo ordine devono continuare a mostrare i dati di quando è stato fatto.
+  const snapItems=S.cart.items.map(i=>{
+    const p=S.prodotti.find(x=>x.id===i.prodottoId);
+    const f=p?S.fornitori.find(x=>x.id===p.fornitorId):null;
+    total+=(p?p.prezzo:0)*i.qty;
+    return {prodottoId:i.prodottoId,qty:i.qty,nome:p?p.nome:'',codice:p?(p.codice||''):'',unita:p?(p.unita||''):'',prezzo:p?p.prezzo:0,fornitorId:p?p.fornitorId:'',fornitoreNome:f?f.nome:'—'};
+  });
   if(total<=0){toast('⛔ Impossibile inviare: totale non valido.');renderCart();return;}
-  const ord={id:'ORD-'+uid().toUpperCase().slice(0,6),socioId:currentUser.id,socioTessera:currentUser.tessera||'',socioNome:currentUser.nome,socioCognome:currentUser.cognome||'',socioCellulare:currentUser.cellulare||currentUser.telefono||'',socioTelegram:currentUser.telegram||'',raccoltaId:raccId,raccoltaNome:(raccSel&&raccSel.nome)||'',items:[...S.cart.items],totale:total,data:new Date().toISOString()};
+  const ord={id:'ORD-'+uid().toUpperCase().slice(0,6),socioId:currentUser.id,socioTessera:currentUser.tessera||'',socioNome:currentUser.nome,socioCognome:currentUser.cognome||'',socioCellulare:currentUser.cellulare||currentUser.telefono||'',socioTelegram:currentUser.telegram||'',raccoltaId:raccId,raccoltaNome:(raccSel&&raccSel.nome)||'',items:snapItems,totale:total,data:new Date().toISOString()};
   S.ordini.push(ord);
   S.cart.items=[];
   S.cart.raccoltaId='';
@@ -4888,8 +4896,13 @@ function exportOrderExcel(ord){
   ];
   ord.items.forEach(i=>{
     const p=S.prodotti.find(x=>x.id===i.prodottoId);
-    const f=p?S.fornitori.find(x=>x.id===p.fornitorId):null;
-    rows.push([p?(p.codice||''):'', p?p.nome:'?', f?f.nome:'?', p?(p.unita||''):'', i.qty, p?p.prezzo:0, p?(p.prezzo*i.qty):0]);
+    const f=(i.fornitorId||(p&&p.fornitorId))?S.fornitori.find(x=>x.id===(i.fornitorId||p.fornitorId)):null;
+    const nome=i.nome||(p&&p.nome)||'?';
+    const codice=i.codice!==undefined?i.codice:(p&&p.codice)||'';
+    const unita=i.unita!==undefined?i.unita:(p&&p.unita)||'';
+    const prezzo=i.prezzo!==undefined?i.prezzo:(p&&p.prezzo)||0;
+    const fornNome=i.fornitoreNome||(f&&f.nome)||'?';
+    rows.push([codice, nome, fornNome, unita, i.qty, prezzo, prezzo*i.qty]);
   });
   rows.push([]);
   rows.push(['','','','','','TOTALE',ord.totale]);
@@ -4934,18 +4947,22 @@ function exportOrderWord(ord){
   ]});
   const dataRows=ord.items.map((i,idx)=>{
     const p=S.prodotti.find(x=>x.id===i.prodottoId);
-    const f=p?S.fornitori.find(x=>x.id===p.fornitorId):null;
+    const f=(i.fornitorId||(p&&p.fornitorId))?S.fornitori.find(x=>x.id===(i.fornitorId||p.fornitorId)):null;
+    const nome=i.nome||(p&&p.nome)||'?';
+    const codice=i.codice!==undefined?i.codice:(p&&p.codice)||'';
+    const prezzo=i.prezzo!==undefined?i.prezzo:(p&&p.prezzo)||0;
+    const fornNome=i.fornitoreNome||(f&&f.nome)||'?';
     const bg=idx%2===0?'FFFFFF':'F1F8E9';
     const mkCell=(c,align=AlignmentType.LEFT)=>new TableCell({
       shading:{fill:bg},margins:{top:50,bottom:50,left:80,right:80},
       children:[new Paragraph({alignment:align,children:[new TextRun({text:String(c),size:18,font:'Arial'})]})]});
     return new TableRow({children:[
-      mkCell(p?(p.codice||''):''),
-      mkCell(p?p.nome:'?'),
-      mkCell(f?f.nome:'?'),
+      mkCell(codice),
+      mkCell(nome),
+      mkCell(fornNome),
       mkCell(i.qty,AlignmentType.CENTER),
-      mkCell(p?'€'+p.prezzo.toFixed(2).replace('.',','):'',AlignmentType.RIGHT),
-      mkCell(p?'€'+(p.prezzo*i.qty).toFixed(2).replace('.',','):'',AlignmentType.RIGHT)
+      mkCell('€'+prezzo.toFixed(2).replace('.',','),AlignmentType.RIGHT),
+      mkCell('€'+(prezzo*i.qty).toFixed(2).replace('.',','),AlignmentType.RIGHT)
     ]});
   });
   const totalRow=new TableRow({children:[
@@ -5096,18 +5113,23 @@ function _renderProfiloBody(){
   const catSpesa=Object.fromEntries((S.categorie||DEFAULT_CATEGORIE).map(cat=>[cat.id,0]));
   ordiniSocio.forEach(o=>o.items.forEach(i=>{
     const p=S.prodotti.find(x=>x.id===i.prodottoId);
-    const f=p?S.fornitori.find(x=>x.id===p.fornitorId):null;
-    if(f&&catSpesa[f.categoria]!==undefined) catSpesa[f.categoria]+=p.prezzo*i.qty;
+    const fornId=i.fornitorId||(p&&p.fornitorId);
+    const f=fornId?S.fornitori.find(x=>x.id===fornId):null;
+    const prezzo=i.prezzo!==undefined?i.prezzo:(p&&p.prezzo)||0;
+    if(f&&catSpesa[f.categoria]!==undefined) catSpesa[f.categoria]+=prezzo*i.qty;
   }));
 
   // 2. Spesa per fornitore
   const fornSpesa={};
   ordiniSocio.forEach(o=>o.items.forEach(i=>{
     const p=S.prodotti.find(x=>x.id===i.prodottoId);
-    if(!p) return;
-    const f=S.fornitori.find(x=>x.id===p.fornitorId);
-    const key=f?f.nome:'Altro';
-    fornSpesa[key]=(fornSpesa[key]||0)+p.prezzo*i.qty;
+    const nome=i.nome||(p&&p.nome);
+    if(!nome) return;
+    const fornId=i.fornitorId||(p&&p.fornitorId);
+    const f=fornId?S.fornitori.find(x=>x.id===fornId):null;
+    const prezzo=i.prezzo!==undefined?i.prezzo:(p&&p.prezzo)||0;
+    const key=i.fornitoreNome||(f?f.nome:'Altro');
+    fornSpesa[key]=(fornSpesa[key]||0)+prezzo*i.qty;
   }));
   const fornSpesaSorted=Object.entries(fornSpesa).sort((a,b)=>b[1]-a[1]).slice(0,8);
 
@@ -5426,10 +5448,13 @@ function renderDashboard(){
   const fatForn={};
   S.ordini.forEach(o=>o.items.forEach(i=>{
     const p=S.prodotti.find(x=>x.id===i.prodottoId);
-    if(!p) return;
-    const f=S.fornitori.find(x=>x.id===p.fornitorId);
-    const key=f?f.nome:'Altro';
-    fatForn[key]=(fatForn[key]||0)+p.prezzo*i.qty;
+    const nome=i.nome||(p&&p.nome);
+    if(!nome) return;
+    const fornId=i.fornitorId||(p&&p.fornitorId);
+    const f=fornId?S.fornitori.find(x=>x.id===fornId):null;
+    const prezzo=i.prezzo!==undefined?i.prezzo:(p&&p.prezzo)||0;
+    const key=i.fornitoreNome||(f?f.nome:'Altro');
+    fatForn[key]=(fatForn[key]||0)+prezzo*i.qty;
   }));
   const fatFornSorted=Object.entries(fatForn).sort((a,b)=>b[1]-a[1]).slice(0,8);
 
@@ -5437,8 +5462,10 @@ function renderDashboard(){
   const ordCat={ali:0,igi:0,ser:0};
   S.ordini.forEach(o=>o.items.forEach(i=>{
     const p=S.prodotti.find(x=>x.id===i.prodottoId);
-    const f=p?S.fornitori.find(x=>x.id===p.fornitorId):null;
-    if(f&&ordCat[f.categoria]!==undefined) ordCat[f.categoria]+=p.prezzo*i.qty;
+    const fornId=i.fornitorId||(p&&p.fornitorId);
+    const f=fornId?S.fornitori.find(x=>x.id===fornId):null;
+    const prezzo=i.prezzo!==undefined?i.prezzo:(p&&p.prezzo)||0;
+    if(f&&ordCat[f.categoria]!==undefined) ordCat[f.categoria]+=prezzo*i.qty;
   }));
 
   // 3. Ordini per raccolta
@@ -5654,10 +5681,13 @@ function renderPeriodCharts(){
   const fatFornP={};
   filtered.forEach(o=>o.items.forEach(i=>{
     const p=S.prodotti.find(x=>x.id===i.prodottoId);
-    if(!p) return;
-    const f=S.fornitori.find(x=>x.id===p.fornitorId);
-    const key=f?f.nome:'Altro';
-    fatFornP[key]=(fatFornP[key]||0)+p.prezzo*i.qty;
+    const nome=i.nome||(p&&p.nome);
+    if(!nome) return;
+    const fornId=i.fornitorId||(p&&p.fornitorId);
+    const f=fornId?S.fornitori.find(x=>x.id===fornId):null;
+    const prezzo=i.prezzo!==undefined?i.prezzo:(p&&p.prezzo)||0;
+    const key=i.fornitoreNome||(f?f.nome:'Altro');
+    fatFornP[key]=(fatFornP[key]||0)+prezzo*i.qty;
   }));
   const fornSorted=Object.entries(fatFornP).sort((a,b)=>b[1]-a[1]).slice(0,8);
 
@@ -6765,15 +6795,20 @@ function _buildRiepilogoTesserati(raccoltaId){
     if(!bySocio[label]) bySocio[label] = {label, qty:0, tot:0, _forn:{}};
     const g = bySocio[label];
     (o.items||[]).forEach(i=>{
+      // Preferiamo lo snapshot congelato sulla riga d'ordine; per ordini
+      // pre-esistenti senza snapshot ricadiamo sul prodotto live.
       const p = S.prodotti.find(x=>x.id===i.prodottoId);
-      if(!p) return;
-      const f = S.fornitori.find(x=>x.id===p.fornitorId);
-      const fname = f ? f.nome : '—';
-      const rigaTot = (p.prezzo||0) * i.qty;
+      const nome = i.nome || (p&&p.nome) || '';
+      if(!nome) return;
+      const codice = i.codice!==undefined ? i.codice : (p&&p.codice)||'';
+      const prezzo = i.prezzo!==undefined ? i.prezzo : (p&&p.prezzo)||0;
+      const fname = i.fornitoreNome || (p && (S.fornitori.find(x=>x.id===p.fornitorId)||{}).nome) || '—';
+      const rigaTot = prezzo * i.qty;
       if(!g._forn[fname]) g._forn[fname] = {};
       const rg = g._forn[fname];
-      if(rg[p.id]){ rg[p.id].qty += i.qty; rg[p.id].tot += rigaTot; }
-      else rg[p.id] = {codice:p.codice||'', nome:p.nome, qty:i.qty, tot:rigaTot};
+      const key = i.prodottoId;
+      if(rg[key]){ rg[key].qty += i.qty; rg[key].tot += rigaTot; }
+      else rg[key] = {codice:codice, nome:nome, qty:i.qty, tot:rigaTot};
       g.qty += i.qty; g.tot += rigaTot;
     });
   });
@@ -6859,17 +6894,19 @@ function _buildRigheTesserati(raccoltaId){
   ordini.forEach(o=>{
     (o.items||[]).forEach(i=>{
       const p = S.prodotti.find(x=>x.id===i.prodottoId);
-      if(!p) return;
-      const f = S.fornitori.find(x=>x.id===p.fornitorId);
+      const nome = i.nome || (p&&p.nome) || '';
+      if(!nome) return;
+      const prezzo = i.prezzo!==undefined ? i.prezzo : (p&&p.prezzo)||0;
+      const fornitore = i.fornitoreNome || (p && (S.fornitori.find(x=>x.id===p.fornitorId)||{}).nome) || '—';
       righe.push({
         nominativo: _ordSocioNominativo(o),
         data:       o.data,
-        fornitore:  f ? f.nome : '—',
-        codice:     p.codice||'',
-        prodotto:   p.nome||'',
-        prezzo:     p.prezzo||0,
+        fornitore:  fornitore,
+        codice:     i.codice!==undefined ? i.codice : (p&&p.codice)||'',
+        prodotto:   nome,
+        prezzo:     prezzo,
         qty:        i.qty,
-        tot:        (p.prezzo||0)*i.qty
+        tot:        prezzo*i.qty
       });
     });
   });
@@ -6972,12 +7009,13 @@ function exportSingleOrderWord(oid){
   const socioTessera = socio?socio.tessera||'—':'—';
   const rows2 = o.items.map(i=>{
     const p = S.prodotti.find(x=>x.id===i.prodottoId);
-    const f = p?S.fornitori.find(x=>x.id===p.fornitorId):null;
-    const codice = p?p.codice||'':'';
-    const nome = p?p.nome:i.prodottoId;
-    const forn = f?f.nome:'—';
-    const unita = p?p.unita||'':'';
-    const prezzo = p?p.prezzo:0;
+    const fornId = i.fornitorId||(p&&p.fornitorId);
+    const f = fornId?S.fornitori.find(x=>x.id===fornId):null;
+    const codice = i.codice!==undefined?i.codice:(p&&p.codice)||'';
+    const nome = i.nome||(p&&p.nome)||i.prodottoId;
+    const forn = i.fornitoreNome||(f?f.nome:'—');
+    const unita = i.unita!==undefined?i.unita:(p&&p.unita)||'';
+    const prezzo = i.prezzo!==undefined?i.prezzo:(p&&p.prezzo)||0;
     const tot = prezzo*i.qty;
     return {codice,nome,forn,unita,qty:i.qty,prezzo,tot};
   });
@@ -7064,15 +7102,20 @@ function reportFornitori(raccoltaId){
     const socioNome = o.socioNome || o.socioTessera || '';
     o.items.forEach(i=>{
       const p = S.prodotti.find(x=>x.id===i.prodottoId);
-      if(!p) return;
-      const f = S.fornitori.find(x=>x.id===p.fornitorId);
-      if(!f) return;
-      if(!byForn[f.id]) byForn[f.id]={nome:f.nome,emoji:f.emoji||'🏪',totale:0,prodotti:{}};
-      if(!byForn[f.id].prodotti[p.id]) byForn[f.id].prodotti[p.id]={nome:p.nome,unita:p.unita,prezzo:p.prezzo,qtaTot:0,importo:0,soci:[]};
-      const pr = byForn[f.id].prodotti[p.id];
+      const nome = i.nome || (p&&p.nome) || '';
+      if(!nome) return;
+      const fornId = i.fornitorId || (p&&p.fornitorId) || '';
+      const f = S.fornitori.find(x=>x.id===fornId);
+      const fnome = i.fornitoreNome || (f&&f.nome) || '—';
+      if(!fornId && !f) return;
+      const fKey = fornId || fnome;
+      const prezzo = i.prezzo!==undefined ? i.prezzo : (p&&p.prezzo)||0;
+      if(!byForn[fKey]) byForn[fKey]={nome:fnome,emoji:(f&&f.emoji)||'🏪',totale:0,prodotti:{}};
+      if(!byForn[fKey].prodotti[i.prodottoId]) byForn[fKey].prodotti[i.prodottoId]={nome:nome,unita:i.unita!==undefined?i.unita:((p&&p.unita)||''),prezzo:prezzo,qtaTot:0,importo:0,soci:[]};
+      const pr = byForn[fKey].prodotti[i.prodottoId];
       pr.qtaTot += i.qty;
-      pr.importo += p.prezzo * i.qty;
-      byForn[f.id].totale += p.prezzo * i.qty;
+      pr.importo += prezzo * i.qty;
+      byForn[fKey].totale += prezzo * i.qty;
       pr.soci.push({nome:socioNome, qty:i.qty});
     });
   });
@@ -7095,7 +7138,7 @@ function reportFornitori(raccoltaId){
   ordini.forEach(o=>{ const sn=o.socioNome||o.socioTessera||'?'; bySocio[sn]=(bySocio[sn]||0)+o.totale; });
   const socioSorted = Object.entries(bySocio).sort((a,b)=>b[1]-a[1]).slice(0,8);
   const byProd = {};
-  ordini.forEach(o=>o.items.forEach(i=>{ const p=S.prodotti.find(x=>x.id===i.prodottoId); if(p) byProd[p.nome]=(byProd[p.nome]||0)+i.qty; }));
+  ordini.forEach(o=>o.items.forEach(i=>{ const nome=i.nome||(S.prodotti.find(x=>x.id===i.prodottoId)||{}).nome; if(nome) byProd[nome]=(byProd[nome]||0)+i.qty; }));
   const prodSorted = Object.entries(byProd).sort((a,b)=>b[1]-a[1]).slice(0,8);
   const rId = raccoltaId.replace(/[^a-z0-9]/gi,'');
 
@@ -7213,16 +7256,21 @@ function exportFornCSV(raccoltaId, fornId){
     const dataOrd = o.data?new Date(o.data).toLocaleDateString('it-IT'):'';
     o.items.forEach(i=>{
       const p = S.prodotti.find(x=>x.id===i.prodottoId);
-      if(!p || p.fornitorId!==fornId) return;
-      const rigaTot = p.prezzo*i.qty;
+      const iFornId = i.fornitorId || (p&&p.fornitorId) || '';
+      if(iFornId!==fornId) return;
+      const nome = i.nome || (p&&p.nome) || '';
+      const codice = i.codice!==undefined ? i.codice : (p&&p.codice)||'';
+      const unita = i.unita!==undefined ? i.unita : (p&&p.unita)||'';
+      const prezzo = i.prezzo!==undefined ? i.prezzo : (p&&p.prezzo)||0;
+      const rigaTot = prezzo*i.qty;
       rows.push([o.id, dataOrd, raccNome, raccRitiro, raccLuogo,
         forn?forn.nome:'', fornZona, fornTel, fornEmail,
-        p.codice||'', p.nome, p.unita||'',
+        codice, nome, unita,
         tessera, socioNome, socioCognome, socioCellulare, socioTelegram,
-        i.qty, p.prezzo, rigaTot]);
+        i.qty, prezzo, rigaTot]);
       totale += rigaTot;
       if(prodMap[i.prodottoId]){ prodMap[i.prodottoId].qty += i.qty; prodMap[i.prodottoId].tot += rigaTot; }
-      else prodMap[i.prodottoId] = {codice:p.codice||'', nome:p.nome, unita:p.unita||'', qty:i.qty, prezzo:p.prezzo, tot:rigaTot};
+      else prodMap[i.prodottoId] = {codice:codice, nome:nome, unita:unita, qty:i.qty, prezzo:prezzo, tot:rigaTot};
     });
   });
   rows.push([]);
@@ -7253,14 +7301,19 @@ function exportFornWord(raccoltaId, fornId){
     ordini.forEach(o=>{
       o.items.forEach(i=>{
         const p = S.prodotti.find(x=>x.id===i.prodottoId);
-        if(!p || p.fornitorId!==fornId) return;
-        const rigaTot = p.prezzo * i.qty;
+        const iFornId = i.fornitorId || (p&&p.fornitorId) || '';
+        if(iFornId!==fornId) return;
+        const nome = i.nome || (p&&p.nome) || '';
+        const codice = i.codice!==undefined ? i.codice : (p&&p.codice)||'';
+        const unita = i.unita!==undefined ? i.unita : (p&&p.unita)||'';
+        const prezzo = i.prezzo!==undefined ? i.prezzo : (p&&p.prezzo)||0;
+        const rigaTot = prezzo * i.qty;
         totale += rigaTot;
         if(prodMap[i.prodottoId]){
           prodMap[i.prodottoId].qty += i.qty;
           prodMap[i.prodottoId].tot += rigaTot;
         } else {
-          prodMap[i.prodottoId] = {codice:p.codice||'',nome:p.nome,unita:p.unita||'',qty:i.qty,prezzo:p.prezzo,tot:rigaTot};
+          prodMap[i.prodottoId] = {codice:codice,nome:nome,unita:unita,qty:i.qty,prezzo:prezzo,tot:rigaTot};
         }
       });
     });
@@ -7373,7 +7426,7 @@ function exportReportWord(raccoltaId){
     }
     // Raccoglie fornitori con ordini
     const fornIds=[...new Set(ordini.flatMap(o=>o.items.map(i=>{
-      const p=S.prodotti.find(x=>x.id===i.prodottoId); return p?p.fornitorId:null;
+      const p=S.prodotti.find(x=>x.id===i.prodottoId); return i.fornitorId||(p?p.fornitorId:null);
     }).filter(Boolean)))];
     const children=[];
     // Logo
@@ -7401,13 +7454,18 @@ function exportReportWord(raccoltaId){
       const prodMap2={}; let totale=0;
       ordini.forEach(o=>{ o.items.forEach(i=>{
         const p=S.prodotti.find(x=>x.id===i.prodottoId);
-        if(!p||p.fornitorId!==fid) return;
-        const rigaTot=p.prezzo*i.qty; totale+=rigaTot;
+        const iFornId = i.fornitorId || (p&&p.fornitorId) || '';
+        if(iFornId!==fid) return;
+        const nome = i.nome || (p&&p.nome) || '';
+        const codice = i.codice!==undefined ? i.codice : (p&&p.codice)||'';
+        const unita = i.unita!==undefined ? i.unita : (p&&p.unita)||'';
+        const prezzo = i.prezzo!==undefined ? i.prezzo : (p&&p.prezzo)||0;
+        const rigaTot=prezzo*i.qty; totale+=rigaTot;
         if(prodMap2[i.prodottoId]){
           prodMap2[i.prodottoId].qty+=i.qty;
           prodMap2[i.prodottoId].tot+=rigaTot;
         } else {
-          prodMap2[i.prodottoId]={codice:p.codice||'',nome:p.nome,unita:p.unita||'',qty:i.qty,prezzo:p.prezzo,tot:rigaTot};
+          prodMap2[i.prodottoId]={codice:codice,nome:nome,unita:unita,qty:i.qty,prezzo:prezzo,tot:rigaTot};
         }
       });});
       const rows2=Object.values(prodMap2);
@@ -7470,7 +7528,7 @@ function exportReportCSV(raccoltaId){
     'Tessera','Nome','Cognome','Cellulare','Telegram',
     'Qty','Prezzo unit.','Totale riga']];
   let totale = 0;
-  const fornIds = [...new Set(ordini.flatMap(o=>o.items.map(i=>{const p=S.prodotti.find(x=>x.id===i.prodottoId);return p?p.fornitorId:null;}).filter(Boolean)))];
+  const fornIds = [...new Set(ordini.flatMap(o=>o.items.map(i=>{const p=S.prodotti.find(x=>x.id===i.prodottoId);return i.fornitorId||(p?p.fornitorId:null);}).filter(Boolean)))];
   fornIds.forEach(fid=>{
     const forn = S.fornitori.find(f=>f.id===fid);
     const fornNome = forn?forn.nome:'?';
@@ -7492,16 +7550,21 @@ function exportReportCSV(raccoltaId){
       const raccAperta = racc?(racc.aperta?'Sì':'No'):'';
       o.items.forEach(i=>{
         const p = S.prodotti.find(x=>x.id===i.prodottoId);
-        if(!p || p.fornitorId!==fid) return;
-        const rigaTot = p.prezzo*i.qty;
+        const iFornId = i.fornitorId || (p&&p.fornitorId) || '';
+        if(iFornId!==fid) return;
+        const nome = i.nome || (p&&p.nome) || '';
+        const codice = i.codice!==undefined ? i.codice : (p&&p.codice)||'';
+        const unita = i.unita!==undefined ? i.unita : (p&&p.unita)||'';
+        const prezzo = i.prezzo!==undefined ? i.prezzo : (p&&p.prezzo)||0;
+        const rigaTot = prezzo*i.qty;
         rows.push([o.id, dataOrd, raccNome, raccAperta, raccData, raccChiusura, raccRitiro, raccLuogo,
           fornNome, fornZona, fornTel, fornEmail, fornWa, fornContatto,
-          p.codice||'', p.nome, p.unita||'',
+          codice, nome, unita,
           tessera, socioNome, socioCognome, socioCellulare, socioTelegram,
-          i.qty, p.prezzo, rigaTot]);
+          i.qty, prezzo, rigaTot]);
         totale += rigaTot; totaleForn += rigaTot;
         if(prodMap[i.prodottoId]){ prodMap[i.prodottoId].qty += i.qty; prodMap[i.prodottoId].tot += rigaTot; }
-        else prodMap[i.prodottoId] = {codice:p.codice||'', nome:p.nome, unita:p.unita||'', qty:i.qty, prezzo:p.prezzo, tot:rigaTot};
+        else prodMap[i.prodottoId] = {codice:codice, nome:nome, unita:unita, qty:i.qty, prezzo:prezzo, tot:rigaTot};
       });
     });
     // Riepilogo cumulato per prodotto di questo fornitore
