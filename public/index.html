@@ -4734,7 +4734,18 @@ function renderCart(){
     content.innerHTML='<div class="empty"><div style="display:flex;justify-content:center;margin-bottom:6px;color:var(--green-dark);">'+iconaCarrelloLogo(96)+'</div><p>Il carrello è vuoto</p><button class="btn btn-primary" style="margin-top:16px;" onclick="backToCatalogo()">Vai al catalogo</button></div>';
     return;
   }
-  const opens=S.raccolte.filter(r=>r.aperta);
+  // Raccolte compatibili con i fornitori REALMENTE nel carrello (non tutte
+  // le raccolte aperte nel GAS): se un fornitore è aperto solo in una
+  // raccolta, l'ordine va lì — niente scelta manuale che può sbagliare
+  // raccolta quando ce n'è un'altra aperta in parallelo per altri fornitori.
+  const fornIdsCarrello=[...new Set(S.cart.items.map(i=>{
+    const p=S.prodotti.find(x=>x.id===i.prodottoId);
+    return p?p.fornitorId:null;
+  }).filter(Boolean))];
+  const opens=fornIdsCarrello.reduce((acc,fid)=>{
+    const open=getFornOpenRaccolte(fid);
+    return acc===null ? open : acc.filter(r=>open.some(o=>o.id===r.id));
+  }, null) || [];
   let total=0;
   const rows=S.cart.items.map(i=>{
     const p=S.prodotti.find(x=>x.id===i.prodottoId);
@@ -4753,12 +4764,21 @@ function renderCart(){
   }).join('');
 
   let raccSelect='';
-  if(opens.length){
+  if(opens.length===1){
+    // Caso normale: un'unica raccolta compatibile → solo riepilogo, nessuna scelta.
+    S.cart.raccoltaId=opens[0].id;
+    raccSelect=`<div class="field" style="margin-top:16px;"><label>Raccolta ordini di riferimento</label>
+      <div style="padding:10px 14px;background:var(--green-pale);border:1.5px solid var(--green-light);border-radius:10px;font-weight:700;color:var(--green-dark);">📋 ${escHtml(opens[0].nome)}</div>
+    </div>`;
+  } else if(opens.length>1){
+    // Un fornitore del carrello è aperto in più raccolte insieme: qui la
+    // scelta è davvero necessaria, quindi resta un select.
     raccSelect=`<div class="field" style="margin-top:16px;"><label>Raccolta ordini di riferimento</label>
       <select id="cart-raccolta">${opens.map(r=>`<option value="${r.id}" ${S.cart.raccoltaId===r.id?'selected':''}>${escHtml(r.nome)}</option>`).join('')}</select>
+      <div style="font-size:.75rem;color:var(--text-light);margin-top:4px;">Questi prodotti sono ordinabili in più raccolte: scegli quella giusta.</div>
     </div>`;
   } else {
-    raccSelect=`<div class="alert alert-info" style="margin-top:16px;">⚠️ Nessuna raccolta ordini aperta. Contatta l'admin del GAS.</div>`;
+    raccSelect=`<div class="alert alert-info" style="margin-top:16px;">⚠️ I prodotti nel carrello non appartengono a nessuna raccolta attualmente aperta. Contatta l'admin del GAS.</div>`;
   }
 
   content.innerHTML=`<div class="card">
@@ -4822,7 +4842,9 @@ function sendOrderEmail(ord){
 
 function submitOrder(){
   const raccEl=document.getElementById('cart-raccolta');
-  const raccId=raccEl?raccEl.value:'';
+  // Senza select (raccolta unica compatibile) il riferimento è quello già
+  // calcolato e mostrato in renderCart(), non una scelta dell'utente.
+  const raccId=raccEl?raccEl.value:(S.cart.raccoltaId||'');
   if(!raccId){toast('Seleziona una raccolta');return;}
   // Blocco ordini su raccolta scaduta (ora ufficiale italiana)
   chiudiRaccolteScadute();
