@@ -6551,9 +6551,26 @@ function renderRaccolte(){
     +'</table></div>';
 }
 
+// Numero di settimana ISO 8601 (lunedì-domenica, settimana 1 = quella del
+// primo giovedì dell'anno): lo stesso standard usato da calendario-365.it e
+// di fatto il riferimento usato in Italia per "settimana N".
+function settimanaItaliana(d){
+  d = d || new Date();
+  const data=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+  const giornoSett=(data.getUTCDay()+6)%7; // lunedì=0 … domenica=6
+  data.setUTCDate(data.getUTCDate()-giornoSett+3); // giovedì della stessa settimana
+  const primoGiovedi=new Date(Date.UTC(data.getUTCFullYear(),0,4));
+  const primoGiornoSett=(primoGiovedi.getUTCDay()+6)%7;
+  primoGiovedi.setUTCDate(primoGiovedi.getUTCDate()-primoGiornoSett+3);
+  const settimana=1+Math.round((data-primoGiovedi)/(7*86400000));
+  const mm=String(d.getMonth()+1).padStart(2,'0');
+  const yy=String(d.getFullYear()).slice(-2);
+  return 'Settimana '+settimana+' ('+mm+'-'+yy+')';
+}
+
 function modalNewRaccolta(editId){
   const r=editId?S.raccolte.find(x=>x.id===editId):null;
-  const defaultName=r?r.nome:'Raccolta '+new Date().toLocaleDateString('it-IT',{month:'long',year:'numeric'}).replace(/^\w/,c=>c.toUpperCase());
+  const defaultName=r?r.nome:'Raccolta '+settimanaItaliana();
   const selected=r?.fornitori||[];
   const attivi=S.fornitori.filter(f=>f.attivo!==false);
   // Costruisci categorie dinamicamente da S.categorie
