@@ -821,6 +821,7 @@ tr:hover td{background:var(--green-pale);}
         <button class="nav-item" id="nav-prenotazioni" onclick="adminNav('prenotazioni')"><span class="nav-icon">📅</span>Prenotazioni</button>
         <button class="nav-item" id="nav-messaggi" onclick="adminNav('messaggi')"><span class="nav-icon">💬</span>Messaggi<span class="msg-topbar-badge" id="msg-badge-admin" style="display:none;">0</span></button>
         <button class="nav-item active" id="nav-settings" onclick="adminNav('settings')"><span class="nav-icon">⚙️</span>Impostazioni</button>
+        <button class="nav-item" id="nav-guida" onclick="adminNav('guida')"><span class="nav-icon">📘</span>Guida Admin</button>
       </div>
       <div class="sidebar-footer">
         <button class="btn btn-sm" id="admin-vista-socio-btn" style="display:none;background:rgba(255,255,255,.25);color:#fff;border:none;cursor:pointer;width:100%;margin-bottom:8px;" onclick="adminGoToSocioView()">👤 Vista Tesserato</button>
@@ -5325,7 +5326,7 @@ function adminNav(sec){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   const el=document.getElementById('nav-'+sec);
   if(el) el.classList.add('active');
-  const titles={dashboard:'Dashboard',soci:'Gestione Tesserati',fornitori:'Gestione Fornitori',prodotti:'Gestione Prodotti',raccolte:'Raccolte Ordini',ordini:'Ordini Ricevuti',prenotazioni:'Prenotazioni',news:'News & Comunicazioni',messaggi:'Messaggi',settings:'Impostazioni',chisiamo:'Chi Siamo'};
+  const titles={dashboard:'Dashboard',soci:'Gestione Tesserati',fornitori:'Gestione Fornitori',prodotti:'Gestione Prodotti',raccolte:'Raccolte Ordini',ordini:'Ordini Ricevuti',prenotazioni:'Prenotazioni',news:'News & Comunicazioni',messaggi:'Messaggi',settings:'Impostazioni',chisiamo:'Chi Siamo',guida:'Guida Admin'};
   document.getElementById('admin-section-title').textContent=titles[sec]||sec;
   document.getElementById('admin-mobile-title').textContent=titles[sec]||sec;
   const acts=document.getElementById('admin-header-actions');
@@ -5334,7 +5335,7 @@ function adminNav(sec){
   if(sec==='fornitori') acts.innerHTML=`<button class="btn btn-primary btn-sm" onclick="modalNewFornitore()">+ Nuovo Fornitore</button>`;
   if(sec==='prodotti') acts.innerHTML=`<button class="btn btn-primary btn-sm" onclick="modalNewProdotto()">+ Nuovo Prodotto</button>`;
   if(sec==='raccolte') acts.innerHTML=`<button class="btn btn-primary btn-sm" onclick="modalNewRaccolta()">+ Nuova Raccolta</button>`;
-  const panels={dashboard:renderDashboard,soci:renderSoci,fornitori:renderFornitori_admin,prodotti:renderProdotti_admin,raccolte:renderRaccolte,ordini:renderOrdini,prenotazioni:renderPrenotazioni,messaggi:renderAdminMsgList,settings:renderSettings,chisiamo:()=>renderChiSiamo('admin')};
+  const panels={dashboard:renderDashboard,soci:renderSoci,fornitori:renderFornitori_admin,prodotti:renderProdotti_admin,raccolte:renderRaccolte,ordini:renderOrdini,prenotazioni:renderPrenotazioni,messaggi:renderAdminMsgList,settings:renderSettings,chisiamo:()=>renderChiSiamo('admin'),guida:renderGuidaAdmin};
   window._currentAdminSec = sec;
   if(panels[sec]) panels[sec]();
   if(window.innerWidth<=700) closeSidebar();
@@ -5342,6 +5343,70 @@ function adminNav(sec){
 
 function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');}
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');}
+
+// ════════════════════ GUIDA ADMIN ════════════════════
+// Guida operativa per i 3 admin: cosa fare e come, aggiornata a mano da
+// chi tocca il codice ogni volta che una funzione admin cambia. Vive solo
+// qui (nessuna tabella, nessun dato sensibile) — è pensata per essere
+// riscritta/ampliata nel tempo, non per essere "finita".
+function copiaTesto(txt, msg){
+  const fatto = () => toast(msg || '✅ Copiato negli appunti');
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(fatto).catch(()=>_copiaFallback(txt, fatto));
+  } else {
+    _copiaFallback(txt, fatto);
+  }
+}
+function _copiaFallback(txt, ok){
+  const ta=document.createElement('textarea');
+  ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.select();
+  try{ document.execCommand('copy'); ok(); }catch(e){ toast('⚠️ Copia non riuscita, seleziona e copia a mano'); }
+  document.body.removeChild(ta);
+}
+
+function renderGuidaAdmin(){
+  document.getElementById('admin-panel-content').innerHTML = `
+  <div style="max-width:820px;margin:0 auto;">
+
+    <div class="alert alert-info" style="margin-bottom:18px;">
+      ℹ️ Tutto quello che fai qui dentro (prodotti, fornitori, raccolte, tesserati...) viene scritto <strong>subito</strong> nel database condiviso: è live per tutti, non serve nessun aggiornamento dell'app né attesa. Le uniche cose che richiedono un intervento sul codice sono i cambi di funzionalità o grafica — quelli li facciamo insieme.
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <h3 style="margin-top:0;">📦 Aggiungere / modificare un Prodotto</h3>
+      <p>Da <strong>Prodotti → + Nuovo Prodotto</strong>. Il nome del prodotto decide anche la sezione in cui compare nel listino: si scrive come</p>
+      <div style="background:var(--green-pale);border-radius:8px;padding:10px 14px;margin:8px 0;font-family:monospace;">SEZIONE&nbsp;<strong>·</strong>&nbsp;Nome del prodotto</div>
+      <p>Esempio: <em>I PRODOTTI DELL'ORTO · Radicchio di Verona</em>.</p>
+      <p style="color:var(--terra);"><strong>⚠️ Il separatore è il punto medio “·”, non un punto normale “.”</strong> — da mobile è scomodo da digitare, ma se scrivi un punto normale il prodotto si salva comunque, solo che perde la sezione e finisce fuori posto in cima al listino. Per sicurezza copia il separatore da qui:</p>
+      <button class="btn btn-secondary btn-sm" onclick="copiaTesto(' · ', '✅ Separatore copiato — incollalo nel nome')">📋 Copia il separatore " · "</button>
+      <p style="margin-top:10px;font-size:.85rem;color:var(--text-light);">Campo "Ordine": decide la posizione del prodotto (e di riflesso della sua sezione) nel listino. Senza numero va in coda, in ordine alfabetico.</p>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <h3 style="margin-top:0;">🏪 Aggiungere un Fornitore</h3>
+      <p>Da <strong>Fornitori → + Nuovo Fornitore</strong>. Compila nome, categoria ed emoji: sono quelli che decidono dove compare nelle vetrine dei soci. Logo e banner sono facoltativi ma consigliati — un fornitore senza immagini resta comunque visibile, solo meno curato.</p>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <h3 style="margin-top:0;">📋 Creare una Raccolta</h3>
+      <p>Da <strong>Raccolte → + Nuova raccolta</strong>. Il nome proposto include già la settimana corrente (es. <em>Raccolta Settimana 41 (10-26)</em>, calcolo automatico) — aggiungici davanti il tipo di raccolta, es. <em>Raccolta Verdure Fresche Settimana 41 (10-26)</em>.</p>
+      <p>Scegli i <strong>fornitori disponibili</strong> in questa raccolta: solo quelli selezionati risulteranno ordinabili dai soci finché la raccolta è aperta. Data/ora di scadenza e di ritiro sono facoltative ma aiutano i soci a organizzarsi.</p>
+      <p style="font-size:.85rem;color:var(--text-light);">Un fornitore aperto in <strong>due raccolte contemporaneamente</strong> è un caso valido (es. il fornitore partecipa sia alla raccolta verdura che a quella formaggi): il socio nel carrello vedrà in quel caso una scelta esplicita tra le due; altrimenti il carrello assegna la raccolta giusta da solo, senza bisogno di selezionarla a mano.</p>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">🗓️ Ultimi aggiornamenti alla Guida</h3>
+      <ul style="padding-left:20px;line-height:1.7;">
+        <li><strong>13 ott 2026</strong> — Il salvataggio prodotto corregge da solo un punto "." scritto per errore al posto del separatore "·".</li>
+        <li><strong>13 ott 2026</strong> — Il nome proposto per una nuova raccolta include già il numero di settimana corrente.</li>
+        <li><strong>07 ott 2026</strong> — Nel carrello, la raccolta di riferimento viene calcolata in automatico dal fornitore dei prodotti nel carrello: niente più scelta manuale (ed errori di attribuzione) quando più raccolte sono aperte insieme.</li>
+      </ul>
+    </div>
+
+  </div>`;
+}
+
 // ════════════════════ CHI SIAMO ════════════════════
 function renderChiSiamo(ctx){
   const gasName = S.config.gasName || 'S-GAS Freeconomy';
