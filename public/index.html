@@ -460,6 +460,29 @@ tr:hover td{background:var(--green-pale);}
   #topbar-logo-wrap{gap:6px !important;}
   #topbar-logo-img{width:30px !important;height:30px !important;}
 }
+
+/* ── DESKTOP (≥860px): la versione sotto i 700px resta identica a prima,
+   qui si usa solo lo spazio che sul mobile non c'è. ── */
+@media(min-width:860px){
+  /* Login / wizard / recupero codici: da "foglio" attaccato in fondo allo
+     schermo (pensato per mobile) a scheda centrata, come un vero form
+     desktop — niente più campi larghi quanto il monitor. */
+  .login-wrap{justify-content:center;align-items:center;padding:40px 20px;}
+  .login-hero{padding:0 0 24px;}
+  .login-card{flex:none;width:100%;max-width:440px;margin:0;border-radius:24px;box-shadow:0 20px 60px rgba(0,0,0,.25);}
+
+  /* Catalogo (soci e vetrina ospiti): più spazio utile, e i fornitori si
+     dispongono su più colonne invece di restare in un'unica colonna
+     stretta con mezzo schermo vuoto a destra. */
+  #socio-catalogo.content, #ospite-catalogo.content{max-width:1100px;}
+  #fornitori-list, #ospite-fornitori-list{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+    gap:16px;
+  }
+  #fornitori-list .forn-card, #ospite-fornitori-list .forn-card{margin-bottom:0;}
+  #fornitori-list .cat-raccolta-banner, #fornitori-list .empty, #ospite-fornitori-list .empty{grid-column:1/-1;}
+}
 </style>
 <!-- docx.js: caricata su richiesta al primo export Word (vedi _ensureDocx / public/docx-lib.js) -->
 </head>
@@ -4426,7 +4449,7 @@ function renderFornitori(){
   const aperte=S.raccolte.filter(r=>r.aperta);
   let raccoltaBanner='';
   if(aperte.length===0){
-    raccoltaBanner='<div style="background:var(--amber-light);border:1.5px solid var(--amber);border-radius:12px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">'
+    raccoltaBanner='<div class="cat-raccolta-banner" style="background:var(--amber-light);border:1.5px solid var(--amber);border-radius:12px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">'
       +'<div style="font-size:1.6rem;flex-shrink:0;">⏸</div>'
       +'<div><div style="font-weight:800;color:var(--terra);font-size:.92rem;">Nessuna raccolta aperta</div>'
       +'<div style="font-size:.8rem;color:var(--text-mid);margin-top:2px;">Non puoi ordinare al momento.</div></div></div>';
@@ -4454,7 +4477,7 @@ function renderFornitori(){
         +'</div>'
         +'<span class="pill pill-green" style="font-size:.7rem;flex-shrink:0;">● Aperta</span></div>';
     }).join('');
-    raccoltaBanner='<div style="background:var(--green-pale);border:1.5px solid var(--green-light);border-radius:12px;padding:12px 14px;margin-bottom:16px;">'
+    raccoltaBanner='<div class="cat-raccolta-banner" style="background:var(--green-pale);border:1.5px solid var(--green-light);border-radius:12px;padding:12px 14px;margin-bottom:16px;">'
       +'<div style="font-size:.72rem;font-weight:800;color:var(--green-dark);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">🟢 Raccolte in corso</div>'
       +'<div style="display:flex;flex-direction:column;gap:6px;">'+items+'</div></div>';
     // Avvia timer countdown per ogni raccolta con scadenza
