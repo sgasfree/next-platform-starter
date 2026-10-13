@@ -483,6 +483,13 @@ tr:hover td{background:var(--green-pale);}
   #fornitori-list .forn-card, #ospite-fornitori-list .forn-card{margin-bottom:0;}
   #fornitori-list .cat-raccolta-banner, #fornitori-list .empty, #ospite-fornitori-list .empty{grid-column:1/-1;}
 }
+
+/* ── TESSERA DIGITALE: flip fronte/retro ── */
+.tessera-flip-wrap{perspective:1800px;cursor:pointer;}
+.tessera-flip-inner{position:relative;width:100%;aspect-ratio:1280/827;transition:transform .6s cubic-bezier(.4,.2,.2,1);transform-style:preserve-3d;}
+.tessera-flip-wrap.flipped .tessera-flip-inner{transform:rotateY(180deg);}
+.tessera-face{position:absolute;inset:0;width:100%;height:100%;border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.2);backface-visibility:hidden;-webkit-backface-visibility:hidden;}
+.tessera-face-back{transform:rotateY(180deg);}
 </style>
 <!-- docx.js: caricata su richiesta al primo export Word (vedi _ensureDocx / public/docx-lib.js) -->
 </head>
@@ -5975,14 +5982,25 @@ function showTesseraDigitale(id){
   const s=S.soci.find(x=>x.id===id);
   if(!s) return;
   openModal(`
-    <h3 style="text-align:center;margin-bottom:14px;">🪪 Tessera Digitale</h3>
-    <canvas id="tessera-canvas" style="width:100%;border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.2);display:block;"></canvas>
-    <div style="text-align:center;margin-top:14px;">
+    <h3 style="text-align:center;margin-bottom:6px;">🪪 Tessera Digitale</h3>
+    <div class="tessera-flip-wrap" id="tessera-flip-wrap" onclick="flipTessera()" title="Clicca per vedere il retro">
+      <div class="tessera-flip-inner" id="tessera-flip-inner">
+        <canvas id="tessera-canvas" class="tessera-face"></canvas>
+        <canvas id="tessera-canvas-retro" class="tessera-face tessera-face-back"></canvas>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:8px;font-size:.78rem;color:var(--text-light);">🔄 Tocca la tessera per vedere il retro</div>
+    <div style="text-align:center;margin-top:10px;">
       <button class="btn btn-secondary btn-sm" onclick="downloadTessera('${id}')">📥 Scarica immagine</button>
     </div>
     <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Chiudi</button></div>
   `);
-  setTimeout(()=>drawTessera(s), 80);
+  setTimeout(()=>{ drawTessera(s); drawTesseraRetro(s); }, 80);
+}
+
+function flipTessera(){
+  const el=document.getElementById('tessera-flip-wrap');
+  if(el) el.classList.toggle('flipped');
 }
 
 // ── Tessera Digitale v2.2 ──────────────────────────────────────────────────
@@ -6113,6 +6131,112 @@ function drawTesseraFallback(ctx, W, H){
   let ctx2=cx-ctw/2;
   parts.forEach((p,i)=>{ctx.fillStyle=p==='|'?'#5aaa42':'#2a5fa0';ctx.textAlign='left';ctx.fillText(p,ctx2,200);ctx2+=ctx.measureText(p).width+(i<parts.length-1?gap:0);});
   ctx.textAlign='center';
+}
+
+// Retro della tessera: disegnato (non un'immagine incorporata come il
+// fronte) così resta nitido a qualunque risoluzione e gli anni di rinnovo
+// si calcolano da soli dalla data di emissione invece di restare fissi
+// e diventare sbagliati l'anno dopo.
+function drawTesseraRetro(s){
+  const canvas = document.getElementById('tessera-canvas-retro');
+  if(!canvas) return;
+  const W = 1280, H = 827;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  // Sfondo verde chiaro uniforme, come il retro fisico (niente fascia
+  // laterale scura: quella è solo sul fronte).
+  const r=18;
+  ctx.beginPath();
+  ctx.moveTo(r,0);ctx.lineTo(W-r,0);ctx.arcTo(W,0,W,r,r);
+  ctx.lineTo(W,H-r);ctx.arcTo(W,H,W-r,H,r);ctx.lineTo(r,H);
+  ctx.arcTo(0,H,0,H-r,r);ctx.lineTo(0,r);ctx.arcTo(0,0,r,0,r);ctx.closePath();
+  const bg = ctx.createLinearGradient(0,0,W,H);
+  bg.addColorStop(0,'#eef7e6'); bg.addColorStop(0.5,'#dcf0cc'); bg.addColorStop(1,'#ecf6e1');
+  ctx.fillStyle = bg; ctx.fill();
+  ctx.save(); ctx.clip();
+  const wave = ctx.createLinearGradient(0,0,W,H);
+  wave.addColorStop(0,'rgba(255,255,255,.65)'); wave.addColorStop(.45,'rgba(255,255,255,0)');
+  ctx.fillStyle = wave;
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(W*0.55,0); ctx.lineTo(W*0.2,H); ctx.lineTo(0,H); ctx.closePath(); ctx.fill();
+  ctx.restore();
+
+  function drawContent(logoImg){
+    // Un solo logo, centrato in alto.
+    const logoR=78, logoY=120, cx=W/2;
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx,logoY,logoR,0,Math.PI*2); ctx.closePath(); ctx.clip();
+    ctx.fillStyle='#fff'; ctx.fillRect(cx-logoR,logoY-logoR,logoR*2,logoR*2);
+    if(logoImg) ctx.drawImage(logoImg, cx-logoR, logoY-logoR, logoR*2, logoR*2);
+    ctx.restore();
+    ctx.strokeStyle='rgba(255,255,255,.9)'; ctx.lineWidth=4;
+    ctx.beginPath(); ctx.arc(cx,logoY,logoR,0,Math.PI*2); ctx.stroke();
+
+    // Citazione, a capo automatico sulla larghezza disponibile.
+    ctx.fillStyle='#25408F';
+    ctx.textAlign='center';
+    ctx.font='28px "Open Sans", Arial, sans-serif';
+    const quote = 'Non dubitare che un piccolo gruppo di cittadini coscienti e risoluti possa cambiare il mondo. In realtà è l\'unico modo in cui sia sempre accaduto.';
+    const maxW = W*0.74;
+    const words = quote.split(' ');
+    let line='', lines=[];
+    words.forEach(w=>{
+      const test = line ? line+' '+w : w;
+      if(ctx.measureText(test).width>maxW && line){ lines.push(line); line=w; } else line=test;
+    });
+    if(line) lines.push(line);
+    const lineH=38, quoteTop=H*0.42;
+    lines.forEach((l,i)=> ctx.fillText(l, W/2, quoteTop+i*lineH));
+    ctx.font='italic bold 22px "Open Sans", Arial, sans-serif';
+    ctx.fillText('— Margaret Mead —', W/2, quoteTop+lines.length*lineH+16);
+
+    // 6 cerchi per gli anni di rinnovo successivi a quello di emissione, su
+    // due righe da 3 — lo stesso "bollino annuale" della tessera fisica, ma
+    // ora su tutta la griglia: prima 2 caselle erano il logo doppio, con un
+    // solo logo sopra restano libere per altri 2 anni di contesto. Non c'è
+    // uno storico dei pagamenti: l'unico dato è la scadenza attuale, quindi
+    // un anno conta come pagato/bollinato solo se è coperto da quella
+    // scadenza (ogni rinnovo la sposta avanti di un anno, e il bollino
+    // corrispondente si riempie da solo). Gli anni oltre la scadenza
+    // restano vuoti, in attesa del prossimo rinnovo.
+    const annoEmissione = s.emissione ? new Date(s.emissione).getFullYear() : new Date().getFullYear();
+    const annoScadenza = s.scadenza ? new Date(s.scadenza).getFullYear() : annoEmissione;
+    const anni=[1,2,3,4,5,6].map(n=>annoEmissione+n);
+    const cellR=48, cellGapX=W*0.19, row1Y=H*0.68, row2Y=H*0.87;
+    anni.forEach((anno,i)=>{
+      const col=i%3, row=Math.floor(i/3);
+      const cx = W/2 + (col-1)*cellGapX;
+      const gridY = row===0 ? row1Y : row2Y;
+      const pagato = anno<=annoScadenza;
+      ctx.beginPath(); ctx.arc(cx,gridY,cellR,0,Math.PI*2);
+      ctx.fillStyle = pagato ? '#2d6a2f' : 'rgba(255,255,255,.55)';
+      ctx.fill();
+      ctx.strokeStyle = pagato ? '#1e4620' : 'rgba(37,64,143,.35)';
+      ctx.lineWidth=2; ctx.stroke();
+      if(pagato){
+        // Bollino pieno: spuntina sopra l'anno, come un timbro "pagato".
+        ctx.strokeStyle='#fff'; ctx.lineWidth=4; ctx.lineCap='round'; ctx.lineJoin='round';
+        ctx.beginPath();
+        ctx.moveTo(cx-14,gridY-20); ctx.lineTo(cx-4,gridY-11); ctx.lineTo(cx+16,gridY-27);
+        ctx.stroke();
+        ctx.fillStyle='#fff';
+      } else {
+        ctx.fillStyle='rgba(37,64,143,.6)';
+      }
+      ctx.font='bold 22px "Open Sans", Arial, sans-serif';
+      ctx.fillText(String(anno), cx, gridY+(pagato?22:7));
+    });
+  }
+
+  const logoSrc = (S.config && (S.config.logoBase64||S.config.logoData)) || (typeof DEFAULT_LOGO!=='undefined'?DEFAULT_LOGO:'');
+  if(logoSrc){
+    const img=new Image();
+    img.onload=()=>drawContent(img);
+    img.onerror=()=>drawContent(null);
+    img.src=logoSrc;
+  } else {
+    drawContent(null);
+  }
 }
 
 function downloadTessera(id){
