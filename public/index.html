@@ -6431,8 +6431,18 @@ function modalEditProdotto(id){
 }
 
 async function saveProdotto(editId){
-  const nome=document.getElementById('m-pnome').value.trim();
+  let nome=document.getElementById('m-pnome').value.trim();
   if(!nome){toast('Nome obbligatorio');return;}
+  // Il separatore di sezione "·" è scomodo da digitare, specie da mobile:
+  // chi scrive un punto "." normale al suo posto perde la sezione senza
+  // accorgersene, e il prodotto finisce fuori posto in cima al listino con
+  // il nome grezzo. Si corregge solo la PRIMA occorrenza di " . " — un
+  // punto più avanti nel nome (es. in una sigla) resta intatto — e solo se
+  // il separatore giusto non c'è già.
+  if(!nome.includes(SEP_CATEGORIA)){
+    const _i=nome.indexOf(' . ');
+    if(_i>0) nome = nome.slice(0,_i) + SEP_CATEGORIA + nome.slice(_i+3);
+  }
   // Prezzo: nessun valore di ripiego. Un campo vuoto o scritto male ferma il
   // salvataggio invece di diventare 0 € — la finestra resta aperta, con dentro
   // quello che si stava scrivendo, e si corregge solo il prezzo.
