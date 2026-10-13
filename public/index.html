@@ -6162,17 +6162,15 @@ function drawTesseraRetro(s){
   ctx.restore();
 
   function drawContent(logoImg){
-    // Due loghi circolari in alto, come sulla tessera fisica.
-    const logoR=68, logoY=118, gap=58;
-    [W/2-gap, W/2+gap].forEach(cx=>{
-      ctx.save();
-      ctx.beginPath(); ctx.arc(cx,logoY,logoR,0,Math.PI*2); ctx.closePath(); ctx.clip();
-      ctx.fillStyle='#fff'; ctx.fillRect(cx-logoR,logoY-logoR,logoR*2,logoR*2);
-      if(logoImg) ctx.drawImage(logoImg, cx-logoR, logoY-logoR, logoR*2, logoR*2);
-      ctx.restore();
-      ctx.strokeStyle='rgba(255,255,255,.9)'; ctx.lineWidth=4;
-      ctx.beginPath(); ctx.arc(cx,logoY,logoR,0,Math.PI*2); ctx.stroke();
-    });
+    // Un solo logo, centrato in alto.
+    const logoR=78, logoY=120, cx=W/2;
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx,logoY,logoR,0,Math.PI*2); ctx.closePath(); ctx.clip();
+    ctx.fillStyle='#fff'; ctx.fillRect(cx-logoR,logoY-logoR,logoR*2,logoR*2);
+    if(logoImg) ctx.drawImage(logoImg, cx-logoR, logoY-logoR, logoR*2, logoR*2);
+    ctx.restore();
+    ctx.strokeStyle='rgba(255,255,255,.9)'; ctx.lineWidth=4;
+    ctx.beginPath(); ctx.arc(cx,logoY,logoR,0,Math.PI*2); ctx.stroke();
 
     // Citazione, a capo automatico sulla larghezza disponibile.
     ctx.fillStyle='#25408F';
