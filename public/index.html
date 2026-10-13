@@ -5381,6 +5381,10 @@ function renderGuidaAdmin(){
       <p style="color:var(--terra);"><strong>⚠️ Il separatore è il punto medio “·”, non un punto normale “.”</strong> — da mobile è scomodo da digitare, ma se scrivi un punto normale il prodotto si salva comunque, solo che perde la sezione e finisce fuori posto in cima al listino. Per sicurezza copia il separatore da qui:</p>
       <button class="btn btn-secondary btn-sm" onclick="copiaTesto(' · ', '✅ Separatore copiato — incollalo nel nome')">📋 Copia il separatore " · "</button>
       <p style="margin-top:10px;font-size:.85rem;color:var(--text-light);">Campo "Ordine": decide la posizione del prodotto (e di riflesso della sua sezione) nel listino. Senza numero va in coda, in ordine alfabetico.</p>
+      <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:12px;">
+        <strong>💶 Campo "Prezzo (€)"</strong> — si scrive come lo diciamo a voce, con la <strong>virgola</strong> per i decimali: <em>15,60</em>. Va bene anche con il punto (<em>15.60</em>), col simbolo € davanti o con spazi: vengono ignorati automaticamente. Scrivendo solo <em>15,</em> vale 15,00 € e <em>,50</em> vale 0,50 €.
+        <p style="margin:6px 0 0;color:var(--terra);">⚠️ Se il prezzo è vuoto o scritto in un modo che non si riesce a capire (es. lettere, due virgole...), il salvataggio si blocca con un avviso: <strong>non esiste un prodotto salvato a 0 € per errore</strong> — se lo vedi a 0 €, è stato scritto così apposta.</p>
+      </div>
     </div>
 
     <div class="card" style="margin-bottom:16px;">
@@ -5398,6 +5402,7 @@ function renderGuidaAdmin(){
     <div class="card">
       <h3 style="margin-top:0;">🗓️ Ultimi aggiornamenti alla Guida</h3>
       <ul style="padding-left:20px;line-height:1.7;">
+        <li><strong>13 ott 2026</strong> — Aggiunta la spiegazione di come scrivere correttamente il campo Prezzo (virgola o punto, con o senza €).</li>
         <li><strong>13 ott 2026</strong> — Il salvataggio prodotto corregge da solo un punto "." scritto per errore al posto del separatore "·".</li>
         <li><strong>13 ott 2026</strong> — Il nome proposto per una nuova raccolta include già il numero di settimana corrente.</li>
         <li><strong>07 ott 2026</strong> — Nel carrello, la raccolta di riferimento viene calcolata in automatico dal fornitore dei prodotti nel carrello: niente più scelta manuale (ed errori di attribuzione) quando più raccolte sono aperte insieme.</li>
