@@ -2955,9 +2955,7 @@ function restoreSession(){
         applyLogo();
         showView('socio');
         renderCatSidebar();
-        setTab('ali');
-        showSocioSection('catalogo');
-        renderFornitori();
+        setTab('_raccolte');
         updateCartBadge();
         updateMsgBadges();
         updateNewsBadge();
@@ -2969,7 +2967,10 @@ function restoreSession(){
     return false;
   }catch(e){return false;}
 }
-let currentTab='ali';
+// Il tesserato deve sempre arrivare prima su "Raccolte" (aperta o chiusa
+// che sia): è il punto di partenza da cui scegliere la sezione, non una
+// categoria qualunque scelta per noi.
+let currentTab='_raccolte';
 let _prevTab=null;
 
 // ════════ AUTO-LOGOUT PER INATTIVITÀ (1 ora) ════════
@@ -4077,9 +4078,7 @@ function _enterSocio(socio){
   showView('socio');
   const _bk=document.getElementById('socio-back-admin-btn'); if(_bk) _bk.style.display='none';
   renderCatSidebar();
-  setTab('ali');
-  showSocioSection('catalogo');
-  renderFornitori();
+  setTab('_raccolte');
   updateCartBadge();
   updateMsgBadges();
   updateNewsBadge();
@@ -4140,9 +4139,7 @@ async function adminGoToSocioView(){
   showView('socio');
   const back=document.getElementById('socio-back-admin-btn'); if(back) back.style.display='';
   renderCatSidebar();
-  setTab('ali');
-  showSocioSection('catalogo');
-  renderFornitori();
+  setTab('_raccolte');
   updateCartBadge();
   updateMsgBadges();
   updateNewsBadge();
@@ -6987,7 +6984,13 @@ function chiudiRaccolteScadute(){
     // Aggiorna le viste aperte in questo momento
     try{
       if(currentUser&&currentUser.type==='admin'&&window._currentAdminSec==='raccolte') renderRaccolte();
-      if(document.getElementById('fornitori-list')) renderFornitori();
+      // Se il tesserato è sulla tab "Raccolte" il refresh deve aggiornare
+      // quella vista, non buttarlo sul catalogo prodotti (che con
+      // currentTab==='_raccolte' risulterebbe vuoto: nessun fornitore ha
+      // quella categoria).
+      if(document.getElementById('fornitori-list')){
+        if(currentTab==='_raccolte') renderRaccolteSocio(); else renderFornitori();
+      }
       if(document.getElementById('cart-content')) renderCart();
     }catch(e){}
   }
