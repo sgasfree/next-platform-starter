@@ -5229,6 +5229,7 @@ function _renderProfiloBody(){
           ${s.emissione?`<div style="font-size:.75rem;color:var(--text-light);">Emissione: ${new Date(s.emissione).toLocaleDateString('it-IT')} · Scadenza: ${s.scadenza?new Date(s.scadenza).toLocaleDateString('it-IT'):'—'}</div>`:''}
         </div>
       </div>
+      <button class="btn btn-secondary btn-sm" style="margin-top:12px;" onclick="showTesseraDigitale(currentUser.id)">🪪 La mia Tessera Digitale</button>
 
       <!-- Gruppo Telegram dei tesserati.
            Sta qui, nella scheda personale, e non nel menu o in vetrina: la
@@ -5979,7 +5980,10 @@ function deleteSocio(id){
 }
 
 function showTesseraDigitale(id){
-  const s=S.soci.find(x=>x.id===id);
+  // Il socio vede solo la propria riga in S.soci (RLS): se per qualche
+  // motivo non è ancora sincronizzata, currentUser ha comunque già gli
+  // stessi dati (spreaditi al login) e basta come fallback.
+  const s = S.soci.find(x=>x.id===id) || (currentUser && currentUser.id===id ? currentUser : null);
   if(!s) return;
   openModal(`
     <h3 style="text-align:center;margin-bottom:6px;">🪪 Tessera Digitale</h3>
@@ -6190,24 +6194,22 @@ function drawTesseraRetro(s){
     ctx.font='italic bold 22px "Open Sans", Arial, sans-serif';
     ctx.fillText('— Margaret Mead —', W/2, quoteTop+lines.length*lineH+16);
 
-    // 6 cerchi per gli anni di rinnovo successivi a quello di emissione, su
-    // due righe da 3 — lo stesso "bollino annuale" della tessera fisica, ma
-    // ora su tutta la griglia: prima 2 caselle erano il logo doppio, con un
-    // solo logo sopra restano libere per altri 2 anni di contesto. Non c'è
-    // uno storico dei pagamenti: l'unico dato è la scadenza attuale, quindi
-    // un anno conta come pagato/bollinato solo se è coperto da quella
-    // scadenza (ogni rinnovo la sposta avanti di un anno, e il bollino
-    // corrispondente si riempie da solo). Gli anni oltre la scadenza
-    // restano vuoti, in attesa del prossimo rinnovo.
+    // 6 cerchi, dall'anno di emissione in poi, su due righe da 3 — lo stesso
+    // "bollino annuale" della tessera fisica. Non c'è uno storico dei
+    // pagamenti: l'unico dato certo è l'anno di EMISSIONE della tessera
+    // attuale, cioè l'anno per cui si è effettivamente pagato. La scadenza
+    // (un anno dopo) è solo la data entro cui rinnovare — NON significa che
+    // l'anno della scadenza sia già pagato. Quindi il bollino pieno va solo
+    // sull'anno di emissione; gli anni successivi restano vuoti finché un
+    // rinnovo non sposta avanti l'emissione e, con essa, il bollino.
     const annoEmissione = s.emissione ? new Date(s.emissione).getFullYear() : new Date().getFullYear();
-    const annoScadenza = s.scadenza ? new Date(s.scadenza).getFullYear() : annoEmissione;
-    const anni=[1,2,3,4,5,6].map(n=>annoEmissione+n);
+    const anni=[0,1,2,3,4,5].map(n=>annoEmissione+n);
     const cellR=48, cellGapX=W*0.19, row1Y=H*0.68, row2Y=H*0.87;
     anni.forEach((anno,i)=>{
       const col=i%3, row=Math.floor(i/3);
       const cx = W/2 + (col-1)*cellGapX;
       const gridY = row===0 ? row1Y : row2Y;
-      const pagato = anno<=annoScadenza;
+      const pagato = anno===annoEmissione;
       ctx.beginPath(); ctx.arc(cx,gridY,cellR,0,Math.PI*2);
       ctx.fillStyle = pagato ? '#2d6a2f' : 'rgba(255,255,255,.55)';
       ctx.fill();
@@ -6240,7 +6242,8 @@ function drawTesseraRetro(s){
 }
 
 function downloadTessera(id){
-  const s=S.soci.find(x=>x.id===id); if(!s) return;
+  const s = S.soci.find(x=>x.id===id) || (currentUser && currentUser.id===id ? currentUser : null);
+  if(!s) return;
   const canvas=document.getElementById('tessera-canvas'); if(!canvas) return;
   setTimeout(()=>{
     const a=document.createElement('a');
