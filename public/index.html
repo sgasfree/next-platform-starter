@@ -459,6 +459,12 @@ tr:hover td{background:var(--green-pale);}
   .topbar-btn{padding:5px 10px;font-size:.75rem;}
   #topbar-logo-wrap{gap:6px !important;}
   #topbar-logo-img{width:30px !important;height:30px !important;}
+  /* Banner "Raccolta aperta" nella scheda fornitore: il bottone "Vai al
+     carrello" va sotto, a riga piena, invece di schiacciare il testo in
+     una colonna strettissima (nome raccolta, ritiro e countdown finivano
+     spezzati quasi parola per parola). */
+  .forn-racc-banner{flex-direction:column;align-items:stretch;}
+  .forn-racc-banner-btn{width:100%;justify-content:center;margin-top:10px;}
 }
 
 /* ── DESKTOP (≥860px): la versione sotto i 700px resta identica a prima,
@@ -4618,15 +4624,21 @@ function openFornitore(id){
       const countdownHtml=openRacc.filter(r=>r.dataChiusura).map(r=>
         '<div id="cdf-'+r.id+'" style="font-size:.75rem;font-weight:800;color:#b71c1c;margin-top:4px;font-variant-numeric:tabular-nums;"></div>'
       ).join('');
-      html+='<div style="background:var(--green-pale);border:1.5px solid var(--green-light);border-radius:10px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;">'
-        +'<span style="font-size:1.2rem;">📋</span>'
-        +'<div style="flex:1;">'
+      // Icona+testo stanno in una riga propria (dentro forn-racc-banner),
+      // il bottone è un secondo elemento dello stesso flex: su schermi
+      // stretti il testo non ha un contenitore elastico da stringere
+      // all'infinito (come capitava prima) — va semplicemente sotto.
+      html+='<div class="forn-racc-banner" style="background:var(--green-pale);border:1.5px solid var(--green-light);border-radius:10px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;">'
+        +'<div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">'
+        +'<span style="font-size:1.2rem;flex-shrink:0;">📋</span>'
+        +'<div style="flex:1;min-width:0;">'
         +'<div style="font-weight:800;font-size:.85rem;color:var(--green-dark);">Raccolta aperta: '+openRacc.map(r=>escHtml(r.nome)).join(', ')+'</div>'
         +'<div style="font-size:.75rem;color:var(--text-light);">Aggiungi i prodotti al carrello e vai alla raccolta</div>'
         +ritiroHtml
         +countdownHtml
         +'</div>'
-        +'<button class="btn btn-primary btn-sm" onclick="showSocioSection(&#39;cart&#39;);renderCart()" style="display:inline-flex;align-items:center;gap:6px;">'+iconaCarrelloLogo(18)+'Vai al carrello</button>'
+        +'</div>'
+        +'<button class="btn btn-primary btn-sm forn-racc-banner-btn" onclick="showSocioSection(&#39;cart&#39;);renderCart()" style="display:inline-flex;align-items:center;gap:6px;flex-shrink:0;">'+iconaCarrelloLogo(18)+'Vai al carrello</button>'
         +'</div>';
     } else {
       // Nessuna raccolta: banner grigio, prodotti visibili ma non ordinabili
