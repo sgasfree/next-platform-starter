@@ -4612,12 +4612,19 @@ function openFornitore(id){
         +(r.ritiroLuogo?' · '+escHtml(r.ritiroLuogo):'')
         +'</div>'
       ).join('');
+      // Stesso countdown live mostrato nel banner "Raccolte in corso" del
+      // catalogo: qui prima mancava del tutto, quindi chi apriva la scheda
+      // del fornitore vedeva il ritiro ma non sapeva entro quando ordinare.
+      const countdownHtml=openRacc.filter(r=>r.dataChiusura).map(r=>
+        '<div id="cdf-'+r.id+'" style="font-size:.75rem;font-weight:800;color:#b71c1c;margin-top:4px;font-variant-numeric:tabular-nums;"></div>'
+      ).join('');
       html+='<div style="background:var(--green-pale);border:1.5px solid var(--green-light);border-radius:10px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;">'
         +'<span style="font-size:1.2rem;">📋</span>'
         +'<div style="flex:1;">'
         +'<div style="font-weight:800;font-size:.85rem;color:var(--green-dark);">Raccolta aperta: '+openRacc.map(r=>escHtml(r.nome)).join(', ')+'</div>'
         +'<div style="font-size:.75rem;color:var(--text-light);">Aggiungi i prodotti al carrello e vai alla raccolta</div>'
         +ritiroHtml
+        +countdownHtml
         +'</div>'
         +'<button class="btn btn-primary btn-sm" onclick="showSocioSection(&#39;cart&#39;);renderCart()" style="display:inline-flex;align-items:center;gap:6px;">'+iconaCarrelloLogo(18)+'Vai al carrello</button>'
         +'</div>';
@@ -4672,6 +4679,29 @@ function openFornitore(id){
   }
 
   document.getElementById('forn-detail-content').innerHTML=html;
+  // Timer countdown per le raccolte con scadenza, sullo stesso schema del
+  // banner "Raccolte in corso" del catalogo.
+  openRacc.filter(r=>r.dataChiusura).forEach(r=>{
+    const deadline=new Date(r.dataChiusura+'T'+(r.oraChiusura||'23:59')+':00');
+    (function tick(){
+      const el=document.getElementById('cdf-'+r.id); if(!el) return;
+      const diff=deadline-Date.now();
+      if(diff<=0){el.textContent='⌛ Raccolta scaduta — ordini chiusi'; return;}
+      const gg=Math.floor(diff/86400000);
+      const hh=Math.floor((diff%86400000)/3600000);
+      const mm=Math.floor((diff%3600000)/60000);
+      const ss=Math.floor((diff%60000)/1000);
+      const parts=[];
+      if(gg>0) parts.push(gg+'g');
+      parts.push(String(hh).padStart(2,'0')+'h');
+      parts.push(String(mm).padStart(2,'0')+'m');
+      parts.push(String(ss).padStart(2,'0')+'s');
+      const urgente=diff<3600000;
+      el.style.color=urgente?'#b71c1c':'#e65100';
+      el.textContent='⏱ Scade tra: '+parts.join(' ');
+      setTimeout(tick,1000);
+    })();
+  });
   // attach product search
   const sp=document.getElementById('search-prodotti');
   if(sp) sp.addEventListener('input', function(){
