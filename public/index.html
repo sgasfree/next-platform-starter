@@ -280,6 +280,10 @@ h1,h2,h3,h4{font-family:var(--font-serif,serif);}
 .forn-vision{margin:0 18px 16px;padding:10px 14px;background:var(--amber-light);border-left:3px solid var(--amber);border-radius:0 8px 8px 0;font-size:.82rem;color:var(--terra);font-style:italic;}
 .forn-caratteristiche{padding:0 18px 16px;display:flex;gap:6px;flex-wrap:wrap;}
 .char-tag{background:var(--green-light);color:var(--green-dark);border-radius:8px;padding:3px 10px;font-size:.75rem;font-weight:600;}
+/* Base qui (non inline sull'elemento): deve poter essere sovrascritta dal
+   media query desktop, e uno stile inline sullo stesso elemento avrebbe
+   sempre vinto sulla regola nel media query, vanificandola. */
+.racc-forn-grid, .racc-chiuse-grid{display:flex;flex-direction:column;gap:6px;}
 
 /* ── PRODOTTO ── */
 .prodotto-row{display:flex;align-items:center;padding:13px 0;border-bottom:1px solid var(--border);}
@@ -488,6 +492,18 @@ tr:hover td{background:var(--green-pale);}
   }
   #fornitori-list .forn-card, #ospite-fornitori-list .forn-card{margin-bottom:0;}
   #fornitori-list .cat-raccolta-banner, #fornitori-list .empty, #ospite-fornitori-list .empty{grid-column:1/-1;}
+
+  /* Tab "Raccolte" del tesserato: un unico blocco finisce come figlio di
+     #fornitori-list, quindi deve occupare tutte le colonne della griglia
+     invece di restare schiacciato in una sola — stesso principio del
+     banner raccolte qui sopra. I fornitori di una raccolta aperta e le
+     raccolte precedenti diventano a loro volta una piccola griglia. */
+  #fornitori-list .raccolte-socio-wrap{grid-column:1/-1;}
+  .racc-forn-grid, .racc-chiuse-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+    gap:8px;
+  }
 }
 
 /* ── TESSERA DIGITALE: flip fronte/retro ── */
@@ -4364,7 +4380,7 @@ function renderRaccolteSocio(){
     const fornIds=(r.fornitori&&r.fornitori.length)?r.fornitori:S.fornitori.filter(f=>f.attivo!==false).map(f=>f.id);
     const forns=S.fornitori.filter(f=>fornIds.includes(f.id)&&f.attivo!==false);
     const fornHtml=forns.length
-      ?'<div style="margin-top:12px;display:flex;flex-direction:column;gap:6px;">'
+      ?'<div class="racc-forn-grid" style="margin-top:12px;">'
         +forns.map(f=>buildFornCard(f)).join('')
         +'</div>'
       :'<div style="font-size:.8rem;color:var(--text-light);margin-top:8px;">Nessun fornitore assegnato</div>';
@@ -4389,7 +4405,11 @@ function renderRaccolteSocio(){
       +'</div>';
   }
 
-  let html='<div style="padding:4px 0 8px;">';
+  // Questo blocco finisce come unico figlio diretto di #fornitori-list, che
+  // da desktop è una griglia (vedi CSS): senza "raccolte-socio-wrap" a
+  // occupare tutte le colonne, resterebbe schiacciato in una sola,
+  // identico al problema già risolto per il banner raccolte nel catalogo.
+  let html='<div class="raccolte-socio-wrap" style="padding:4px 0 8px;">';
   html+='<div style="font-size:.72rem;font-weight:800;color:var(--green-dark);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">🟢 Raccolte aperte</div>';
   if(aperte.length===0){
     html+='<div style="text-align:center;padding:28px 0;color:var(--text-light);font-size:.9rem;">⏸ Nessuna raccolta aperta al momento</div>';
@@ -4398,7 +4418,7 @@ function renderRaccolteSocio(){
   }
   if(chiuse.length){
     html+='<div style="font-size:.72rem;font-weight:800;color:var(--text-mid);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 10px;">Raccolte precedenti</div>';
-    html+=chiuse.map(r=>buildChiusaItem(r)).join('<div style="height:6px;"></div>');
+    html+='<div class="racc-chiuse-grid">'+chiuse.map(r=>buildChiusaItem(r)).join('')+'</div>';
   }
   html+='</div>';
   list.innerHTML=html;
