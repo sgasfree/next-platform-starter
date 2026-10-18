@@ -5229,6 +5229,7 @@ function _renderProfiloBody(){
           ${s.emissione?`<div style="font-size:.75rem;color:var(--text-light);">Emissione: ${new Date(s.emissione).toLocaleDateString('it-IT')} · Scadenza: ${s.scadenza?new Date(s.scadenza).toLocaleDateString('it-IT'):'—'}</div>`:''}
         </div>
       </div>
+      <button class="btn btn-secondary btn-sm" style="margin-top:12px;" onclick="showTesseraDigitale(currentUser.id)">🪪 La mia Tessera Digitale</button>
 
       <!-- Gruppo Telegram dei tesserati.
            Sta qui, nella scheda personale, e non nel menu o in vetrina: la
@@ -5979,7 +5980,10 @@ function deleteSocio(id){
 }
 
 function showTesseraDigitale(id){
-  const s=S.soci.find(x=>x.id===id);
+  // Il socio vede solo la propria riga in S.soci (RLS): se per qualche
+  // motivo non è ancora sincronizzata, currentUser ha comunque già gli
+  // stessi dati (spreaditi al login) e basta come fallback.
+  const s = S.soci.find(x=>x.id===id) || (currentUser && currentUser.id===id ? currentUser : null);
   if(!s) return;
   openModal(`
     <h3 style="text-align:center;margin-bottom:6px;">🪪 Tessera Digitale</h3>
@@ -6238,7 +6242,8 @@ function drawTesseraRetro(s){
 }
 
 function downloadTessera(id){
-  const s=S.soci.find(x=>x.id===id); if(!s) return;
+  const s = S.soci.find(x=>x.id===id) || (currentUser && currentUser.id===id ? currentUser : null);
+  if(!s) return;
   const canvas=document.getElementById('tessera-canvas'); if(!canvas) return;
   setTimeout(()=>{
     const a=document.createElement('a');
