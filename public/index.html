@@ -6803,7 +6803,31 @@ function applicaRiassegnaOrfani(){
 }
 
 // ════════════════════ ADMIN — RACCOLTE ════════════════════
+// Lista (tabella) o calendario mensile: due letture della stessa S.raccolte,
+// utili per cose diverse — la tabella per i dettagli e le azioni, il
+// calendario per vedere a colpo d'occhio come sono distribuite nel tempo.
+let _raccolteVista='lista';
+let _raccolteCalMese=new Date();
+
+function setRaccolteVista(v){
+  _raccolteVista=v;
+  renderRaccolte();
+}
+
 function renderRaccolte(){
+  const toggle='<div style="display:inline-flex;gap:4px;background:var(--green-pale);padding:4px;border-radius:10px;">'
+    +'<button class="btn btn-xs '+(_raccolteVista==='lista'?'btn-primary':'btn-secondary')+'" onclick="setRaccolteVista(\'lista\')">📋 Lista</button>'
+    +'<button class="btn btn-xs '+(_raccolteVista==='calendario'?'btn-primary':'btn-secondary')+'" onclick="setRaccolteVista(\'calendario\')">📅 Calendario</button>'
+    +'</div>';
+  document.getElementById('admin-panel-content').innerHTML=
+    '<div style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">'
+    +toggle
+    +'<button class="btn btn-primary" onclick="modalNewRaccolta()">➕ Nuova raccolta</button>'
+    +'</div>'
+    +(_raccolteVista==='calendario'?_raccolteCalendarioHtml():_raccolteListaHtml());
+}
+
+function _raccolteListaHtml(){
   const rows=S.raccolte.map(r=>{
     const nForn=(r.fornitori&&r.fornitori.length)?r.fornitori.length:S.fornitori.filter(f=>f.attivo!==false).length;
     const fornNames=(r.fornitori&&r.fornitori.length)
@@ -6831,14 +6855,81 @@ function renderRaccolte(){
       +'</div></td>'
       +'</tr>';
   }).join('');
-  document.getElementById('admin-panel-content').innerHTML=
-    '<div style="margin-bottom:14px;text-align:right;">'
-    +'<button class="btn btn-primary" onclick="modalNewRaccolta()">➕ Nuova raccolta</button>'
-    +'</div>'
-    +'<div class="tbl-wrap"><table>'
+  return '<div class="tbl-wrap"><table>'
     +'<thead><tr><th>Nome / Fornitori</th><th>Creazione</th><th>Stato</th><th>Fornitori</th><th>Ordini</th><th>Azioni</th></tr></thead>'
     +'<tbody>'+(rows||'<tr><td colspan="6" style="text-align:center;color:var(--text-light);">Nessuna raccolta</td></tr>')+'</tbody>'
     +'</table></div>';
+}
+
+function raccolteCalNav(delta){
+  _raccolteCalMese=new Date(_raccolteCalMese.getFullYear(), _raccolteCalMese.getMonth()+delta, 1);
+  renderRaccolte();
+}
+function raccolteCalOggi(){
+  _raccolteCalMese=new Date();
+  renderRaccolte();
+}
+function _fmtDataISO(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+// Calendario mensile: colloca ogni raccolta nel giorno del suo RITIRO (è il
+// dato con una data certa e puntuale — "apertura" e "scadenza" sono più
+// intervalli che eventi). Le raccolte senza data di ritiro non hanno un
+// giorno a cui appartenere: restano elencate sotto, non spariscono.
+function _raccolteCalendarioHtml(){
+  const mese=_raccolteCalMese;
+  const anno=mese.getFullYear(), m=mese.getMonth();
+  const nomeMese=mese.toLocaleDateString('it-IT',{month:'long',year:'numeric'});
+  const primoGiorno=new Date(anno,m,1);
+  const giorniNelMese=new Date(anno,m+1,0).getDate();
+  const offset=(primoGiorno.getDay()+6)%7; // lunedì=0 … domenica=6
+  const oggiISO=_fmtDataISO(new Date());
+
+  const perGiorno={};
+  S.raccolte.forEach(r=>{
+    if(!r.ritiroData) return;
+    (perGiorno[r.ritiroData]=perGiorno[r.ritiroData]||[]).push(r);
+  });
+  const senzaData=S.raccolte.filter(r=>!r.ritiroData);
+
+  let celle='';
+  for(let i=0;i<offset;i++) celle+='<div style="background:#fafafa;min-height:92px;"></div>';
+  for(let g=1; g<=giorniNelMese; g++){
+    const dataISO=anno+'-'+String(m+1).padStart(2,'0')+'-'+String(g).padStart(2,'0');
+    const raccolteGiorno=perGiorno[dataISO]||[];
+    const isOggi=dataISO===oggiISO;
+    const chips=raccolteGiorno.slice(0,3).map(r=>
+      '<div onclick="modalNewRaccolta(&#39;'+r.id+'&#39;)" title="'+escHtml(r.nome)+'" style="cursor:pointer;background:'+(r.aperta?'var(--green-light)':'#eee')+';color:'+(r.aperta?'var(--green-dark)':'#666')+';border-radius:6px;padding:2px 6px;font-size:.66rem;font-weight:700;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escHtml(r.nome)+'</div>'
+    ).join('');
+    const altre=raccolteGiorno.length>3?'<div style="font-size:.62rem;color:var(--text-light);margin-top:2px;">+'+(raccolteGiorno.length-3)+' altre</div>':'';
+    celle+='<div style="background:#fff;min-height:92px;padding:6px;'+(isOggi?'box-shadow:inset 0 0 0 2px var(--green);':'')+'">'
+      +'<div style="font-size:.78rem;font-weight:'+(isOggi?'800':'600')+';color:'+(isOggi?'var(--green-dark)':'var(--text-mid)')+';">'+g+'</div>'
+      +chips+altre
+      +'</div>';
+  }
+
+  const header=['Lun','Mar','Mer','Gio','Ven','Sab','Dom'].map(gg=>
+    '<div style="text-align:center;font-size:.72rem;font-weight:800;color:var(--text-mid);padding:6px 0;background:var(--green-pale);">'+gg+'</div>'
+  ).join('');
+
+  const senzaDataHtml=senzaData.length
+    ?'<div style="margin-top:16px;padding:12px 14px;background:var(--amber-light);border:1px solid var(--amber);border-radius:10px;font-size:.82rem;">'
+      +'<strong>⚠️ '+senzaData.length+' raccolt'+(senzaData.length===1?'a':'e')+' senza data di ritiro</strong> (non compaiono nel calendario): '
+      +senzaData.map(r=>'<a href="#" onclick="modalNewRaccolta(&#39;'+r.id+'&#39;);return false;" style="color:var(--terra);font-weight:700;">'+escHtml(r.nome)+'</a>').join(', ')
+      +'</div>'
+    :'';
+
+  return '<div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:14px;">'
+    +'<button class="btn btn-xs btn-secondary" onclick="raccolteCalNav(-1)">‹</button>'
+    +'<h3 style="min-width:200px;text-align:center;text-transform:capitalize;font-family:var(--font-serif,serif);">'+nomeMese+'</h3>'
+    +'<button class="btn btn-xs btn-secondary" onclick="raccolteCalNav(1)">›</button>'
+    +'<button class="btn btn-xs btn-secondary" onclick="raccolteCalOggi()">Oggi</button>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:10px;overflow:hidden;">'
+    +header+celle
+    +'</div>'
+    +senzaDataHtml;
 }
 
 // Numero di settimana ISO 8601 (lunedì-domenica, settimana 1 = quella del
