@@ -503,6 +503,8 @@ export const handler = async (event) => {
         email_contatto:     orNull(r.emailContatto),
         telegram_contatto:  orNull(r.telegramContatto),
         indirizzo_contatto: orNull(r.indirizzoContatto),
+        link_esterno_label: orNull(r.linkEsternoLabel),
+        link_esterno_url:   orNull(r.linkEsternoUrl),
         logo:               orNull(r.logo),
         banner:             orNull(r.banner),
         updated_at:         new Date().toISOString()

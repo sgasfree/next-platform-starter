@@ -2200,6 +2200,7 @@ const _fornitoreDaRiga = f => ({
   nomeContatto:f.nome_contatto||null, telefono:f.telefono||null,
   whatsapp:f.whatsapp||null, emailContatto:f.email_contatto||null,
   telegramContatto:f.telegram_contatto||null, indirizzoContatto:f.indirizzo_contatto||null,
+  linkEsternoLabel:f.link_esterno_label||null, linkEsternoUrl:f.link_esterno_url||null,
   logo:f.logo||null, banner:f.banner||null
 });
 
@@ -2345,7 +2346,7 @@ function _aggiornaVisteAperte(){
 // disponibilità vecchi. Ora arrivano dopo, in secondo piano.
 const _CAMPI_FORNITORE = 'id,nome,categoria,emoji,zona,descrizione,vision,caratteristiche,'
   + 'attivo,contattodiretto,nome_contatto,telefono,whatsapp,email_contatto,'
-  + 'telegram_contatto,indirizzo_contatto';
+  + 'telegram_contatto,indirizzo_contatto,link_esterno_label,link_esterno_url';
 const _CAMPI_PRODOTTO_BASE = 'id,fornitore_id,nome,prezzo,unita,codice,descrizione,disponibile';
 const _CAMPI_PRODOTTO  = _CAMPI_PRODOTTO_BASE + ',ordine,sezione_descrizione,sezione_nota';
 
@@ -3343,6 +3344,20 @@ function renderFornitoriOspite(){
   }).join('');
 }
 
+// Link esterno del fornitore (gruppo Telegram dedicato, sito, modulo...):
+// sempre visibile sulla scheda, indipendente dal "contatto diretto" (quello
+// è solo per i servizi senza carrello). Chi lo scrive nel form admin può
+// dimenticare "https://": senza schema il link sarebbe relativo e rotto.
+function _normalizzaUrl(u){
+  if(!u) return '';
+  return /^https?:\/\//i.test(u) ? u : 'https://'+u;
+}
+function _linkEsternoHtml(f){
+  if(!f || !f.linkEsternoUrl) return '';
+  const label=f.linkEsternoLabel||'Link esterno';
+  return '<a href="'+escHtml(_normalizzaUrl(f.linkEsternoUrl))+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;background:var(--green-dark);color:#fff;text-decoration:none;padding:9px 18px;border-radius:24px;font-size:.85rem;font-weight:800;margin-top:4px;">🔗 '+escHtml(label)+'</a>';
+}
+
 function openFornitoreOspite(id){
   const f=S.fornitori.find(x=>x.id===id);
   if(!f) return;
@@ -3367,7 +3382,7 @@ function openFornitoreOspite(id){
     +(chars.length?'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">'+chars.filter(c=>!/^km/i.test(c)).map(c=>'<span class="char-tag">✓ '+escHtml(c)+'</span>').join('')+'</div>':'')
     +(f.descrizione?'<p style="color:var(--text-mid);font-size:.9rem;margin-bottom:12px;">'+escHtml(f.descrizione)+'</p>':'')
     +(f.vision?'<div class="forn-vision">"'+escHtml(f.vision)+'"</div>':'')
-    
+    +_linkEsternoHtml(f)
     +'</div></div>';
 
   if(prods.length){
@@ -4590,6 +4605,7 @@ function openFornitore(id){
       ${chars.length?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">${chars.filter(c=>!/^km/i.test(c)).map(c=>`<span class="char-tag">✓ ${escHtml(c)}</span>`).join('')}</div>`:''}
       ${f.descrizione?`<p style="color:var(--text-mid);font-size:.9rem;margin-bottom:12px;">${escHtml(f.descrizione)}</p>`:''}
       ${f.vision?`<div class="forn-vision">"${escHtml(f.vision)}"</div>`:''}
+      ${_linkEsternoHtml(f)}
     </div>
   </div>`;
 
@@ -6379,6 +6395,12 @@ function fornForm(f){
     <div class="field"><label for="m-fdesc">Descrizione</label><textarea id="m-fdesc" placeholder="Descrizione del produttore...">${escHtml(f.descrizione||'').replace(/<br>/g,'\n')}</textarea></div>
     <div class="field"><label for="m-fchar">Caratteristiche (separate da virgola)</label><input id="m-fchar" type="text" value="${escHtml((f.caratteristiche||[]).join(', '))}" placeholder="Biologico, Km 0, Slow Food"></div>
     <div class="field"><label for="m-fvis">Vision / Frase ispiratrice</label><input id="m-fvis" type="text" value="${escHtml(f.vision||'')}" placeholder="La nostra filosofia..."></div>
+    <div class="field"><label for="m-flinkurl">Link esterno <span style="font-weight:400;font-size:.78rem;color:var(--text-mid);">(facoltativo — gruppo Telegram dedicato, sito, modulo... sempre visibile sulla scheda)</span></label>
+      <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:8px;">
+        <input id="m-flinklabel" type="text" value="${escHtml(f.linkEsternoLabel||'')}" placeholder="Etichetta, es. Gruppo Telegram">
+        <input id="m-flinkurl" type="url" value="${escHtml(f.linkEsternoUrl||'')}" placeholder="https://...">
+      </div>
+    </div>
     <div class="field" style="margin-top:16px;border-top:1px solid var(--green-light);padding-top:14px;">
       <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:700;">
         <input type="checkbox" id="m-fcontatto" ${f.contattodiretto?'checked':''} onchange="document.getElementById('m-fcontatto-fields').style.display=this.checked?'block':'none'" style="width:18px;height:18px;">
@@ -6533,7 +6555,9 @@ async function saveFornitore(editId){
     whatsapp:document.getElementById('m-fwa')?.value.trim()||null,
     emailContatto:document.getElementById('m-femail-contatto')?.value.trim()||null,
     telegramContatto:document.getElementById('m-ftelegram')?.value.trim()||null,
-    indirizzoContatto:document.getElementById('m-findirizzo')?.value.trim()||null
+    indirizzoContatto:document.getElementById('m-findirizzo')?.value.trim()||null,
+    linkEsternoLabel:document.getElementById('m-flinklabel')?.value.trim()||null,
+    linkEsternoUrl:document.getElementById('m-flinkurl')?.value.trim()||null
   };
   let forn;
   if(editId){ forn=S.fornitori.find(x=>x.id===editId); if(forn) Object.assign(forn,data); }
