@@ -3355,7 +3355,7 @@ function _normalizzaUrl(u){
 function _linkEsternoHtml(f){
   if(!f || !f.linkEsternoUrl) return '';
   const label=f.linkEsternoLabel||'Link esterno';
-  return '<a href="'+escHtml(_normalizzaUrl(f.linkEsternoUrl))+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;background:var(--green-dark);color:#fff;text-decoration:none;padding:9px 18px;border-radius:24px;font-size:.85rem;font-weight:800;margin-top:4px;">🔗 '+escHtml(label)+'</a>';
+  return '<a href="'+escHtml(_normalizzaUrl(f.linkEsternoUrl))+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;background:var(--green-dark);color:#fff;text-decoration:none;padding:11px 22px;border-radius:24px;font-size:.95rem;font-weight:800;font-family:\'Nunito\',sans-serif;">🔗 '+escHtml(label)+'</a>';
 }
 
 function openFornitoreOspite(id){
@@ -3382,8 +3382,11 @@ function openFornitoreOspite(id){
     +(chars.length?'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">'+chars.filter(c=>!/^km/i.test(c)).map(c=>'<span class="char-tag">✓ '+escHtml(c)+'</span>').join('')+'</div>':'')
     +(f.descrizione?'<p style="color:var(--text-mid);font-size:.9rem;margin-bottom:12px;">'+escHtml(f.descrizione)+'</p>':'')
     +(f.vision?'<div class="forn-vision">"'+escHtml(f.vision)+'"</div>':'')
-    +_linkEsternoHtml(f)
     +'</div></div>';
+
+  // Il link esterno (chat/contatti) è riservato ai tesserati: in vetrina
+  // (ospiti non loggati) non compare — qui c'è solo il listino, non serve
+  // altro. Vedi openFornitore per la versione con la card contatti.
 
   if(prods.length){
     html+='<div class="card">'
@@ -4605,12 +4608,14 @@ function openFornitore(id){
       ${chars.length?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">${chars.filter(c=>!/^km/i.test(c)).map(c=>`<span class="char-tag">✓ ${escHtml(c)}</span>`).join('')}</div>`:''}
       ${f.descrizione?`<p style="color:var(--text-mid);font-size:.9rem;margin-bottom:12px;">${escHtml(f.descrizione)}</p>`:''}
       ${f.vision?`<div class="forn-vision">"${escHtml(f.vision)}"</div>`:''}
-      ${_linkEsternoHtml(f)}
     </div>
   </div>`;
 
-  // ── CONTATTA DIRETTAMENTE (servizi senza carrello) ──
-  if(f.contattodiretto){
+  // ── CONTATTI (contatto diretto e/o link esterno) ──
+  // Stessa card per entrambi, non più il link esterno isolato subito dopo
+  // la descrizione: visivamente era scollegato dal resto, qui invece è
+  // parte della sezione contatti con lo stesso stile di bottone.
+  if(f.contattodiretto || f.linkEsternoUrl){
     const tel = f.telefono||null;
     const wa  = f.whatsapp||null;
     const em  = f.emailContatto||null;
@@ -4618,14 +4623,18 @@ function openFornitore(id){
     const ind = f.indirizzoContatto||null;
     const nome= f.nomeContatto||f.nome;
     let btns = '';
-    if(tel) btns+=`<a href="tel:+39${tel}" style="display:inline-flex;align-items:center;gap:8px;background:var(--green-dark);color:#fff;text-decoration:none;padding:11px 22px;border-radius:24px;font-size:.95rem;font-weight:800;font-family:'Nunito',sans-serif;box-shadow:0 2px 10px rgba(30,70,32,.25);">📞 ${tel.replace(/(\d{4})(\d{3})(\d{4})/,'$1 $2 $3').replace(/(\d{3,4})(\d{2,3})(\d{2})(\d{2})/,'$1 $2 $3 $4')}</a>`;
-    if(wa)  btns+=`<a href="https://wa.me/39${wa}" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:#25d366;color:#fff;text-decoration:none;padding:11px 22px;border-radius:24px;font-size:.95rem;font-weight:800;font-family:'Nunito',sans-serif;">💬 WhatsApp</a>`;
-    if(em)  btns+=`<a href="mailto:${escHtml(em)}" style="display:inline-flex;align-items:center;gap:8px;background:#e8430a;color:#fff;text-decoration:none;padding:11px 22px;border-radius:24px;font-size:.95rem;font-weight:800;font-family:'Nunito',sans-serif;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg> Email</a>`;
-    if(tg)  btns+=`<a href="https://t.me/${escHtml(tg)}" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:#29a8e0;color:#fff;text-decoration:none;padding:11px 22px;border-radius:24px;font-size:.95rem;font-weight:800;font-family:'Nunito',sans-serif;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.16 13.947l-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.99.612z"/></svg> Telegram</a>`;
+    if(f.contattodiretto){
+      if(tel) btns+=`<a href="tel:+39${tel}" style="display:inline-flex;align-items:center;gap:8px;background:var(--green-dark);color:#fff;text-decoration:none;padding:11px 22px;border-radius:24px;font-size:.95rem;font-weight:800;font-family:'Nunito',sans-serif;box-shadow:0 2px 10px rgba(30,70,32,.25);">📞 ${tel.replace(/(\d{4})(\d{3})(\d{4})/,'$1 $2 $3').replace(/(\d{3,4})(\d{2,3})(\d{2})(\d{2})/,'$1 $2 $3 $4')}</a>`;
+      if(wa)  btns+=`<a href="https://wa.me/39${wa}" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:#25d366;color:#fff;text-decoration:none;padding:11px 22px;border-radius:24px;font-size:.95rem;font-weight:800;font-family:'Nunito',sans-serif;">💬 WhatsApp</a>`;
+      if(em)  btns+=`<a href="mailto:${escHtml(em)}" style="display:inline-flex;align-items:center;gap:8px;background:#e8430a;color:#fff;text-decoration:none;padding:11px 22px;border-radius:24px;font-size:.95rem;font-weight:800;font-family:'Nunito',sans-serif;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg> Email</a>`;
+      if(tg)  btns+=`<a href="https://t.me/${escHtml(tg)}" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:#29a8e0;color:#fff;text-decoration:none;padding:11px 22px;border-radius:24px;font-size:.95rem;font-weight:800;font-family:'Nunito',sans-serif;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.16 13.947l-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.99.612z"/></svg> Telegram</a>`;
+    }
+    btns += _linkEsternoHtml(f);
+    const titolo = f.contattodiretto ? `📞 Contatta direttamente (${escHtml(nome)})` : '🔗 Contatti';
     html+=`<div class="card" style="border:1.5px solid var(--green-light);background:var(--green-pale);">
       <div style="text-align:center;margin-bottom:14px;">
-        <div style="font-size:.78rem;font-weight:800;color:var(--terra);letter-spacing:.08em;text-transform:uppercase;">📞 Contatta direttamente (${escHtml(nome)})</div>
-        <p style="font-size:.82rem;color:var(--text-mid);margin-top:6px;">Prenota il servizio o richiedi informazioni contattando direttamente il fornitore.</p>
+        <div style="font-size:.78rem;font-weight:800;color:var(--terra);letter-spacing:.08em;text-transform:uppercase;">${titolo}</div>
+        ${f.contattodiretto?`<p style="font-size:.82rem;color:var(--text-mid);margin-top:6px;">Prenota il servizio o richiedi informazioni contattando direttamente il fornitore.</p>`:''}
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:${ind?'12px':'0'};">${btns}</div>
       ${ind?`<div style="text-align:center;font-size:.8rem;color:var(--text-light);margin-top:4px;">📍 ${escHtml(ind)}</div>`:''}
