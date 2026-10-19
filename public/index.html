@@ -3384,17 +3384,9 @@ function openFornitoreOspite(id){
     +(f.vision?'<div class="forn-vision">"'+escHtml(f.vision)+'"</div>':'')
     +'</div></div>';
 
-  // Link esterno in una card contatti a parte, non appeso alla descrizione:
-  // qui non c'è (come per il socio) un blocco "contatta direttamente" da
-  // riusare, ma lo stesso principio vale — sta meglio per conto suo.
-  if(f.linkEsternoUrl){
-    html+='<div class="card" style="border:1.5px solid var(--green-light);background:var(--green-pale);">'
-      +'<div style="text-align:center;margin-bottom:12px;">'
-      +'<div style="font-size:.78rem;font-weight:800;color:var(--terra);letter-spacing:.08em;text-transform:uppercase;">🔗 Contatti</div>'
-      +'</div>'
-      +'<div style="display:flex;justify-content:center;">'+_linkEsternoHtml(f)+'</div>'
-      +'</div>';
-  }
+  // Il link esterno (chat/contatti) è riservato ai tesserati: in vetrina
+  // (ospiti non loggati) non compare — qui c'è solo il listino, non serve
+  // altro. Vedi openFornitore per la versione con la card contatti.
 
   if(prods.length){
     html+='<div class="card">'
