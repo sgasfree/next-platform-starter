@@ -305,7 +305,14 @@ h1,h2,h3,h4{font-family:var(--font-serif,serif);}
 /* ── PRODOTTO ── */
 .prodotto-row{display:flex;align-items:center;padding:13px 0;border-bottom:1px solid var(--border);}
 .prodotto-row:last-child{border-bottom:none;}
-.prodotto-name{flex:1;font-weight:600;font-size:.9rem;}
+/* .prodotto-name ha flex:1, ma non è lei il figlio diretto della riga —
+   è annidata dentro un <div> senza stile insieme a descrizione e unità.
+   Senza flex:1 su QUEL contenitore, un nome corto non riempie lo spazio e
+   prezzo/pulsanti +/- restano appiccicati al testo invece di stare
+   allineati sul bordo destro: con un nome lungo (che va a capo) sembra
+   funzionare per caso, con uno corto si vede il problema. */
+.prodotto-row>div:first-child{flex:1;min-width:0;}
+.prodotto-name{font-weight:600;font-size:.9rem;}
 /* Intestazione che divide i prodotti di un fornitore per categoria: serve ai
    cataloghi molto vari, dove un elenco piatto costringerebbe a scorrere a
    lungo per capire dove finisce un tipo di prodotto e dove inizia l'altro. */
