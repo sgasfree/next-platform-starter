@@ -15,6 +15,10 @@
 # production
 /build
 
+# output di "npm run build:static" (scripts/build-static.mjs): generato da
+# public/ ad ogni deploy, non va versionato — vedi netlify.toml
+/dist
+
 # misc
 .DS_Store
 *.pem

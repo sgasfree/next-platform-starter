@@ -7,7 +7,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "build:static": "node scripts/build-static.mjs"
   },
   "dependencies": {
     "@netlify/blobs": "^10.7.0",
@@ -17,6 +18,7 @@
     "next": "^16.0.8",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "terser": "^5.51.2",
     "unique-names-generator": "^4.7.1"
   },
   "devDependencies": {

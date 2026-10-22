@@ -1,6 +1,11 @@
 [build]
-  publish = "public"
-  command = ""
+  # public/ resta il sorgente leggibile (quello che si modifica a mano);
+  # dist/ è l'output generato da "npm run build:static" (vedi
+  # scripts/build-static.mjs) — identico a public/ tranne per
+  # index.html, il cui script viene minificato con terser. publish
+  # punta a dist/, non più a public/ direttamente.
+  publish = "dist"
+  command = "npm run build:static"
   functions = "netlify/functions"
 
 # Scheduled Function: promemoria scadenza tessera (90 e 30 giorni prima).
