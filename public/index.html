@@ -3420,11 +3420,12 @@ function openFornitoreOspite(id){
         +(prods.every(_eServizio) ? '🤝' : '📦')+' '+titoloOfferta(prods)+'</h3>'
       +(function(){ const statoCat=_statoSezioni(prods); return prods.map(p=>
         intestazioneCategoria(p, statoCat)
+        // Vetrina ospiti: niente prezzo, solo l'elenco di cosa si può trovare.
+        // Il prezzo resta riservato a chi è tesserato (vedi openFornitore).
         +'<div class="prodotto-row">'
         +'<div style="flex:1;"><div class="prodotto-name">'+escHtml(nomeProdottoSenzaCategoria(p))+'</div>'
         +(p.descrizione?'<div style="font-size:.75rem;color:var(--text-mid);margin-top:2px;line-height:1.4;">'+escHtml(p.descrizione)+'</div>':'')
         +'<div style="font-size:.75rem;color:var(--text-light);">'+escHtml(p.unita)+'</div></div>'
-        +'<div class="prodotto-price">'+etichettaPrezzo(p)+'</div>'
         +'</div>'
       ).join('') + chiusuraSezione(statoCat); })()
       +'</div>';
