@@ -467,8 +467,10 @@ tr:hover td{background:var(--green-pale);}
 .dot.done{background:var(--green-light);}
 
 /* ── BACK BUTTON ── */
-.back-btn{display:flex;align-items:center;gap:6px;color:var(--text-mid);font-size:.85rem;font-weight:700;cursor:pointer;margin-bottom:8px;border:none;background:none;padding:0;}
+.back-btn{display:flex;align-items:center;gap:6px;color:var(--green-dark);font-size:.85rem;font-weight:800;cursor:pointer;margin-bottom:8px;border:none;background:none;padding:0;animation:back-btn-nudge 2.4s ease-in-out infinite;}
 .back-btn:hover{color:var(--green);}
+@keyframes back-btn-nudge{0%,100%{transform:translateX(0);}50%{transform:translateX(-4px);}}
+@media (prefers-reduced-motion: reduce){.back-btn{animation:none;}}
 #fab-catalogo:hover{background:var(--green);transform:translateY(-2px);}
 
 /* ── ADMIN MOBILE HEADER ── */
