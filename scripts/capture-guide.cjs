@@ -27,7 +27,7 @@ const STATE = {
   raccolte: [{ id: 'r1', nome: 'Raccolta Giugno 2026', aperta: true, fornitoriIds: ['f1','f2','f3'], dataRitiro: '2026-06-20', oraRitiro: '18:00', luogoRitiro: 'Via Roma 10, Firenze' }],
   prenotazioni: [{ id: 'pr1', nome: 'Cassetta Estiva', descrizione: 'Cassetta mista verdure di stagione', aperta: true, prodotti: [{ nome: 'Zucchine', prezzo: 2.5, qtyMin: 1, qtyMax: 5 },{ nome: 'Pomodori', prezzo: 3.0, qtyMin: 0, qtyMax: 10 }] }],
   ordini: [], ordiniPrenotazione: [],
-  messaggi: [{ id: 'm1', socioId: 's1', socioNome: 'Mario Rossi', da: 'admin', testo: 'Benvenuto nel GAS! Scrivi pure per qualsiasi necessita.', data: new Date(Date.now()-7200000).toISOString(), lettoAdmin: true, lettoSocio: true }],
+  messaggi: [{ id: 'm1', socioId: 's1', socioNome: 'Mario Rossi', da: 'admin', testo: 'Benvenuto in SGAS! Scrivi pure per qualsiasi necessita.', data: new Date(Date.now()-7200000).toISOString(), lettoAdmin: true, lettoSocio: true }],
   cart: { raccoltaId: '', items: [] }
 };
 
