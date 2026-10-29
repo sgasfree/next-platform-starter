@@ -692,6 +692,24 @@ export const handler = async (event) => {
     return json(200, { ok:true });
   }
 
+  // ── Azione: presenza admin ────────────────────────────────────────────────
+  // Scrive un istante condiviso ogni volta che un admin (email+password o OTP)
+  // e' attivo nel pannello. Tabella separata e pubblica in lettura: il
+  // tesserato confronta questo istante con "adesso" per decidere se mostrare
+  // l'admin come disponibile o assente nella sezione Messaggi.
+  if(action === 'admin-heartbeat'){
+    const payload = verifyToken(SECRET, body.token);
+    if(!payload) return json(401, { ok:false, error:'Token non valido o scaduto' });
+    if(payload.role !== 'admin') return json(403, { ok:false, error:'Riservato agli admin' });
+    const res = await sbFetch(SUPA_URL, SUPA_KEY, `/rest/v1/admin_presence?on_conflict=id`, {
+      method: 'POST',
+      prefer: 'resolution=merge-duplicates,return=minimal',
+      body: JSON.stringify({ id: 1, last_seen: new Date().toISOString() })
+    });
+    if(!res.ok) return json(502, { ok:false, error:'Aggiornamento presenza fallito' });
+    return json(200, { ok:true });
+  }
+
   // ── Azione: salvataggio stato ─────────────────────────────────────────────
   if(action === 'save'){
     const payload = verifyToken(SECRET, body.token);
