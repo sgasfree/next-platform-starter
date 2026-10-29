@@ -560,8 +560,8 @@ tr:hover td{background:var(--green-pale);}
       </div>
       <div class="wizard-step active" id="ws0">
         <h3 style="font-family:var(--font-serif,serif);margin-bottom:8px;">Benvenuto 🌱</h3>
-        <p style="color:var(--text-mid);font-size:.9rem;margin-bottom:24px;">Prima di iniziare, configura il tuo GAS. Ci vorranno 2 minuti.</p>
-        <div class="field"><label>Nome del tuo GAS</label><input id="wiz-gas-name" type="text" placeholder="es. GAS Valle Olona" value="S-GAS Freeconomy"></div>
+        <p style="color:var(--text-mid);font-size:.9rem;margin-bottom:24px;">Prima di iniziare, configura SGAS. Ci vorranno 2 minuti.</p>
+        <div class="field"><label>Nome del gruppo</label><input id="wiz-gas-name" type="text" placeholder="es. SGAS Valle Olona" value="S-GAS Freeconomy"></div>
         <button class="btn btn-primary btn-block" onclick="wizNext(1)">Avanti →</button>
       </div>
       <div class="wizard-step" id="ws1">
@@ -937,8 +937,8 @@ tr:hover td{background:var(--green-pale);}
       <p style="font-size:.78rem;color:var(--text-light);">Il logo appare nella schermata di login, nella barra superiore e nella sidebar admin. Formati supportati: JPG, PNG, SVG.</p>
     </div>
     <div class="card" style="margin-bottom:16px;">
-      <h3 style="font-family:var(--font-serif,serif);margin-bottom:16px;">⚙️ Configurazione GAS</h3>
-      <div class="field"><label>Nome del GAS</label><input id="s-gasname" type="text" value="S-GAS Freeconomy"></div>
+      <h3 style="font-family:var(--font-serif,serif);margin-bottom:16px;">⚙️ Configurazione SGAS</h3>
+      <div class="field"><label>Nome del gruppo</label><input id="s-gasname" type="text" value="S-GAS Freeconomy"></div>
       <div class="field"><label>Email Admin</label><input id="s-email" type="email" value="vivinrete@gmail.com"></div>
       <div class="field"><label>Nuova Password Admin</label><input id="s-pass" type="password" autocomplete="new-password" placeholder="Lascia vuoto per non cambiare"></div>
       <div class="field">
@@ -946,7 +946,7 @@ tr:hover td{background:var(--green-pale);}
         <input id="s-applink" type="url" value="" placeholder="es. https://sgas-freeconomy.netlify.app">
         <div style="font-size:.75rem;color:var(--text-light);margin-top:4px;">Questo link viene mostrato nella schermata di login e può essere condiviso con i soci.</div>
       </div>
-      <button class="btn btn-primary" onclick="saveConfigGAS()">💾 Salva config GAS</button>
+      <button class="btn btn-primary" onclick="saveConfigGAS()">💾 Salva config SGAS</button>
     </div>
     <div class="card" style="margin-bottom:16px;">
       <h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">👥 Secondo Amministratore</h3>
@@ -1047,7 +1047,7 @@ tr:hover td{background:var(--green-pale);}
     </div>
     <div class="card">
       <h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">💾 Backup &amp; Ripristino</h3>
-      <p style="font-size:.85rem;color:var(--text-mid);margin-bottom:16px;">Esporta tutti i dati del GAS in un file JSON. Puoi ripristinarli in qualsiasi momento.</p>
+      <p style="font-size:.85rem;color:var(--text-mid);margin-bottom:16px;">Esporta tutti i dati di SGAS in un file JSON. Puoi ripristinarli in qualsiasi momento.</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
         <button class="btn btn-secondary" onclick="backupData()">📥 Scarica Backup</button>
         <label class="btn btn-secondary" style="cursor:pointer;">📤 Ripristina <input type="file" accept=".json" style="display:none;" onchange="restoreData(event)"></label>
@@ -3438,7 +3438,7 @@ function openFornitoreOspite(id){
   html+='<div style="text-align:center;margin-top:16px;padding:20px;background:var(--green-pale);border-radius:14px;border:1.5px solid var(--green-light);">'
     +'<div style="margin-bottom:8px;">'+ctaLogo+'</div>'
     +'<div style="font-weight:800;color:var(--green-dark);margin-bottom:6px;">Vuoi ordinare questi prodotti?</div>'
-    +'<div style="font-size:.82rem;color:var(--text-mid);margin-bottom:12px;">Contatta l\'assistenza per diventare tesserato del GAS e accedere agli ordini.</div>'
+    +'<div style="font-size:.82rem;color:var(--text-mid);margin-bottom:12px;">Contatta l\'assistenza per diventare tesserato di SGAS e accedere agli ordini.</div>'
     +'<a href="https://t.me/frenkenergy" target="_blank" class="btn btn-primary" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="white"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.17 13.667l-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.978.892z"/></svg> Contatta Assistenza</a>'
     +'<div style="margin-top:10px;"><button class="btn btn-secondary" onclick="showLoginView()" style="font-size:.82rem;">🔑 Sei già tesserato? Accedi</button></div>'
     +'</div>';
@@ -3464,7 +3464,7 @@ function backToCatalogoOspite(){
 function wizNext(step){
   if(step===1){
     const name=document.getElementById('wiz-gas-name').value.trim();
-    if(!name){toast('Inserisci il nome del GAS');return;}
+    if(!name){toast('Inserisci il nome del gruppo');return;}
     S.config.gasName=name;
   }
   if(step===2){
@@ -4919,7 +4919,7 @@ function renderCart(){
       <div style="font-size:.75rem;color:var(--text-light);margin-top:4px;">Questi prodotti sono ordinabili in più raccolte: scegli quella giusta.</div>
     </div>`;
   } else {
-    raccSelect=`<div class="alert alert-info" style="margin-top:16px;">⚠️ I prodotti nel carrello non appartengono a nessuna raccolta attualmente aperta. Contatta l'admin del GAS.</div>`;
+    raccSelect=`<div class="alert alert-info" style="margin-top:16px;">⚠️ I prodotti nel carrello non appartengono a nessuna raccolta attualmente aperta. Contatta l'admin di SGAS.</div>`;
   }
 
   content.innerHTML=`<div class="card">
@@ -7068,7 +7068,7 @@ function modalNewRaccolta(editId){
     +'<div class="field"><label>Data ritiro</label><input id="m-rdata" type="date" value="'+(r&&r.ritiroData?r.ritiroData:'')+'"></div>'
     +'<div class="field"><label>Ora ritiro</label><input id="m-rora" type="time" value="'+(r&&r.ritiroOra?r.ritiroOra:'')+'"></div>'
     +'</div>'
-    +'<div class="field"><label>Luogo ritiro</label><input id="m-rluogo" type="text" value="'+(r&&r.ritiroLuogo?escHtml(r.ritiroLuogo):'')+'" placeholder="es. Via Roma 1, Varese — presso sede GAS"></div>'
+    +'<div class="field"><label>Luogo ritiro</label><input id="m-rluogo" type="text" value="'+(r&&r.ritiroLuogo?escHtml(r.ritiroLuogo):'')+'" placeholder="es. Via Roma 1, Varese — presso sede SGAS"></div>'
     +'</div>'
     +'<div class="field">'
     +'<label style="display:flex;align-items:center;justify-content:space-between;"><span>Fornitori disponibili in questa raccolta</span>'
@@ -8868,9 +8868,9 @@ INSERT INTO config (chiave,valore) VALUES ('sgas_app_state','{}');</pre>
       <p style="font-size:.78rem;color:var(--text-light);">Il logo appare nella schermata di login, nella barra superiore e nella sidebar admin. Formati supportati: JPG, PNG, SVG.</p>
     </div>
     <div class="card" style="margin-bottom:16px;">
-      <h3 style="font-family:var(--font-serif,serif);margin-bottom:16px;">⚙️ Configurazione GAS</h3>
+      <h3 style="font-family:var(--font-serif,serif);margin-bottom:16px;">⚙️ Configurazione SGAS</h3>
       ${_isAdmin1?`
-      <div class="field"><label>Nome del GAS</label><input id="s-gasname" type="text" value="${escHtml(S.config.gasName)}"></div>
+      <div class="field"><label>Nome del gruppo</label><input id="s-gasname" type="text" value="${escHtml(S.config.gasName)}"></div>
       <div class="field"><label>Email Admin</label><input id="s-email" type="email" value="${escHtml(S.config.adminEmail)}"></div>
       <div class="field"><label>Nuova Password Admin 1</label><input id="s-pass" type="password" placeholder="Lascia vuoto per non cambiare"></div>
       <div class="field">
@@ -8878,9 +8878,9 @@ INSERT INTO config (chiave,valore) VALUES ('sgas_app_state','{}');</pre>
         <input id="s-applink" type="url" value="${escHtml(S.config.appLink||'')}" placeholder="es. https://sgas-freeconomy.netlify.app">
         <div style="font-size:.75rem;color:var(--text-light);margin-top:4px;">Questo link viene mostrato nella schermata di login e può essere condiviso con i soci.</div>
       </div>`:`
-      <div class="alert alert-info" style="font-size:.82rem;margin-bottom:14px;">ℹ️ Sei loggato come <strong>${escHtml(_myEmail)}</strong> (Admin ${_isAdmin2?'2':'3'}). Le impostazioni GAS globali sono modificabili solo dall'Admin principale.</div>
+      <div class="alert alert-info" style="font-size:.82rem;margin-bottom:14px;">ℹ️ Sei loggato come <strong>${escHtml(_myEmail)}</strong> (Admin ${_isAdmin2?'2':'3'}). Le impostazioni globali di SGAS sono modificabili solo dall'Admin principale.</div>
       <div class="field"><label>🔑 Cambia tua password</label><input id="s-pass" type="password" placeholder="Lascia vuoto per non cambiare"></div>`}
-      <button class="btn btn-primary" onclick="saveConfigGAS()">💾 ${_isAdmin1?'Salva config GAS':'Aggiorna password'}</button>
+      <button class="btn btn-primary" onclick="saveConfigGAS()">💾 ${_isAdmin1?'Salva config SGAS':'Aggiorna password'}</button>
     </div>
     <div class="card" style="margin-bottom:16px;">
       <h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">👥 Secondo Amministratore</h3>
@@ -8969,7 +8969,7 @@ INSERT INTO config (chiave,valore) VALUES ('sgas_app_state','{}');</pre>
     </div>
     <div class="card">
       <h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">💾 Backup & Ripristino</h3>
-      <p style="font-size:.85rem;color:var(--text-mid);margin-bottom:16px;">Esporta tutti i dati del GAS in un file JSON. Puoi ripristinarli in qualsiasi momento.</p>
+      <p style="font-size:.85rem;color:var(--text-mid);margin-bottom:16px;">Esporta tutti i dati di SGAS in un file JSON. Puoi ripristinarli in qualsiasi momento.</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
         <button class="btn btn-secondary" onclick="backupData()">📥 Scarica Backup</button>
         <label class="btn btn-secondary" style="cursor:pointer;">📤 Ripristina <input type="file" accept=".json" style="display:none;" onchange="restoreData(event)"></label>
@@ -9508,7 +9508,7 @@ function sendMsgAdmin(socioId){
     lettoAdmin:true, lettoSocio:false
   };
   S.messaggi.push(msg);
-  sendPush('💬 Messaggio dal GAS', (socio?socio.nome+': ':'') + txt.slice(0,80)+(txt.length>80?'…':''), window.location.origin);
+  sendPush('💬 Messaggio da SGAS', (socio?socio.nome+': ':'') + txt.slice(0,80)+(txt.length>80?'…':''), window.location.origin);
   saveState(); updateMsgBadges();
   // Doppio write: invia il messaggio anche su Supabase in background
   _syncMessaggioToSupabase(msg).catch(e => console.warn('Sync messaggio a Supabase fallito:', e));
@@ -9558,18 +9558,18 @@ function _renderMessaggiSocioInner(){
   const bubbles=msgs.length?msgs.map(m=>{
     const fromMe=m.da==='socio';
     return '<div class="msg-bubble-wrap '+(fromMe?'from-me':'from-admin')+'">'
-      +(!fromMe?'<div class="msg-sender">Admin GAS</div>':'')
+      +(!fromMe?'<div class="msg-sender">Admin SGAS</div>':'')
       +'<div class="msg-bubble">'+escHtml(m.testo)+'</div>'
       +'<div class="msg-meta">'+formatMsgTime(m.data)+(fromMe&&m.lettoAdmin?'  ✓✓':'')+'</div>'
       +'</div>';
   }).join('')
-  :'<div class="empty"><div class="empty-icon">💬</div><p>Nessun messaggio ancora.<br>Scrivi al tuo admin GAS!</p></div>';
+  :'<div class="empty"><div class="empty-icon">💬</div><p>Nessun messaggio ancora.<br>Scrivi al tuo admin SGAS!</p></div>';
 
   el.innerHTML=
     '<div class="card" style="padding:16px;display:flex;flex-direction:column;min-height:400px;">'
     +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border);">'
     +'<div style="width:40px;height:40px;border-radius:50%;background:var(--green-pale);display:flex;align-items:center;justify-content:center;font-size:1.3rem;"></div>'
-    +'<div><div style="font-weight:700;">Admin GAS</div><div style="font-size:.75rem;color:var(--text-light);">Sempre disponibile</div></div>'
+    +'<div><div style="font-weight:700;">Admin SGAS</div><div style="font-size:.75rem;color:var(--text-light);">Sempre disponibile</div></div>'
     +'</div>'
     +'<div class="msg-thread" id="msg-thread-socio" style="flex:1;overflow-y:auto;max-height:50vh;min-height:120px;">'+bubbles+'</div>'
     +'<div class="msg-input-bar">'
