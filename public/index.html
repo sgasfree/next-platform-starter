@@ -2121,6 +2121,25 @@ async function _saveAdminCredsToProxy(slot, email, passwordHash, opts){
   }
 }
 
+// Segnale di presenza: mentre un admin (email+password o OTP) ha il pannello
+// aperto, avvisa il server ogni tanto. Il tesserato lo legge dalla tabella
+// admin_presence per mostrare "Disponibile"/"Assente" nei Messaggi. Fallisce
+// in silenzio: non è un'operazione critica, si ritenta al giro successivo.
+async function _sendAdminHeartbeat(){
+  const token = await _getStateToken();
+  if(!token) return;
+  try{
+    await fetch('/.netlify/functions/state-save',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'admin-heartbeat', token})
+    });
+  }catch(e){ /* silenzioso */ }
+}
+(function _adminHeartbeatLoop(){
+  function tick(){ if(currentUser && currentUser.type==='admin') _sendAdminHeartbeat(); }
+  setInterval(tick, 90000);
+})();
+
 // ════════ RACCOLTE — tabella dedicata ════════
 // Ogni raccolta è una riga a sé: creare, modificare o chiudere una raccolta
 // tocca solo quella riga. Finché vivevano nel blob condiviso, un dispositivo
@@ -4159,6 +4178,7 @@ function _enterAdminViaOtp(socio){
   // L'admin via OTP è anche un tesserato: si autentica al proxy come socio.
   _setStateAuth({kind:'socio', tessera: socio.tessera, cellulare: socio.cellulare||socio.telefono||''});
   _fetchStateToken();
+  _sendAdminHeartbeat();
   saveSession();
   resetInactivityTimer();
   updateSidebarName();
@@ -4311,6 +4331,7 @@ async function loginAdmin(){
     _setLoginState(email, {});
     const tok = (crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now());
     currentUser={type:'admin', adminEmail: email, _tok: tok};
+    _sendAdminHeartbeat();
     saveSession();
     resetInactivityTimer();
     updateSidebarName();
@@ -9586,7 +9607,7 @@ function _renderMessaggiSocioInner(){
     '<div class="card" style="padding:16px;display:flex;flex-direction:column;min-height:400px;">'
     +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border);">'
     +'<div style="width:40px;height:40px;border-radius:50%;background:var(--green-pale);display:flex;align-items:center;justify-content:center;font-size:1.3rem;"></div>'
-    +'<div><div style="font-weight:700;">Admin SGAS</div><div style="font-size:.75rem;color:var(--text-light);">Sempre disponibile</div></div>'
+    +'<div><div style="font-weight:700;">Admin SGAS</div><div id="admin-presence-status" style="font-size:.75rem;color:var(--text-light);">● verifica stato...</div></div>'
     +'</div>'
     +'<div class="msg-thread" id="msg-thread-socio" style="flex:1;overflow-y:auto;max-height:50vh;min-height:120px;">'+bubbles+'</div>'
     +'<div class="msg-input-bar">'
@@ -9602,6 +9623,30 @@ function _renderMessaggiSocioInner(){
     const inp=document.getElementById('msg-input-socio');
     if(inp) inp.focus();
   },60);
+  _pollAdminPresence();
+}
+
+// Legge admin_presence (tabella pubblica in lettura) e mostra "Disponibile"
+// (verde, attivo negli ultimi 5 minuti) o "Assente" (grigio) accanto al nome
+// dell'admin nella chat del socio. Si auto-aggiorna ogni minuto finché la
+// sezione Messaggi resta aperta, e si ferma da sola quando se ne esce.
+async function _refreshAdminPresenceBadge(){
+  const el = document.getElementById('admin-presence-status');
+  if(!el) return;
+  const sb = getSupabase();
+  if(!sb) return;
+  try{
+    const { data, error } = await sb.from('admin_presence').select('last_seen').eq('id',1).maybeSingle();
+    const lastSeen = (!error && data && data.last_seen) ? new Date(data.last_seen).getTime() : 0;
+    const online = lastSeen && (Date.now() - lastSeen) < 5*60*1000;
+    el.innerHTML = online
+      ? '<span style="color:#43a047;">●</span> Disponibile'
+      : '<span style="color:#9e9e9e;">●</span> Assente';
+  }catch(e){ /* lascia il placeholder, si ritenta al giro successivo */ }
+}
+function _pollAdminPresence(){
+  _refreshAdminPresenceBadge();
+  setTimeout(()=>{ if(document.getElementById('admin-presence-status')) _pollAdminPresence(); }, 60000);
 }
 
 
