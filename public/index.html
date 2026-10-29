@@ -8495,6 +8495,21 @@ async function _deleteOrdineFromSupabase(id){
   }catch(e){ _warnSyncFail('Eliminazione ordine', e); }
 }
 
+// Elimina tutti i messaggi di un socio da Supabase quando l'admin cancella
+// la conversazione. Senza questo, loadMessaggiFromSupabase() li riscarica
+// e la "cancellazione" (solo locale) sparisce al primo refresh.
+async function _deleteConversazioneFromSupabase(socioId){
+  const sb = getAuthSb();
+  if(!sb) return;
+  try{
+    const dbIdBySocioId = await _buildSocioIdMap(sb);
+    const dbId = dbIdBySocioId[socioId];
+    if(!dbId) return;
+    const { error } = await sb.from('messaggi').delete().eq('socio_id', dbId);
+    if(error) _warnSyncFail('Eliminazione conversazione', error);
+  }catch(e){ _warnSyncFail('Eliminazione conversazione', e); }
+}
+
 // Scrive un singolo messaggio su Supabase (insert, non upsert: gli id sono uuid autogenerati).
 async function _syncMessaggioToSupabase(msg){
   const sb = getAuthSb();
@@ -9695,11 +9710,12 @@ function renderAdminConversation(socioId){
   document.getElementById('admin-section-title').textContent='Conversazione';
 }
 
-function deleteConvo(socioId){
+async function deleteConvo(socioId){
   if(!confirm('Eliminare tutta la conversazione con questo socio?')) return;
   S.messaggi=(S.messaggi||[]).filter(m=>m.socioId!==socioId);
   saveState(); updateMsgBadges(); renderAdminMsgList();
   document.getElementById('admin-section-title').textContent='Messaggi';
+  await _deleteConversazioneFromSupabase(socioId);
 }
 
 function escHtml(s){
