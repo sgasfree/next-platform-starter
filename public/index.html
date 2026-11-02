@@ -626,10 +626,6 @@ tr:hover td{background:var(--green-pale);}
         <div id="login-socio-step1">
           <div class="field"><label>Numero Tessera</label><input id="l-tessera" type="text" placeholder="es. SGAS 0001"></div>
           <div class="field"><label>Cellulare</label><input id="l-phone" type="tel" placeholder="es. 3331234567"></div>
-          <div style="display:flex;align-items:center;gap:8px;margin:4px 0 14px;">
-            <input type="checkbox" id="l-remember" style="width:16px;height:16px;accent-color:var(--green);cursor:pointer;flex-shrink:0;">
-            <label for="l-remember" style="font-size:.85rem;color:var(--text-mid);cursor:pointer;margin:0;line-height:1.2;">Ricordami su questo dispositivo</label>
-          </div>
           <div style="text-align:center;margin-bottom:10px;font-size:.85rem;color:var(--text-mid);">
             <strong>Prima volta?</strong><br>
             Avvia il bot Telegram 👉 <a href="https://t.me/infoSgas_bot" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600;">@infoSgas_bot</a>
@@ -3541,8 +3537,6 @@ function showLoginView(){
   document.getElementById('login-gas-name').innerHTML=gasNameHtml();
   document.getElementById('topbar-gas-name').textContent=S.config.gasName.split(' ')[0]||'S-GAS';
   showView('login');
-  const rememberCb = document.getElementById('l-remember');
-  if(rememberCb) rememberCb.checked = !!localStorage.getItem('sgas_remember_pref');
 
   // Rileva se siamo su /admin (Netlify) o ?admin (test locale)
   const isAdmin = window.location.hash==='#admin' || window.location.pathname==='/admin';
@@ -4142,11 +4136,9 @@ function socioResetLogin(){
 
 // Logica post-login condivisa (usata sia dall'OTP che dal metodo legacy)
 function _enterSocio(socio){
-  const rememberCb = document.getElementById('l-remember');
-  const rememberMe = rememberCb ? rememberCb.checked : false;
-  if(rememberMe) localStorage.setItem('sgas_remember_pref','1');
-  else localStorage.removeItem('sgas_remember_pref');
-  currentUser={type:'socio',...socio,_rememberMe:rememberMe};
+  // La sessione resta sempre ricordata sul dispositivo (fino a RICORDAMI_MS_SOCIO,
+  // vedi saveSession): niente più scelta da fare, per non creare confusione.
+  currentUser={type:'socio',...socio,_rememberMe:true};
   // Credenziali per il proxy di scrittura (tessera+cellulare verificati su Supabase).
   _setStateAuth({kind:'socio', tessera: socio.tessera, cellulare: socio.cellulare||socio.telefono||''});
   _fetchStateToken();
@@ -4167,14 +4159,12 @@ function _enterSocio(socio){
 // Login admin via OTP (tessera in ADMIN_TESSERE): entra nella vista admin
 // mantenendo la sessione Supabase OTP (abilita le scritture RLS via is_admin()).
 function _enterAdminViaOtp(socio){
-  const rememberCb = document.getElementById('l-remember');
-  const rememberMe = rememberCb ? rememberCb.checked : false;
-  if(rememberMe) localStorage.setItem('sgas_remember_pref','1');
-  else localStorage.removeItem('sgas_remember_pref');
+  // Sempre ricordata (fino a RICORDAMI_MS_ADMIN, vedi saveSession): vedi nota
+  // in _enterSocio.
   _adminOwnSocio = socio;  // socio Supabase dell'admin (per la Vista Tesserato)
   currentUser={type:'admin', viaOtp:true, id:socio.id,
                adminEmail:(socio.tessera||'').toLowerCase(),
-               nome:socio.nome||'', cognome:socio.cognome||'', _rememberMe:rememberMe};
+               nome:socio.nome||'', cognome:socio.cognome||'', _rememberMe:true};
   // L'admin via OTP è anche un tesserato: si autentica al proxy come socio.
   _setStateAuth({kind:'socio', tessera: socio.tessera, cellulare: socio.cellulare||socio.telefono||''});
   _fetchStateToken();
@@ -4330,7 +4320,9 @@ async function loginAdmin(){
     _storeStateToken(esito.token);
     _setLoginState(email, {});
     const tok = (crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now());
-    currentUser={type:'admin', adminEmail: email, _tok: tok};
+    // Sempre ricordata (fino a RICORDAMI_MS_ADMIN, vedi saveSession): vedi
+    // nota in _enterSocio.
+    currentUser={type:'admin', adminEmail: email, _tok: tok, _rememberMe:true};
     _sendAdminHeartbeat();
     saveSession();
     resetInactivityTimer();
