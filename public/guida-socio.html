@@ -207,7 +207,7 @@
     <div class="alert info">💬 Subito dopo «START BOT» arriva un messaggio di conferma con scritto il tuo <strong>Chat ID</strong>. Comunicalo all'assistenza: serve a collegare correttamente la tua tessera e a far sì che ricevi anche tu una copia dei tuoi ordini via Telegram.</div>
   </div></div>
 
-  <!-- Passo 1-4: inserisci dati + Ricordami -->
+  <!-- Passo 1-3: inserisci dati -->
   <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:24px 0 8px;">Passo 1 — Inserisci tessera e cellulare</div>
   <div class="mock">
     <div class="mock-hero">
@@ -231,12 +231,7 @@
       <div class="m-field focus">SGAS-00001 <span class="tag">← Tessera</span></div>
       <div class="m-label">Cellulare</div>
       <div class="m-field">es. 3331234567 <span class="tag">← Cellulare</span></div>
-      <div style="display:flex;align-items:center;gap:8px;margin:4px 0 12px;">
-        <input type="checkbox" style="width:14px;height:14px;accent-color:var(--green);flex-shrink:0;cursor:pointer;">
-        <span style="font-size:11px;color:#616161;line-height:1.2;">Ricordami su questo dispositivo</span>
-        <span class="tag-inline" style="font-size:10px;margin-left:auto;">← opzionale</span>
-      </div>
-      <div style="font-size:10px;color:#757575;text-align:center;margin:-6px 0 10px;"><strong>Prima volta?</strong><br>Avvia il bot Telegram 👉 <span style="color:#ff6f00;font-weight:700;">@infoSgas_bot</span></div>
+      <div style="font-size:10px;color:#757575;text-align:center;margin:4px 0 10px;"><strong>Prima volta?</strong><br>Avvia il bot Telegram 👉 <span style="color:#ff6f00;font-weight:700;">@infoSgas_bot</span></div>
       <div class="m-btn">📲 Ricevi codice su Telegram</div>
       <div class="tag-below" style="margin-top:4px;">↑ clikka per ricevere il codice</div>
       <div class="m-link">🔑 Non ricordo i codici di accesso</div>
@@ -254,18 +249,14 @@
   </div></div>
 
   <div class="step"><div class="step-num">3</div><div class="step-body">
-    <strong>Spunta «Ricordami su questo dispositivo» (opzionale)</strong>
-    <p>Se usi il tuo smartphone personale, spunta questa casella: la sessione resta attiva fino a 30 giorni anche dopo aver chiuso il browser, poi andrà rifatto il login (anche prima, se il telefono resta inattivo per oltre un'ora con l'app aperta).</p>
-    <div class="alert info">🔒 Non spuntare «Ricordami» su dispositivi condivisi o pubblici.</div>
-  </div></div>
-
-  <div class="step"><div class="step-num">4</div><div class="step-body">
     <strong>Premi «📲 Ricevi codice su Telegram»</strong>
     <p>L'app verifica i tuoi dati e ti invia su Telegram, tramite il bot <strong>@infoSgas_bot</strong>, un messaggio con un codice a 6 cifre <em>e</em> un bottone per entrare direttamente. Il codice vale <strong>5 minuti</strong>.</p>
     <div class="alert warn">❌ «Tessera o cellulare non trovati»? Controlla spazi ed errori di battitura, oppure usa il recupero qui sotto.</div>
   </div></div>
 
-  <!-- Passo 5-6: entra con un tap oppure col codice -->
+  <div class="alert info">💾 <strong>Resti collegato automaticamente</strong>, fino a 30 giorni su questo dispositivo: non dovrai inserire tessera e cellulare ogni volta. Esci prima solo se il telefono resta inattivo per oltre un'ora con l'app aperta, oppure premendo «Esci».</div>
+
+  <!-- Passo 4-5: entra con un tap oppure col codice -->
   <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:24px 0 8px;">Passo 2 — Entra (due modi)</div>
 
   <div class="alert ok" style="margin-bottom:14px;">🆕 <strong>Novità: entri con un tap.</strong> Nel messaggio Telegram, sotto il codice, trovi il bottone <strong>«✅ Sono io, entra»</strong>: premilo e l'app ti fa entrare da sola, senza copiare nulla. Il codice a 6 cifre resta comunque valido, se preferisci scriverlo.</div>
@@ -290,7 +281,7 @@
     </div>
   </div>
 
-  <div class="step"><div class="step-num">5</div><div class="step-body">
+  <div class="step"><div class="step-num">4</div><div class="step-body">
     <strong>Apri Telegram e premi «✅ Sono io, entra»</strong>
     <p>Non serve tornare nell'app né copiare il codice: la pagina rimasta aperta se ne accorge ed entra automaticamente in pochi secondi.</p>
     <div class="alert info">📱 Tieni l'app aperta in una scheda mentre premi il bottone su Telegram.</div>
@@ -312,7 +303,7 @@
     </div>
   </div>
 
-  <div class="step"><div class="step-num">6</div><div class="step-body">
+  <div class="step"><div class="step-num">5</div><div class="step-body">
     <strong>Oppure: scrivi le 6 cifre nell'app</strong>
     <p>Appena inserisci l'ultima cifra l'accesso parte da solo: <strong>non devi premere nessun pulsante</strong>. Il codice è valido <strong>5 minuti</strong>.</p>
     <div class="alert ok">✅ Sei dentro: si apre il catalogo!</div>
@@ -932,7 +923,7 @@
     <tbody>
       <tr><td>🆕 Verificare la versione</td><td>In piccolo sotto l'orologio nella schermata di accesso. Se qualcosa non funziona: chiudi del tutto l'app e riaprila</td></tr>
       <tr><td>🔑 Entrare</td><td><strong>Tessera + Cellulare</strong> → su Telegram premi <strong>«✅ Sono io, entra»</strong> (oppure scrivi le 6 cifre: entri alla sesta). Codice valido <strong>5 minuti</strong>.</td></tr>
-      <tr><td>💾 Restare connesso</td><td>Spunta «Ricordami su questo dispositivo» prima di premere «Ricevi codice»</td></tr>
+      <tr><td>💾 Restare connesso</td><td>Automatico: resti collegato fino a 30 giorni su questo dispositivo, senza fare nulla</td></tr>
       <tr><td>🔓 Recuperare i codici</td><td>«Non ricordo i codici di accesso» sotto il login</td></tr>
       <tr><td>📲 Installare l'app</td><td>Android: menu ⋮ → Installa · iPhone: Condividi → Aggiungi a Home · PC: icona ⊕ nella barra indirizzo</td></tr>
       <tr><td>🛒 Vedere raccolte aperte</td><td>Tab <strong>«🛒 Raccolte»</strong> nella barra laterale</td></tr>
