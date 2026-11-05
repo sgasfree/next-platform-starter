@@ -5539,6 +5539,7 @@ function renderGuidaAdmin(){
       <p style="color:var(--terra);"><strong>⚠️ Il separatore è il punto medio “·”, non un punto normale “.”</strong> — da mobile è scomodo da digitare, ma se scrivi un punto normale il prodotto si salva comunque, solo che perde la sezione e finisce fuori posto in cima al listino. Per sicurezza copia il separatore da qui:</p>
       <button class="btn btn-secondary btn-sm" onclick="copiaTesto(' · ', '✅ Separatore copiato — incollalo nel nome')">📋 Copia il separatore " · "</button>
       <p style="margin-top:10px;font-size:.85rem;color:var(--text-light);">Campo "Ordine": decide la posizione del prodotto (e di riflesso della sua sezione) nel listino. Senza numero va in coda, in ordine alfabetico.</p>
+      <p style="font-size:.85rem;color:var(--text-light);">Campo "Descrizione": testo facoltativo che compare sotto il nome di <strong>quel singolo prodotto</strong> (es. ingredienti, dosaggio, formato) — diverso da "Presentazione della sezione" e "Nota a fine elenco", che riguardano invece l'intera sezione di prodotti.</p>
       <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:12px;">
         <strong>💶 Campo "Prezzo (€)"</strong> — si scrive come lo diciamo a voce, con la <strong>virgola</strong> per i decimali: <em>15,60</em>. Va bene anche con il punto (<em>15.60</em>), col simbolo € davanti o con spazi: vengono ignorati automaticamente. Scrivendo solo <em>15,</em> vale 15,00 € e <em>,50</em> vale 0,50 €.
         <p style="margin:6px 0 0;color:var(--terra);">⚠️ Se il prezzo è vuoto o scritto in un modo che non si riesce a capire (es. lettere, due virgole...), il salvataggio si blocca con un avviso: <strong>non esiste un prodotto salvato a 0 € per errore</strong> — se lo vedi a 0 €, è stato scritto così apposta.</p>
@@ -5546,8 +5547,28 @@ function renderGuidaAdmin(){
     </div>
 
     <div class="card" style="margin-bottom:16px;">
-      <h3 style="margin-top:0;">🏪 Aggiungere un Fornitore</h3>
-      <p>Da <strong>Fornitori → + Nuovo Fornitore</strong>. Compila nome, categoria ed emoji: sono quelli che decidono dove compare nelle vetrine dei soci. Logo e banner sono facoltativi ma consigliati — un fornitore senza immagini resta comunque visibile, solo meno curato.</p>
+      <h3 style="margin-top:0;">🏪 Aggiungere / modificare un Fornitore</h3>
+      <p>Da <strong>Fornitori → + Nuovo Fornitore</strong> (o clicca su un fornitore esistente per modificarlo). Ecco tutti i campi del modulo:</p>
+
+      <p><strong>Logo</strong> (quadrato, ottimale 400×400px) e <strong>Banner</strong> (panoramico, ottimale 1200×400px) — facoltativi ma consigliati: un fornitore senza immagini resta comunque visibile, solo meno curato.</p>
+
+      <p><strong>Nome, Categoria ed Emoji</strong> — decidono dove compare il fornitore nelle vetrine dei soci (categoria = scheda/tab in cui è elencato).</p>
+
+      <p><strong>Zona / Città</strong> — es. <em>Varese, Lombardia</em>, compare sulla scheda sotto il nome.</p>
+
+      <p><strong>Descrizione</strong> — il testo di presentazione del fornitore (chi è, cosa produce), mostrato per intero sulla scheda.</p>
+
+      <p><strong>Caratteristiche</strong> — parole chiave separate da virgola (es. <em>Biologico, Km 0, Slow Food</em>): compaiono come tag ✓ sulla scheda del fornitore.</p>
+
+      <p><strong>Vision / Frase ispiratrice</strong> — una citazione breve, mostrata in corsivo su sfondo evidenziato: la filosofia del produttore in una frase.</p>
+
+      <p><strong>Link esterno</strong> (facoltativo) — un'etichetta + un indirizzo web, sempre visibile sulla scheda: utile per un gruppo Telegram dedicato, un sito, un modulo d'ordine esterno. Esempio: etichetta <em>Gruppo Telegram</em>, indirizzo <em>https://t.me/...</em>.</p>
+
+      <div class="alert info">
+        📞 <strong>"Contatto diretto (fornitore servizi)"</strong> — spunta questa casella per i fornitori <strong>senza prodotti a catalogo</strong> (es. un artigiano, un professionista): compaiono Nome referente, Telefono, WhatsApp (lascia vuoto se uguale al telefono), Email, Telegram (username senza @) e Indirizzo. Il tesserato vede un pulsante di contatto diretto invece del listino prodotti.
+      </div>
+
+      <p style="margin-top:10px;">🔄 <strong>Sospendere / Riattivare un fornitore</strong> — non si fa da questo modulo, ma dal pulsante <strong>⏸ Sospendi</strong> / <strong>▶ Riattiva</strong> nell'elenco Fornitori: un fornitore sospeso sparisce da vetrine e catalogo ma i suoi prodotti restano salvati, pronti per quando lo riattivi.</p>
     </div>
 
     <div class="card" style="margin-bottom:16px;">
@@ -5560,6 +5581,7 @@ function renderGuidaAdmin(){
     <div class="card">
       <h3 style="margin-top:0;">🗓️ Ultimi aggiornamenti alla Guida</h3>
       <ul style="padding-left:20px;line-height:1.7;">
+        <li><strong>05 nov 2026</strong> — Aggiunto il campo "Descrizione" al modulo Prodotto (prima esisteva solo nel database); descritti tutti i campi del modulo Fornitore, incluso "Contatto diretto" e come sospendere/riattivare un fornitore.</li>
         <li><strong>13 ott 2026</strong> — Aggiunta la spiegazione di come scrivere correttamente il campo Prezzo (virgola o punto, con o senza €).</li>
         <li><strong>13 ott 2026</strong> — Il salvataggio prodotto corregge da solo un punto "." scritto per errore al posto del separatore "·".</li>
         <li><strong>13 ott 2026</strong> — Il nome proposto per una nuova raccolta include già il numero di settimana corrente.</li>
