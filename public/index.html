@@ -6489,7 +6489,12 @@ function fornForm(f){
       ${S.categorie.map(cat=>`<option value="${cat.id}" ${f.categoria===cat.id?'selected':''}>${cat.ico} ${escHtml(cat.nome)}</option>`).join('')}
     </select></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-      <div class="field"><label for="m-femi">Emoji</label><input id="m-femi" type="text" value="${escHtml(f.emoji||'')}" placeholder="🏪"></div>
+      <div class="field"><label for="m-femi">Emoji</label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input id="m-femi" type="text" value="${escHtml(f.emoji||'')}" placeholder="🏪" style="flex:1;">
+          <button type="button" onclick="apriSelettoreEmoji('m-femi')" style="background:none;border:1.5px solid var(--border);border-radius:10px;cursor:pointer;font-size:1.1rem;padding:6px 10px;flex-shrink:0;" title="Scegli un'emoji">🎨</button>
+        </div>
+      </div>
 
     </div>
     <div class="field"><label for="m-fzona">Zona / Città</label><input id="m-fzona" type="text" value="${escHtml(f.zona||'')}" placeholder="es. Varese, Lombardia"></div>
@@ -8226,14 +8231,28 @@ const _EMOJI_CATEGORIE = [
   '🏠','🛒','🌻','🌳','🍃','✨','🌟','🎁'
 ];
 
+// Popup indipendente (non usa openModal/modal-body): il campo emoji può
+// trovarsi dentro un modulo già aperto in un modale (es. Nuovo Fornitore),
+// e openModal ne sovrascriverebbe il contenuto cancellando il modulo stesso.
 function apriSelettoreEmoji(targetInputId){
+  chiudiSelettoreEmoji();
   const griglia = _EMOJI_CATEGORIE.map(e =>
-    `<button type="button" onclick="document.getElementById('${targetInputId}').value='${e}';closeModal();"
+    `<button type="button" onclick="document.getElementById('${targetInputId}').value='${e}';chiudiSelettoreEmoji();"
        style="font-size:1.5rem;padding:8px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;">${e}</button>`
   ).join('');
-  openModal(`<h3>🎨 Scegli un'emoji</h3>
-    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;max-height:60vh;overflow-y:auto;">${griglia}</div>
-    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Chiudi</button></div>`);
+  const ov=document.createElement('div');
+  ov.id='emoji-picker-overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;';
+  ov.onclick=(e)=>{ if(e.target===ov) chiudiSelettoreEmoji(); };
+  ov.innerHTML=`<div style="background:#fff;border-radius:16px;padding:20px;max-width:360px;width:100%;max-height:80vh;overflow-y:auto;">
+    <h3 style="margin:0 0 12px;">🎨 Scegli un'emoji</h3>
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;">${griglia}</div>
+    <div style="text-align:right;margin-top:14px;"><button type="button" class="btn btn-secondary" onclick="chiudiSelettoreEmoji()">Chiudi</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+}
+function chiudiSelettoreEmoji(){
+  document.getElementById('emoji-picker-overlay')?.remove();
 }
 
 function addCategoria(){
