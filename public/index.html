@@ -6789,6 +6789,7 @@ function prodForm(p){
       <div class="field"><label>Codice articolo <span style="font-size:.72rem;color:var(--text-light);font-weight:400;">(opzionale, per riordino fornitore)</span></label><input id="m-pcod" type="text" value="${escHtml(p.codice||'')}" placeholder="es. 22-A"></div>
       <div class="field"><label>Ordine <span style="font-size:.72rem;color:var(--text-light);font-weight:400;">(opzionale, posto nella sezione)</span></label><input id="m-pord" type="number" step="1" value="${p.ordine===null||p.ordine===undefined?'':escHtml(String(p.ordine))}" placeholder="es. 1"></div>
     </div>
+    <div class="field"><label>Descrizione <span style="font-size:.72rem;color:var(--text-light);font-weight:400;">(facoltativa, compare sotto il nome di QUESTO prodotto)</span></label><textarea id="m-pdesc" rows="2" placeholder="es. Ecodetergente Olistico Liquido = Pietra di luna. Smacchiante, sgrassante, ammorbidente. 0,15 €/dose">${escHtml(p.descrizione||'')}</textarea></div>
     <div style="font-size:.72rem;color:var(--text-light);margin:-4px 0 4px;">Scrivi la sezione nel nome con il separatore <strong>&nbsp;·&nbsp;</strong> — es. <em>KRINOSAN 01 · Shampoo 250 ml</em>. Il numero in "Ordine" decide il posto del prodotto e, di riflesso, quello della sezione; senza numero il prodotto va in coda, in ordine alfabetico.</div>
     <div class="field"><label>Presentazione della sezione <span style="font-size:.72rem;color:var(--text-light);font-weight:400;">(facoltativa, si mostra sotto il titolo della sezione)</span></label><textarea id="m-psez" rows="3" placeholder="Testo che presenta la linea, come sul listino. Scrivilo sul primo prodotto della sezione.">${escHtml(p.sezioneDescrizione||'')}</textarea></div>
     <div class="field"><label>Nota a fine elenco <span style="font-size:.72rem;color:var(--text-light);font-weight:400;">(facoltativa)</span></label><textarea id="m-pnota" rows="2" placeholder="es. n.b. Il peso non è definibile con precisione. Vale per tutto il gruppo: basta scriverla su un prodotto qualunque.">${escHtml(p.sezioneNota||'')}</textarea></div>
@@ -6837,7 +6838,8 @@ async function saveProdotto(editId){
   const ordNum=ordEl?parseInt(ordEl.value,10):NaN;
   const ordine=isFinite(ordNum)?ordNum:null;
   const sezEl=document.getElementById('m-psez');
-  const data={fornitorId:document.getElementById('m-pforn').value,nome,prezzo,unita:document.getElementById('m-pun').value.trim(),codice:codEl?codEl.value.trim():'',ordine,sezioneDescrizione:sezEl?sezEl.value.trim():'',sezioneNota:(document.getElementById('m-pnota')||{}).value?document.getElementById('m-pnota').value.trim():''};
+  const descEl=document.getElementById('m-pdesc');
+  const data={fornitorId:document.getElementById('m-pforn').value,nome,prezzo,unita:document.getElementById('m-pun').value.trim(),codice:codEl?codEl.value.trim():'',ordine,descrizione:descEl?descEl.value.trim():'',sezioneDescrizione:sezEl?sezEl.value.trim():'',sezioneNota:(document.getElementById('m-pnota')||{}).value?document.getElementById('m-pnota').value.trim():''};
   let prod;
   if(editId){ prod=S.prodotti.find(x=>x.id===editId); if(prod) Object.assign(prod,data); }
   else{ prod={id:'p'+uid(),...data}; S.prodotti.push(prod); }
