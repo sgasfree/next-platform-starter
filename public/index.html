@@ -8155,6 +8155,9 @@ function _downloadCSV(rows, filename){
 }
 
 // ════════════════════ GESTIONE CATEGORIE ════════════════════
+// Id della categoria attualmente in modifica inline (icona/nome), o null.
+let _editingCatId=null;
+
 function renderCatListAdmin(){
   const el=document.getElementById('cat-list-admin');
   if(!el) return;
@@ -8162,13 +8165,51 @@ function renderCatListAdmin(){
     el.innerHTML='<p style="color:var(--text-light);font-size:.85rem;">Nessuna categoria definita.</p>';
     return;
   }
-  el.innerHTML=S.categorie.map((cat,i)=>`
+  el.innerHTML=S.categorie.map((cat,i)=>{
+    if(cat.id===_editingCatId){
+      return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);">
+        <input id="edit-cat-ico-${cat.id}" type="text" value="${escHtml(cat.ico||'')}" style="width:48px;font-size:1.2rem;text-align:center;padding:6px;border:1.5px solid var(--green-light);border-radius:10px;">
+        <input id="edit-cat-nome-${cat.id}" type="text" value="${escHtml(cat.nome)}" style="flex:1;min-width:100px;padding:6px 10px;border:1.5px solid var(--green-light);border-radius:10px;font-family:'Nunito',sans-serif;">
+        <button onclick="saveEditCategoria('${cat.id}')" style="background:none;border:none;cursor:pointer;color:var(--green);font-size:1.1rem;" title="Salva">✅</button>
+        <button onclick="cancelEditCategoria()" style="background:none;border:none;cursor:pointer;color:var(--text-light);font-size:1rem;" title="Annulla">✕</button>
+      </div>`;
+    }
+    return `
     <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
       <span style="font-size:1.4rem;">${cat.ico}</span>
       <span style="flex:1;font-weight:700;font-size:.9rem;">${escHtml(cat.nome)}</span>
       <span style="font-size:.75rem;color:var(--text-light);background:var(--green-pale);padding:2px 8px;border-radius:20px;">${S.fornitori.filter(f=>f.categoria===cat.id).length} fornitori</span>
+      <button onclick="editCategoria('${cat.id}')" style="background:none;border:none;cursor:pointer;color:var(--text-mid);font-size:1rem;" title="Modifica icona/nome">✏️</button>
       ${S.categorie.length>1?`<button onclick="deleteCategoria('${cat.id}')" style="background:none;border:none;cursor:pointer;color:var(--terra);font-size:1rem;" title="Elimina">🗑</button>`:''}
-    </div>`).join('');
+    </div>`;
+  }).join('');
+}
+
+function editCategoria(id){
+  _editingCatId=id;
+  renderCatListAdmin();
+}
+
+function cancelEditCategoria(){
+  _editingCatId=null;
+  renderCatListAdmin();
+}
+
+function saveEditCategoria(id){
+  const cat=S.categorie.find(c=>c.id===id);
+  if(!cat) return;
+  const ico=(document.getElementById('edit-cat-ico-'+id).value.trim()||'📦');
+  const nome=document.getElementById('edit-cat-nome-'+id).value.trim();
+  if(!nome){toast('Il nome della categoria non può essere vuoto');return;}
+  if(S.categorie.find(c=>c.id!==id&&c.nome.toLowerCase()===nome.toLowerCase())){
+    toast('Esiste già un\'altra categoria con questo nome');return;
+  }
+  cat.ico=ico; cat.nome=nome;
+  saveState();
+  _editingCatId=null;
+  renderCatListAdmin();
+  renderCatSidebar();
+  toast('✅ Categoria aggiornata');
 }
 
 function addCategoria(){
