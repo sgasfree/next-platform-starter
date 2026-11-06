@@ -760,7 +760,10 @@ export const handler = async (event) => {
           else if(String(ordini[i].socioId) === sub) ordini[i] = resto;
         });
       remoteState.ordini = ordini;
-      remoteState._savedAt = Date.now();
+      // Sempre più recente dell'ultimo salvataggio, anche se l'ha fatto un
+      // telefono con l'orologio avanti: altrimenti i dispositivi aperti
+      // scarterebbero l'aggiornamento come "vecchio" (vedi realtime nel client).
+      remoteState._savedAt = Math.max(Date.now(), (Number(remoteState._savedAt) || 0) + 1);
       const resS = await upsertConfigRow(SUPA_URL, SUPA_KEY, STATE_KEY, remoteState);
       if(!resS.ok) return json(502, { ok:false, error:'Scrittura fallita' });
       return json(200, { ok:true });

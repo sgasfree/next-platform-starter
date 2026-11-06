@@ -2824,7 +2824,27 @@ function _subscribeSupabaseRealtime(){
           const _rtCart = (S.cart && Array.isArray(S.cart.items)) ? S.cart : null;
           // Le raccolte vivono nella tabella dedicata, non nel blob.
           const _rtRacc = Array.isArray(S.raccolte) ? S.raccolte : null;
+          // Tesserati, messaggi e prenotazioni non viaggiano MAI nel blob (dati
+          // personali, lettura pubblica): sostituire S senza conservarli li
+          // azzerava a ogni ordine inviato da qualcuno — sezione Tesserati
+          // vuota e dashboard bloccata in errore su S.soci.length.
+          const _rtSoci    = Array.isArray(S.soci) ? S.soci : null;
+          const _rtMsg     = Array.isArray(S.messaggi) ? S.messaggi : null;
+          const _rtOrdPren = Array.isArray(S.ordiniPrenotazione) ? S.ordiniPrenotazione : null;
+          const _rtOrdini  = Array.isArray(S.ordini) ? S.ordini : [];
           S = remote;
+          S.soci = _rtSoci || (Array.isArray(S.soci) ? S.soci : []);
+          S.messaggi = _rtMsg || (Array.isArray(S.messaggi) ? S.messaggi : []);
+          S.ordiniPrenotazione = _rtOrdPren || (Array.isArray(S.ordiniPrenotazione) ? S.ordiniPrenotazione : []);
+          // Ordini: nel blob c'è solo una copia anonima. Si tengono quelli già
+          // in memoria (completi) e l'admin aggiunge i nuovi arrivati; il
+          // tesserato tiene soltanto i propri.
+          if(currentUser && currentUser.type==='admin'){
+            const _gia = new Set(_rtOrdini.map(o=>o && o.id));
+            S.ordini = _rtOrdini.concat((Array.isArray(S.ordini)?S.ordini:[]).filter(o=>o && o.id && !_gia.has(o.id)));
+          } else {
+            S.ordini = _rtOrdini;
+          }
           S.config.supabasePaused = _prev.supabasePaused===true;
           S.config.supabaseUrl    = _prev.supabaseUrl||'';
           S.config.supabaseKey    = _prev.supabaseKey||'';
@@ -2848,8 +2868,10 @@ function _subscribeSupabaseRealtime(){
           // rispetto alle tabelle. Vanno riletti da lì, altrimenti una modifica
           // appena fatta da un altro admin (per esempio una spunta di
           // disponibilità) verrebbe sostituita dalla versione vecchia.
+          // Gli ordini veri (con i nomi) stanno nella tabella: chi ha la sessione
+          // OTP li rilegge da lì; senza sessione la funzione non fa nulla.
           try{
-            Promise.all([sincronizzaRaccolte(), sincronizzaCatalogo()]).then(()=>{
+            Promise.all([sincronizzaRaccolte(), sincronizzaCatalogo(), loadOrdiniFromSupabase()]).then(()=>{
               try{
                 localStorage.setItem('sgas_state', JSON.stringify(S));
                 _aggiornaVisteAperte();
@@ -5563,7 +5585,27 @@ function adminNav(sec){
   const panels={dashboard:renderDashboard,soci:renderSoci,fornitori:renderFornitori_admin,prodotti:renderProdotti_admin,raccolte:renderRaccolte,ordini:renderOrdini,prenotazioni:renderPrenotazioni,messaggi:renderAdminMsgList,settings:renderSettings,chisiamo:()=>renderChiSiamo('admin'),guida:renderGuidaAdmin};
   window._currentAdminSec = sec;
   if(panels[sec]) panels[sec]();
+  if(sec==='dashboard' || sec==='ordini' || sec==='soci') _ricaricaDatiAdmin(sec);
   if(window.innerWidth<=700) closeSidebar();
+}
+
+// Dashboard, Ordini e Tesserati mostrano dati che altri dispositivi cambiano
+// di continuo (nuovi ordini, nuovi tesserati). Prima si vedeva la copia
+// caricata all'accesso finché non si ricaricava la pagina: entrando nella
+// sezione ora si rilegge dal server e la si ridisegna.
+let _ricaricaAdminInCorso=false;
+async function _ricaricaDatiAdmin(sec){
+  if(_ricaricaAdminInCorso) return;
+  _ricaricaAdminInCorso=true;
+  try{
+    // Con la sessione OTP rilegge ordini e tesserati dalle tabelle; senza
+    // (email+password) gli ordini non sono leggibili, i tesserati sì via proxy.
+    const ok = await loadOrdiniFromSupabase();
+    if(!ok) await loadSociFromSupabase();
+    const ridisegna = {dashboard:renderDashboard, ordini:renderOrdini, soci:renderSoci}[sec];
+    if(ridisegna && window._currentAdminSec===sec) ridisegna();
+  }catch(e){ console.warn('Ricarica dati admin:', e); }
+  finally{ _ricaricaAdminInCorso=false; }
 }
 
 function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');}
