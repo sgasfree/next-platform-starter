@@ -4124,6 +4124,28 @@ async function _otpPollTick(){
 // subito, senza aspettare il tick successivo.
 document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && _otpPollTimer) _otpPollTick(); });
 
+// ════════ TASTO "INDIETRO" DEL TELEFONO ════════
+// L'app è tutta UNA pagina: spostarsi tra catalogo, fornitore, carrello,
+// pannello admin ecc. non crea mai una voce nella cronologia del browser
+// (nessun pushState). Senza questo accorgimento, appena la cronologia resta
+// senza voci "indietro" diventa imprevedibile: a volte esce dall'app, a
+// volte la lascia bloccata su una schermata vuota/non reattiva (un
+// problema noto delle PWA installate, segnalato più volte).
+// Rimedio: si tiene SEMPRE almeno una voce di cronologia "di scorta". Ogni
+// volta che il tasto indietro la consuma, prima si richiude qualunque
+// modale/popup aperto (comportamento atteso: indietro chiude il dialogo),
+// poi la si rimpiazza subito — così il tasto indietro non lascia mai
+// l'app in uno stato a metà.
+history.pushState({sgas:true}, '', location.href);
+window.addEventListener('popstate', ()=>{
+  try{ chiudiSelettoreEmoji(); }catch(e){}
+  try{
+    const overlay=document.getElementById('modal-overlay');
+    if(overlay && overlay.classList.contains('open')) closeModal();
+  }catch(e){}
+  history.pushState({sgas:true}, '', location.href);
+});
+
 function socioResetLogin(){
   const s2=document.getElementById('login-socio-step2');
   const s1=document.getElementById('login-socio-step1');
