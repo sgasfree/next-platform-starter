@@ -3,7 +3,7 @@
 //
 // Scopo: la tabella `config` non deve più accettare scritture dirette con la
 // anon key (pubblica). Ogni salvataggio passa da qui: la function verifica il
-// chiamante (admin via email+password, oppure tesserato via tessera+cellulare)
+// chiamante (admin via email+password, oppure tesserato con sessione OTP)
 // e scrive con la SERVICE_ROLE key, che bypassa la RLS.
 //
 // Env richieste: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, STATE_TOKEN_SECRET
@@ -54,7 +54,6 @@ const normTessera = s => String(s || '').toUpperCase()
   .replace(/[^A-Z0-9]/g, '')
   .replace(/([A-Z])0+(\d)/g, '$1$2');
 
-const normTel = s => String(s || '').replace(/[\s\-]/g, '');
 
 // Verifica una password contro un hash "pbkdf2:<salt_hex>:<hash_hex>"
 // (stessi parametri del client: PBKDF2 SHA-256, 100000 iterazioni, 32 byte).
@@ -210,16 +209,25 @@ export const handler = async (event) => {
       return json(200, { ok:true, token: signToken(SECRET, { role:'admin', sub:email, exp: Date.now()+ADMIN_TOKEN_TTL_MS }) });
     }
     if(kind === 'socio'){
-      const tess = normTessera(body.tessera);
-      const tel  = normTel(body.cellulare);
-      if(!tess || !tel) return json(400, { ok:false, error:'Credenziali mancanti' });
-      // Cerca il socio via service_role e confronta tessera normalizzata + cellulare
-      const res = await sbFetch(SUPA_URL, SUPA_KEY, `/rest/v1/soci?select=id,tessera,cellulare`);
+      // Il token si ottiene SOLO presentando la sessione Supabase aperta dal
+      // codice Telegram (OTP). Prima bastavano tessera + cellulare: chi li
+      // conosceva — e la tessera di un admin compare anche negli esempi della
+      // guida — riceveva un token da ADMIN senza mai passare dal codice.
+      const accessToken = String(body.access_token || '').trim();
+      if(!accessToken) return json(401, { ok:false, error:'Sessione mancante: rientra con il codice Telegram' });
+      const ures = await fetch(`${SUPA_URL}/auth/v1/user`, {
+        headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${accessToken}` }
+      }).catch(()=>null);
+      if(!ures || !ures.ok) return json(401, { ok:false, error:'Sessione scaduta o non valida: rientra con il codice Telegram' });
+      const user = await ures.json().catch(()=>null);
+      const uid = user && user.id;
+      if(!uid) return json(401, { ok:false, error:'Sessione non valida' });
+      const res = await sbFetch(SUPA_URL, SUPA_KEY,
+        `/rest/v1/soci?select=id,tessera&user_id=eq.${encodeURIComponent(uid)}&limit=1`);
       if(!res.ok) return json(500, { ok:false, error:'Lettura soci fallita' });
-      const soci = await res.json();
-      const match = Array.isArray(soci) && soci.find(s =>
-        normTessera(s.tessera) === tess && normTel(s.cellulare) === tel);
-      if(!match) return json(401, { ok:false, error:'Tesserato non riconosciuto' });
+      const soci = await res.json().catch(()=>null);
+      const match = Array.isArray(soci) ? soci[0] : null;
+      if(!match) return json(401, { ok:false, error:'Tesserato non collegato a questa sessione' });
       // Un admin che entra col codice Telegram si identifica qui come tesserato:
       // se la sua tessera è fra quelle admin (ADMIN_TESSERE — la stessa fonte
       // che gli apre il pannello admin al login OTP) il token vale come admin,
@@ -732,6 +740,35 @@ export const handler = async (event) => {
     // svuotare un campo credenziale che sul server è già valorizzato.
     const CRED_KEYS = ['adminEmail','adminPassword','adminEmail2','adminPassword2','adminEmail3','adminPassword3'];
     const remoteState = await readConfigState(SUPA_URL, SUPA_KEY);
+
+    // Un tesserato non riscrive il documento condiviso: prima poteva cambiare
+    // impostazioni (es. l'email che riceve gli ordini di tutti), categorie e
+    // copie di riserva. Gli serve solo aggiungere i PROPRI ordini alla copia
+    // di riserva: si parte dallo stato del server e si uniscono soltanto
+    // quelli, senza i dati personali, e mai sopra l'ordine di un altro.
+    if(payload.role !== 'admin'){
+      if(!remoteState || !remoteState.config)
+        return json(409, { ok:false, error:'Stato remoto non disponibile' });
+      const sub = String(payload.sub);
+      const ordini = Array.isArray(remoteState.ordini) ? remoteState.ordini.slice() : [];
+      (Array.isArray(parsed.ordini) ? parsed.ordini : [])
+        .filter(o => o && o.id && String(o.socioId) === sub)
+        .forEach(o => {
+          const { socioNome, socioCognome, socioCellulare, socioTelegram, socioTessera, ...resto } = o;
+          const i = ordini.findIndex(x => x && x.id === resto.id);
+          if(i < 0) ordini.push(resto);
+          else if(String(ordini[i].socioId) === sub) ordini[i] = resto;
+        });
+      remoteState.ordini = ordini;
+      // Sempre più recente dell'ultimo salvataggio, anche se l'ha fatto un
+      // telefono con l'orologio avanti: altrimenti i dispositivi aperti
+      // scarterebbero l'aggiornamento come "vecchio" (vedi realtime nel client).
+      remoteState._savedAt = Math.max(Date.now(), (Number(remoteState._savedAt) || 0) + 1);
+      const resS = await upsertConfigRow(SUPA_URL, SUPA_KEY, STATE_KEY, remoteState);
+      if(!resS.ok) return json(502, { ok:false, error:'Scrittura fallita' });
+      return json(200, { ok:true });
+    }
+
     const remoteCfg = (remoteState && remoteState.config) || {};
     let credsProtected = false;
     CRED_KEYS.forEach(k=>{
