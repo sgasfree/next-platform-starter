@@ -6237,6 +6237,7 @@ function saveSocio(editId){
   const sca=document.getElementById('m-sca').value;
   if(!tess||!tel){toast('Tessera e cellulare obbligatori');return;}
   if(isTesseraUsata(tess, editId||null)){toast('❌ Numero tessera già in uso!');return;}
+  _invalidaLettureSoci();
   let saved;
   if(editId){
     saved=S.soci.find(x=>x.id===editId);
@@ -6256,6 +6257,7 @@ function deleteSocio(id){
   if(!currentUser||currentUser.type!=='admin'){toast('❌ Accesso negato');return;}
   if(!_requireOtp('eliminare un tesserato')) return;
   if(!confirm('Eliminare questo tesserato?')) return;
+  _invalidaLettureSoci();
   S.soci=S.soci.filter(s=>s.id!==id);
   saveState(); _renderSociTable(); toast('Tesserato eliminato');
   _deleteSocioFromSupabase(id)
@@ -8851,7 +8853,16 @@ async function _deleteOrdinePrenotazioneFromSupabase(id){
 // Legge l'anagrafica soci da Supabase e popola S.soci (in memoria, mai
 // persistita nel blob pubblico). RLS: il socio vede solo la propria riga,
 // l'admin le vede tutte.
+// Ogni lettura dei tesserati prende un numero, e anche ogni modifica fatta
+// dall'admin ne consuma uno (_invalidaLettureSoci). Una lettura partita prima
+// di una modifica o di una lettura più recente arriva con dati vecchi: su rete
+// lenta rientrava DOPO il salvataggio e rimetteva a schermo il valore di prima
+// (il Chat ID appena inserito spariva, pur essendo salvato nel database).
+let _sociSeq = 0;
+function _invalidaLettureSoci(){ _sociSeq++; }
+
 async function loadSociFromSupabase(){
+  const mia = ++_sociSeq;
   const sb = getAuthSb();
   let session;
   if(sb){ try{ session = (await sb.auth.getSession()).data.session; }catch(e){} }
@@ -8859,18 +8870,21 @@ async function loadSociFromSupabase(){
   if(session){
     try{
       const { data, error } = await sb.from('soci').select('*').order('tessera');
-      if(!error && data && data.length){ S.soci = data.map(_socioRowToBlob); return true; }
+      if(!error && data && data.length){
+        if(mia !== _sociSeq) return false;
+        S.soci = data.map(_socioRowToBlob); return true;
+      }
     }catch(e){ console.warn('loadSociFromSupabase error:', e); }
   }
   // Senza sessione (admin email+password): l'anagrafica non è nel file pubblico
   // e la RLS blocca la lettura anon → recupera i tesserati via proxy autenticato.
-  return await _loadSociViaProxy();
+  return await _loadSociViaProxy(mia);
 }
 
 // Carica i tesserati tramite la Netlify Function state-save (azione 'soci-list'),
 // che verifica il token admin e legge con la service_role. Usato dagli admin
 // email+password, che non hanno una sessione Supabase.
-async function _loadSociViaProxy(){
+async function _loadSociViaProxy(mia){
   const token = await _getStateToken();
   if(!token) return false;
   try{
@@ -8881,6 +8895,7 @@ async function _loadSociViaProxy(){
     if(!res.ok){ if(res.status===401) _clearStateToken(); return false; }
     const data = await res.json().catch(()=>null);
     if(data && data.ok && Array.isArray(data.soci) && data.soci.length){
+      if(mia !== _sociSeq) return false;
       S.soci = data.soci.map(_socioRowToBlob);
       return true;
     }
