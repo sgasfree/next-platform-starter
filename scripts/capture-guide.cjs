@@ -212,6 +212,10 @@ async function main() {
     const mf = [];
     await pg.evaluate((oc) => { const el = Array.from(document.querySelectorAll('[onclick]')).find(e => e.getAttribute('onclick') === oc); if(el) el.click(); }, msgBtn.onclick);
     await sleep(900);
+    // Lo stato dell'admin si legge online: qui la lettura non parte e
+    // resterebbe "verifica stato...". Nella guida si mostra come lo vede
+    // un tesserato quando un admin è collegato.
+    await pg.evaluate(() => { const st = document.getElementById('admin-presence-status'); if (st) st.innerHTML = '<span style="color:#43a047;">●</span> Disponibile'; });
     mf.push(await pg.screenshot({ type:'png' }));
     await shot(pg, '11-messaggi.png');
 
