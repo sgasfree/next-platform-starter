@@ -495,12 +495,13 @@ tr:hover td{background:var(--green-pale);}
   /* Barra del tesserato: logo, 7 icone, Esci (e per l'admin "Torna ad Admin")
      non stavano in una riga: a 360-412 px il contenuto arrivava a 415-476 px
      e l'ultimo pulsante finiva fuori dalla barra verde (Esci "bianco"). Qui
-     il nome accanto al logo sparisce, Esci e Admin diventano icone come le
+     il nome va sotto il logo, Esci e Admin diventano icone come le
      altre e tutte si dividono la larghezza, restringendosi se serve. Niente
      overflow:hidden sulla barra: taglierebbe la tendina di Aiuto. */
   #view-socio .topbar{gap:2px;padding:8px 6px;}
-  #view-socio .topbar .logo{display:none;}
-  #view-socio #topbar-logo-wrap{flex:0 0 auto;}
+  #view-socio #topbar-logo-wrap{flex:0 0 auto;flex-direction:column;gap:1px !important;}
+  #view-socio #topbar-logo-img{width:28px !important;height:28px !important;}
+  #view-socio .topbar .logo{flex:0 0 auto;font-size:.62rem;font-weight:700;line-height:1;}
   #view-socio .topbar-icon,#view-socio .assist-wrap,#view-socio .topbar-btn{flex:1 1 auto;min-width:0;justify-content:center;}
   #view-socio .topbar-icon{padding:3px 1px;}
   #view-socio .topbar-icon .ti-label{max-width:100%;overflow:hidden;text-overflow:ellipsis;}
