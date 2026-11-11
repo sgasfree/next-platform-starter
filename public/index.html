@@ -2998,6 +2998,17 @@ let currentUser=null;
 // stretto, perché l'accesso vale su tutto il gruppo.
 const RICORDAMI_MS_ADMIN  =  7 * 24 * 60 * 60 * 1000;   // 7 giorni
 const RICORDAMI_MS_SOCIO  = 30 * 24 * 60 * 60 * 1000;   // 30 giorni
+// Admin entrato con email e password: resta ricordato quanto dura il suo
+// permesso di scrittura (il token del proxy, 8 ore). La password non viene
+// conservata sul dispositivo, quindi oltre quel limite il pannello si
+// riaprirebbe senza poter salvare nulla: meglio richiedere l'accesso.
+const RICORDAMI_MS_ADMIN_PW = 8 * 60 * 60 * 1000;      // 8 ore
+
+// Contenuto (non verificato) di un token del proxy: ruolo, utente, scadenza.
+function _datiToken(t){
+  try{ return JSON.parse(atob(String(t).split('.')[0].replace(/-/g,'+').replace(/_/g,'/'))) || null; }
+  catch(e){ return null; }
+}
 
 function saveSession(){
   try{
@@ -3005,8 +3016,13 @@ function saveSession(){
       const tok = currentUser._tok || (crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now());
       currentUser._tok = tok;
       if(!currentUser._rememberMe) sessionStorage.setItem('sgas_live_tok', tok);
-      const durata = currentUser.type==='admin' ? RICORDAMI_MS_ADMIN : RICORDAMI_MS_SOCIO;
-      localStorage.setItem('sgas_usr_tok',JSON.stringify({type:currentUser.type, viaOtp:!!currentUser.viaOtp, adminEmail:currentUser.adminEmail||'', socioId:currentUser.id||'', _tok:tok, rememberMe:!!currentUser._rememberMe, exp: currentUser._rememberMe ? Date.now()+durata : 0}));
+      const adminPw = currentUser.type==='admin' && !currentUser.viaOtp;
+      const durata = currentUser.type!=='admin' ? RICORDAMI_MS_SOCIO
+                   : (currentUser.viaOtp ? RICORDAMI_MS_ADMIN : RICORDAMI_MS_ADMIN_PW);
+      let exp = currentUser._rememberMe ? Date.now()+durata : 0;
+      // Mai oltre la scadenza del permesso di scrittura appena ricevuto.
+      if(exp && adminPw && _stateTokenExp) exp = Math.min(exp, _stateTokenExp);
+      localStorage.setItem('sgas_usr_tok',JSON.stringify({type:currentUser.type, viaOtp:!!currentUser.viaOtp, adminEmail:currentUser.adminEmail||'', socioId:currentUser.id||'', _tok:tok, rememberMe:!!currentUser._rememberMe, exp}));
     } else {
       sessionStorage.removeItem('sgas_live_tok');
       localStorage.removeItem('sgas_usr_tok');
@@ -3049,11 +3065,17 @@ function restoreSession(){
       const ok1=ses.adminEmail===S.config.adminEmail.toLowerCase();
       const ok2=S.config.adminEmail2 && ses.adminEmail===S.config.adminEmail2.toLowerCase();
       const ok3=S.config.adminEmail3 && ses.adminEmail===S.config.adminEmail3.toLowerCase();
-      // Verifica token di sessione — deve corrispondere a quello generato al login
+      // Sessione ricordata (fino a 8 ore): vale finché c'è ancora il permesso
+      // di scrittura ottenuto con la password, rilasciato a questo stesso admin.
+      // Senza quel permesso il pannello si aprirebbe ma non salverebbe nulla.
+      const dt = _stateToken && Date.now() < _stateTokenExp ? _datiToken(_stateToken) : null;
+      const ricordataOk = !!ses.rememberMe && !!dt && dt.role==='admin'
+                          && String(dt.sub||'').toLowerCase() === String(ses.adminEmail||'').toLowerCase();
+      // Altrimenti: token di sessione della scheda, generato al login.
       const liveTok = sessionStorage.getItem('sgas_live_tok');
-      const tokOk = ses._tok && liveTok && ses._tok === liveTok;
+      const tokOk = ricordataOk || (ses._tok && liveTok && ses._tok === liveTok);
       if((ok1||ok2||ok3) && tokOk){
-        currentUser={type:'admin', adminEmail:ses.adminEmail, _tok:ses._tok};
+        currentUser={type:'admin', adminEmail:ses.adminEmail, _tok:ses._tok, _rememberMe:!!ses.rememberMe};
         resetInactivityTimer();
         updateSidebarName();
         applyLogo();
@@ -3094,15 +3116,24 @@ function restoreSession(){
 let currentTab='_raccolte';
 let _prevTab=null;
 
-// ════════ AUTO-LOGOUT PER INATTIVITÀ (1 ora) ════════
-const INACTIVITY_LIMIT = 60 * 60 * 1000; // 1 ora in ms
+// ════════ AUTO-LOGOUT PER INATTIVITÀ ════════
+// Con l'app aperta e nessun tocco: i tesserati escono dopo 24 ore, gli admin
+// (anche quando guardano la Vista Tesserato) dopo 1 ora, perché il loro
+// accesso vale su tutto il gruppo.
+const INACTIVITY_LIMIT_SOCIO = 24 * 60 * 60 * 1000; // 24 ore
+const INACTIVITY_LIMIT_ADMIN =      60 * 60 * 1000; // 1 ora
 const WARNING_BEFORE   =  2 * 60 * 1000; // avviso 2 minuti prima
+function _limiteInattivita(){
+  return (currentUser && currentUser.type==='socio' && !currentUser._fromAdmin)
+    ? INACTIVITY_LIMIT_SOCIO : INACTIVITY_LIMIT_ADMIN;
+}
 let _inactivityTimer = null;
 let _warningTimer    = null;
 let _warningToast    = null;
 
 function resetInactivityTimer(){
   if(!currentUser) return;
+  const limite = _limiteInattivita();
   clearTimeout(_inactivityTimer);
   clearTimeout(_warningTimer);
   // Rimuovi eventuale avviso
@@ -3114,9 +3145,9 @@ function resetInactivityTimer(){
     _warningToast.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#e65100;color:#fff;padding:14px 24px;border-radius:16px;font-size:.9rem;font-weight:700;z-index:9999;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.3);max-width:320px;';
     _warningToast.innerHTML='⏱ Sessione in scadenza!<br><span style="font-weight:400;font-size:.8rem;">Tocca lo schermo per rimanere connesso</span>';
     document.body.appendChild(_warningToast);
-  }, INACTIVITY_LIMIT - WARNING_BEFORE);
+  }, limite - WARNING_BEFORE);
 
-  // Logout automatico dopo 1 ora
+  // Logout automatico allo scadere del limite
   _inactivityTimer = setTimeout(()=>{
     if(!currentUser) return;
     if(_warningToast){ _warningToast.remove(); _warningToast=null; }
@@ -3127,7 +3158,7 @@ function resetInactivityTimer(){
     document.body.appendChild(t);
     setTimeout(()=>t.remove(), 3000);
     logout();
-  }, INACTIVITY_LIMIT);
+  }, limite);
 }
 
 function stopInactivityTimer(){
@@ -4412,8 +4443,8 @@ async function loginAdmin(){
     _storeStateToken(esito.token);
     _setLoginState(email, {});
     const tok = (crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now());
-    // Sempre ricordata (fino a RICORDAMI_MS_ADMIN, vedi saveSession): vedi
-    // nota in _enterSocio.
+    // Sempre ricordata (fino a RICORDAMI_MS_ADMIN_PW, cioè quanto il token
+    // appena ricevuto, vedi saveSession): vedi nota in _enterSocio.
     currentUser={type:'admin', adminEmail: email, _tok: tok, _rememberMe:true};
     _sendAdminHeartbeat();
     saveSession();
