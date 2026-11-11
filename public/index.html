@@ -221,6 +221,9 @@ h1,h2,h3,h4{font-family:var(--font-serif,serif);}
 .topbar .logo span{color:#a5d6a7;}
 .topbar-btn{background:rgba(255,255,255,.15);border:none;color:#fff;padding:7px 14px;border-radius:20px;cursor:pointer;font-family:'Nunito',sans-serif;font-size:.85rem;font-weight:700;transition:.2s;}
 .topbar-btn:hover{background:rgba(255,255,255,.25);}
+.topbar-admin{background:var(--terra);}
+.topbar-admin .tb-ico{margin-right:4px;}
+.topbar-admin .tb-corto,.topbar-esci .tb-ico{display:none;}
 .topbar-icon{background:none;border:none;color:#fff;cursor:pointer;font-size:1.3rem;padding:4px 6px;position:relative;display:flex;flex-direction:column;align-items:center;gap:1px;}
 .topbar-icon .ti-label{font-size:.58rem;font-family:'Nunito',sans-serif;font-weight:700;line-height:1;white-space:nowrap;opacity:.9;}
 .badge{position:absolute;top:0;right:0;background:var(--terra);color:#fff;border-radius:50%;width:18px;height:18px;font-size:.65rem;display:flex;align-items:center;justify-content:center;font-weight:800;}
@@ -489,6 +492,23 @@ tr:hover td{background:var(--green-pale);}
   .topbar-btn{padding:5px 10px;font-size:.75rem;}
   #topbar-logo-wrap{gap:6px !important;}
   #topbar-logo-img{width:30px !important;height:30px !important;}
+  /* Barra del tesserato: logo, 7 icone, Esci (e per l'admin "Torna ad Admin")
+     non stavano in una riga: a 360-412 px il contenuto arrivava a 415-476 px
+     e l'ultimo pulsante finiva fuori dalla barra verde (Esci "bianco"). Qui
+     il nome accanto al logo sparisce, Esci e Admin diventano icone come le
+     altre e tutte si dividono la larghezza, restringendosi se serve. Niente
+     overflow:hidden sulla barra: taglierebbe la tendina di Aiuto. */
+  #view-socio .topbar{gap:2px;padding:8px 6px;}
+  #view-socio .topbar .logo{display:none;}
+  #view-socio #topbar-logo-wrap{flex:0 0 auto;}
+  #view-socio .topbar-icon,#view-socio .assist-wrap,#view-socio .topbar-btn{flex:1 1 auto;min-width:0;justify-content:center;}
+  #view-socio .topbar-icon{padding:3px 1px;}
+  #view-socio .topbar-icon .ti-label{max-width:100%;overflow:hidden;text-overflow:ellipsis;}
+  #view-socio .topbar-btn{display:flex;flex-direction:column;align-items:center;gap:1px;padding:3px 2px;font-size:1.05rem;border-radius:10px;background:none;}
+  #view-socio .topbar-admin{background:var(--terra);}
+  #view-socio .topbar-btn .tb-ico{display:inline;margin:0;}
+  #view-socio .topbar-btn .tb-txt,#view-socio .topbar-admin .tb-corto{display:inline;font-size:.52rem;line-height:1;opacity:.9;white-space:nowrap;}
+  #view-socio .topbar-admin .tb-lungo{display:none;}
   /* Banner "Raccolta aperta" nella scheda fornitore: il bottone "Vai al
      carrello" va sotto, a riga piena, invece di schiacciare il testo in
      una colonna strettissima (nome raccolta, ritiro e countdown finivano
@@ -767,8 +787,8 @@ tr:hover td{background:var(--green-pale);}
       <span>📖</span>
       <span class="ti-label">Guida</span>
     </a>
-    <button class="topbar-btn" id="socio-back-admin-btn" style="display:none;background:var(--terra);" onclick="adminBackToPanel()">🔐 Torna ad Admin</button>
-    <button class="topbar-btn" onclick="logout()">Esci</button>
+    <button class="topbar-btn topbar-admin" id="socio-back-admin-btn" style="display:none;" onclick="adminBackToPanel()" title="Torna ad Admin"><span class="tb-ico">🔐</span><span class="tb-lungo">Torna ad Admin</span><span class="tb-corto">Admin</span></button>
+    <button class="topbar-btn topbar-esci" onclick="logout()" title="Esci"><span class="tb-ico">🚪</span><span class="tb-txt">Esci</span></button>
   </div>
 
   <!-- Catalogo -->
