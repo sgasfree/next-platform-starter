@@ -10510,7 +10510,7 @@ function _renderPrenotazioniSocioInner(){
         <strong style="color:var(--green-main);">✅ Hai già prenotato</strong>
         <div style="font-size:.85rem;margin-top:6px;">`;
       mioOrdine.prodotti.forEach(r=>{ html+=`<span style="display:inline-block;background:rgba(0,0,0,.06);border-radius:6px;padding:2px 8px;margin:2px;">${escHtml(r.nome)} × ${r.qty}</span>`; });
-      html+=`<div style="font-weight:700;margin-top:6px;">Totale: €${mioOrdine.totale.toFixed(2)}</div></div>
+      html+=`<div style="font-weight:700;margin-top:6px;">Totale: ${_euroIt(mioOrdine.totale)}</div></div>
         <button class="btn btn-secondary btn-sm" style="margin-top:8px;" onclick="cancellaOrdinePrenotazione('${mioOrdine.id}','${p.id}')">🗑️ Cancella prenotazione</button>
       </div>`;
     } else {
@@ -10524,18 +10524,19 @@ function _renderPrenotazioniSocioInner(){
           </tr></thead><tbody>`;
       p.prodotti.forEach((pr,i)=>{
         html+=`<tr style="border-bottom:1px solid var(--border-color);">
-          <td style="padding:6px;">${escHtml(pr.nome)}${pr.qtyMin>1?'<br><small style="color:var(--text-light);">min. '+pr.qtyMin+' pz</small>':''}</td>
-          <td style="text-align:right;padding:6px;">€${pr.prezzo.toFixed(2)}</td>
+          <td style="padding:6px;">${escHtml(pr.nome)}${pr.qtyMin>1?'<br><small id="min-'+p.id+'-'+i+'" style="color:var(--text-light);">minimo '+pr.qtyMin+' pz</small>':''}</td>
+          <td style="text-align:right;padding:6px;">${_euroIt(pr.prezzo)}</td>
           <td style="text-align:center;padding:6px;">
-            <input type="number" min="0" value="0" id="qty-${p.id}-${i}"
+            <input type="number" min="0" value="0" inputmode="numeric" id="qty-${p.id}-${i}"
               style="width:70px;text-align:center;padding:4px 6px;border:1px solid var(--border-color);border-radius:6px;font-size:.9rem;"
-              onchange="aggiornaTotalePren('${p.id}')"/>
+              oninput="aggiornaTotalePren('${p.id}')" onchange="aggiornaTotalePren('${p.id}')"/>
           </td>
         </tr>`;
       });
       html+=`</tbody></table>
+        <div id="avviso-min-${p.id}" style="display:none;background:#fff3e0;border:1px solid #ffcc80;color:#b45309;border-radius:8px;padding:8px 12px;font-size:.85rem;font-weight:700;margin-bottom:10px;"></div>
         <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div style="font-weight:700;" id="totale-pren-${p.id}">Totale: €0,00</div>
+          <div style="font-weight:700;" id="totale-pren-${p.id}">Totale: ${_euroIt(0)}</div>
           <button class="btn btn-primary" onclick="inviaOrdinePrenotazione('${p.id}')">📩 Prenota</button>
         </div>
       </div>`;
@@ -10546,16 +10547,43 @@ function _renderPrenotazioniSocioInner(){
   cont.innerHTML=html;
 }
 
+function _euroIt(n){ return '€'+(Number(n)||0).toFixed(2).replace('.',','); }
+
+// Prodotti della campagna con una quantità scritta ma sotto il minimo.
+function _sottoMinimoPren(p){
+  const fuori=[];
+  p.prodotti.forEach((pr,i)=>{
+    const qty=parseInt(document.getElementById('qty-'+p.id+'-'+i)?.value)||0;
+    if(qty>0 && pr.qtyMin>1 && qty<pr.qtyMin) fuori.push({i,pr,qty});
+  });
+  return fuori;
+}
+
 function aggiornaTotalePren(prenId){
   const p=S.prenotazioni.find(x=>x.id===prenId);
   if(!p) return;
   let tot=0;
   p.prodotti.forEach((pr,i)=>{
     const v=parseInt(document.getElementById('qty-'+prenId+'-'+i)?.value)||0;
-    tot+=v*pr.prezzo;
+    if(v>0) tot+=v*pr.prezzo;
   });
   const el=document.getElementById('totale-pren-'+prenId);
-  if(el) el.textContent='Totale: €'+tot.toFixed(2);
+  if(el) el.textContent='Totale: '+_euroIt(tot);
+  // Avviso immediato se una quantità è sotto il minimo, invece di scoprirlo
+  // solo premendo "Prenota".
+  const fuori=_sottoMinimoPren(p);
+  p.prodotti.forEach((pr,i)=>{
+    const sotto=fuori.some(f=>f.i===i);
+    const inp=document.getElementById('qty-'+prenId+'-'+i);
+    if(inp) inp.style.borderColor=sotto?'#e65100':'';
+    const m=document.getElementById('min-'+prenId+'-'+i);
+    if(m){ m.style.color=sotto?'#e65100':''; m.style.fontWeight=sotto?'800':''; }
+  });
+  const av=document.getElementById('avviso-min-'+prenId);
+  if(av){
+    av.style.display=fuori.length?'block':'none';
+    av.textContent=fuori.map(f=>'⚠️ '+f.pr.nome+': si prenotano almeno '+f.pr.qtyMin+' pz (ne hai scritti '+f.qty+')').join(' · ');
+  }
 }
 
 function inviaOrdinePrenotazione(prenId){
@@ -10563,16 +10591,26 @@ function inviaOrdinePrenotazione(prenId){
   const p=S.prenotazioni.find(x=>x.id===prenId);
   if(!p||!p.aperta){toast('Prenotazione non disponibile','error');return;}
 
+  // Prima si controllano i minimi: un prodotto sotto il minimo veniva scartato
+  // in silenzio e il messaggio giusto era subito coperto da "Seleziona almeno
+  // un prodotto", che non spiegava il problema.
+  const fuori=_sottoMinimoPren(p);
+  if(fuori.length){
+    aggiornaTotalePren(prenId);
+    const f=fuori[0];
+    toast('⚠️ '+f.pr.nome+': minimo '+f.pr.qtyMin+' pz (ne hai scritti '+f.qty+')','error');
+    return;
+  }
+
   const righe=[];
   let totale=0;
   p.prodotti.forEach((pr,i)=>{
     const qty=parseInt(document.getElementById('qty-'+prenId+'-'+i)?.value)||0;
     if(qty<1) return;
-    if(pr.qtyMin>1&&qty<pr.qtyMin){toast('⚠️ '+pr.nome+': minimo '+pr.qtyMin+' pz','error');return;}
     righe.push({nome:pr.nome,qty,prezzo:pr.prezzo});
     totale+=qty*pr.prezzo;
   });
-  if(!righe.length){toast('⚠️ Seleziona almeno un prodotto','error');return;}
+  if(!righe.length){toast('⚠️ Scrivi la quantità di almeno un prodotto','error');return;}
 
   const ordine={
     id:'op'+uid(),
