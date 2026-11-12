@@ -389,6 +389,23 @@ tr:hover td{background:var(--green-pale);}
 .modal{background:#fff;border-radius:20px;padding:28px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);}
 .modal h3{font-family:var(--font-serif,serif);font-size:1.4rem;margin-bottom:20px;color:var(--text);}
 .modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
+/* Finestre di Prenotazioni: stesse forme dei campi .field delle altre finestre
+   (queste classi erano usate ma mai definite, e i campi apparivano "grezzi"). */
+.modal-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px;}
+.modal-header h3{margin-bottom:0;}
+.modal-close{background:none;border:none;font-size:1.7rem;line-height:1;color:var(--text-light);cursor:pointer;padding:0 4px;}
+.modal-close:hover{color:var(--text);}
+.form-label{display:block;font-size:.85rem;font-weight:700;color:var(--text-mid);margin-bottom:5px;}
+.form-input{width:100%;min-width:0;padding:11px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:'Nunito',sans-serif;font-size:.95rem;background:#fff;color:var(--text);transition:.2s;outline:none;}
+.form-input:focus{border-color:var(--green-mid);box-shadow:0 0 0 3px rgba(74,140,76,.12);}
+.pren-riga .form-input{padding:8px 10px;}
+@media(max-width:520px){
+  /* Su telefono il nome del prodotto prende tutta la riga, sotto prezzo e minimo */
+  .pren-riga{grid-template-columns:1fr 1fr auto !important;}
+  .pren-riga > input:first-child{grid-column:1 / -1;}
+  .pren-riga > input{width:100% !important;}
+  .pren-campi-consegna{grid-template-columns:1fr !important;}
+}
 
 /* ── TOAST ── */
 #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--green-dark);color:#fff;padding:12px 22px;border-radius:24px;font-size:.88rem;font-weight:700;z-index:2000;transition:.3s;opacity:0;pointer-events:none;}
@@ -10235,9 +10252,9 @@ function _renderPrenotazioniTable(){
   const aperte=S.prenotazioni.filter(p=>p.aperta);
   const chiuse=S.prenotazioni.filter(p=>!p.aperta);
 
-  let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+  let html=`<div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px;">
     <div>
-      <div style="font-size:.85rem;color:var(--text-light);">${S.prenotazioni.length} campagne totali · ${aperte.length} aperte</div>
+      <div style="font-size:.85rem;color:var(--text-light);">${S.prenotazioni.length} ${S.prenotazioni.length===1?'campagna':'campagne'} in tutto · ${aperte.length} ${aperte.length===1?'aperta':'aperte'}</div>
     </div>
     <button class="btn btn-primary" onclick="openModalNuovaPrenotazione()">+ Nuova prenotazione</button>
   </div>`;
@@ -10253,16 +10270,17 @@ function _renderPrenotazioniTable(){
         const ordini=S.ordiniPrenotazione.filter(o=>o.prenotazioneId===p.id);
         const totPezzi=ordini.reduce((s,o)=>s+o.prodotti.reduce((ss,r)=>ss+r.qty,0),0);
         html+=`<div style="background:var(--bg-card);border-radius:12px;padding:16px 20px;margin-bottom:12px;border-left:4px solid ${p.aperta?'var(--green-main)':'#ccc'};">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
-            <div style="flex:1;">
+          <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:12px;">
+            <div style="flex:1 1 240px;min-width:0;">
               <div style="font-weight:700;font-size:1rem;">${escHtml(p.titolo)}</div>
               <div style="font-size:.82rem;color:var(--text-light);margin-top:2px;">
                 ${forn?forn.emoji+' '+escHtml(forn.nome):'—'} · Consegna: <strong>${escHtml(p.dataConsegna||'da definire')}</strong>
                 ${p.notaConsegna?'· '+escHtml(p.notaConsegna):''}
               </div>
-              <div style="font-size:.82rem;color:var(--text-light);margin-top:4px;">${p.prodotti.length} prodotti · ${ordini.length} ordini (${totPezzi} pz totali)</div>
+              <div style="font-size:.82rem;color:var(--text-light);margin-top:4px;">${p.prodotti.length} ${p.prodotti.length===1?'prodotto':'prodotti'} · ${ordini.length} ${ordini.length===1?'ordine':'ordini'} (${totPezzi} pz totali)</div>
             </div>
-            <div style="display:flex;gap:8px;flex-shrink:0;">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn btn-secondary btn-sm" onclick="openModalNuovaPrenotazione('${p.id}')">✏️ Modifica</button>
               <button class="btn btn-secondary btn-sm" onclick="viewOrdiniPrenotazione('${p.id}')">📋 Ordini</button>
               <button class="btn btn-secondary btn-sm" onclick="togglePrenotazione('${p.id}')">${p.aperta?'🔒 Chiudi':'🔓 Riapri'}</button>
               <button class="btn btn-secondary btn-sm" onclick="eliminaPrenotazione('${p.id}')">🗑️</button>
@@ -10278,24 +10296,34 @@ function _renderPrenotazioniTable(){
 function openModalNuovaPrenotazione(editId){
   initPrenotazioni();
   const p=editId?S.prenotazioni.find(x=>x.id===editId):null;
-  const fornOptions=S.fornitori.filter(f=>f.attivo).map(f=>`<option value="${f.id}" ${p&&p.fornitorId===f.id?'selected':''}>${f.emoji} ${escHtml(f.nome)}</option>`).join('');
+  if(editId && !p){ toast('⚠️ Prenotazione non trovata','error'); return; }
+  // In modifica resta nell'elenco anche il fornitore della campagna se nel
+  // frattempo è stato disattivato: altrimenti la scelta sparirebbe e il
+  // salvataggio chiederebbe di sceglierne un altro.
+  const fornOptions=S.fornitori.filter(f=>f.attivo || (p && f.id===p.fornitorId)).map(f=>`<option value="${f.id}" ${p&&p.fornitorId===f.id?'selected':''}>${f.emoji} ${escHtml(f.nome)}</option>`).join('');
 
   const righe=p?p.prodotti.map((r,i)=>rigaProdsHTML(i,r.nome,r.prezzo,r.qtyMin)).join(''): rigaProdsHTML(0,'','','');
 
+  // Gli ordini già ricevuti conservano prodotti e prezzi del momento in cui
+  // sono stati fatti: la modifica vale solo per le prenotazioni successive.
+  const nOrdini=p?(S.ordiniPrenotazione||[]).filter(o=>o.prenotazioneId===p.id).length:0;
+  const avvisoOrdini=nOrdini?`<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:10px 12px;font-size:.85rem;">⚠️ Ci sono già <strong>${nOrdini} ${nOrdini===1?'ordine':'ordini'}</strong> per questa campagna: restano con i prodotti e i prezzi di quando sono stati fatti. Le modifiche valgono per le nuove prenotazioni.</div>`:'';
+
   openModal(`<div class="modal-header"><h3>${editId?'Modifica':'Nuova'} Prenotazione</h3><button class="modal-close" onclick="closeModal()">×</button></div>
   <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
+    ${avvisoOrdini}
     <div><label class="form-label">Titolo campagna *</label>
       <input class="form-input" id="pren-titolo" value="${p?escHtml(p.titolo):''}" placeholder="es. Salse estive Villa Karina"/></div>
     <div><label class="form-label">Fornitore *</label>
       <select class="form-input" id="pren-forn"><option value="">— seleziona —</option>${fornOptions}</select></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+    <div class="pren-campi-consegna" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div><label class="form-label">Data/periodo consegna</label>
         <input class="form-input" id="pren-data" value="${p?escHtml(p.dataConsegna):''}" placeholder="es. Luglio 2025"/></div>
       <div><label class="form-label">Nota consegna</label>
         <input class="form-input" id="pren-nota" value="${p?escHtml(p.notaConsegna):''}" placeholder="es. ordine minimo 12 pz"/></div>
     </div>
     <div>
-      <label class="form-label">Prodotti</label>
+      <label class="form-label">Prodotti <span style="font-weight:400;color:var(--text-light);">— nome · prezzo € · minimo pz</span></label>
       <div id="pren-prods-wrap" style="display:flex;flex-direction:column;gap:8px;">${righe}</div>
       <button class="btn btn-secondary btn-sm" style="margin-top:8px;" onclick="aggiungiRigaProd()">+ Aggiungi prodotto</button>
     </div>
