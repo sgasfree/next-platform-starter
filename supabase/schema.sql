@@ -223,13 +223,14 @@ drop policy if exists admins_self on public.admins;
 create policy admins_self on public.admins
   for select using (user_id = auth.uid());
 
--- soci: il socio vede/aggiorna la propria riga; admin tutto
+-- soci: il socio VEDE la propria riga; solo gli admin la modificano.
+-- NON ricreare una regola di UPDATE per il socio: senza limiti di colonna
+-- poteva cambiarsi la tessera e ottenere i permessi di admin (vedi
+-- migrations/2026-11-16_security_drop_soci_self_update.sql).
 drop policy if exists soci_self_select on public.soci;
 create policy soci_self_select on public.soci
   for select using (user_id = auth.uid() or public.is_admin());
 drop policy if exists soci_self_update on public.soci;
-create policy soci_self_update on public.soci
-  for update using (user_id = auth.uid() or public.is_admin());
 drop policy if exists soci_admin_all on public.soci;
 create policy soci_admin_all on public.soci
   for all using (public.is_admin()) with check (public.is_admin());
