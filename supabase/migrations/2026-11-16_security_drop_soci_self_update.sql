@@ -1,0 +1,17 @@
+-- Sicurezza: tolta la regola che permetteva a un tesserato di modificare la
+-- propria riga in `soci`.
+--
+-- La regola `soci_self_update` (UPDATE dove user_id = auth.uid()) non aveva
+-- limiti di colonna né WITH CHECK: un tesserato collegato poteva cambiarsi
+-- tessera, scadenza, attivo, user_id. Scrivendo la tessera di un admin in
+-- forma diversa ("SGAS 0016" al posto di "SGAS-00016") superava il vincolo di
+-- unicità e, al controllo ADMIN_TESSERE (che ignora spazi, trattini e zeri
+-- iniziali), otteneva i permessi di admin.
+--
+-- L'app non usa questa regola: il profilo del tesserato è di sola lettura,
+-- le modifiche le fanno gli admin (regola `soci_admin_all`) o le funzioni
+-- server con la service_role.
+--
+-- Applicata al progetto il 16/11/2026. Verifica dopo l'applicazione:
+-- tesserato → 0 righe modificabili; admin → tutte.
+drop policy if exists soci_self_update on public.soci;

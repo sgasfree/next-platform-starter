@@ -17,6 +17,13 @@
 [functions."promemoria-scadenze"]
   schedule = "0 7 * * *"
 
+# Scheduled Function: copia di sicurezza del database, ogni notte.
+# Le 2:23 UTC sono le 3:23 o le 4:23 in Italia: nessuno sta ordinando.
+# La copia finisce in Netlify Blobs (store "sgas-backup"), fuori da Supabase.
+# Dettagli in netlify/lib/backup.mjs e docs/BACKUP.md.
+[functions."backup-db"]
+  schedule = "23 2 * * *"
+
 [build.environment]
   NETLIFY_NEXT_PLUGIN_SKIP = "true"
   # ── Secret scanning di Netlify: DISATTIVATO ──────────────────────────────────

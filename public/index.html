@@ -9300,9 +9300,19 @@ INSERT INTO config (chiave,valore) VALUES ('sgas_app_state','{}');</pre>
         <button class="btn btn-primary btn-sm" onclick="addCategoria()">+ Aggiungi</button>
       </div>
     </div>
+    <div class="card" style="margin-bottom:16px;border-left:4px solid var(--green-main);">
+      <h3 style="font-family:var(--font-serif,serif);margin-bottom:8px;">🛟 Backup automatico del database</h3>
+      <p style="font-size:.85rem;color:var(--text-mid);margin-bottom:12px;">Ogni notte l'app salva da sola una copia di tutti i dati (tesserati, ordini, messaggi, catalogo, raccolte e prenotazioni) in uno spazio privato su Netlify, separato dal database. Restano le copie degli ultimi 30 giorni e una al mese per un anno. Il file non contiene password.</p>
+      <div id="backup-auto-stato" style="font-size:.88rem;margin-bottom:12px;color:var(--text-light);">Sto controllando i backup…</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px;">
+        <button class="btn btn-primary" id="backup-auto-ultimo" onclick="scaricaBackupAuto()" disabled>⬇️ Scarica l'ultimo</button>
+        <button class="btn btn-secondary" id="backup-auto-crea" onclick="creaBackupAdesso()">➕ Crea backup adesso</button>
+      </div>
+      <div id="backup-auto-elenco"></div>
+    </div>
     <div class="card">
-      <h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">💾 Backup & Ripristino</h3>
-      <p style="font-size:.85rem;color:var(--text-mid);margin-bottom:16px;">Esporta tutti i dati di SGAS in un file JSON. Puoi ripristinarli in qualsiasi momento.</p>
+      <h3 style="font-family:var(--font-serif,serif);margin-bottom:12px;">💾 Backup & Ripristino manuale</h3>
+      <p style="font-size:.85rem;color:var(--text-mid);margin-bottom:16px;">Esporta i dati che questo dispositivo ha in memoria in un file JSON. Puoi ripristinarli in qualsiasi momento.</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
         <button class="btn btn-secondary" onclick="backupData()">📥 Scarica Backup</button>
         <label class="btn btn-secondary" style="cursor:pointer;">📤 Ripristina <input type="file" accept=".json" style="display:none;" onchange="restoreData(event)"></label>
@@ -9316,6 +9326,111 @@ INSERT INTO config (chiave,valore) VALUES ('sgas_app_state','{}');</pre>
     </div>`;
   renderCatListAdmin();
   caricaChatAdminInImpostazioni();
+  caricaBackupAutomatici();
+}
+
+// ── Backup automatico del database (Impostazioni) ──────────────────────────
+// Le copie le crea ogni notte il server (netlify/functions/backup-db.mjs) e
+// stanno in Netlify Blobs, fuori da Supabase. Qui l'admin vede l'elenco, ne
+// scarica una o ne crea una subito. Tutto passa da backup-admin.mjs con il
+// permesso da admin: il browser non tocca mai lo spazio dei backup.
+let _backupAuto = [];
+async function _backupApi(corpo){
+  const tok = await _getStateToken();
+  if(!tok) return { errore:'Per i backup serve essere collegati come admin: esci e rientra.' };
+  let res;
+  try{
+    res = await fetch('/.netlify/functions/backup-admin',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ ...corpo, token:tok })
+    });
+  }catch(e){ return { errore:'Server non raggiungibile: controlla la connessione.' }; }
+  if(corpo.action==='download' && res.ok) return { file: await res.arrayBuffer() };
+  const dati = await res.json().catch(()=>null);
+  if(!res.ok || !dati || !dati.ok) return { errore:(dati&&dati.error)||('Il server ha risposto con un errore ('+res.status+')') };
+  return dati;
+}
+function _backupQuando(iso){
+  const d=new Date(iso); if(isNaN(d)) return '—';
+  return d.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'})+' alle '+d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+}
+function _backupDimensione(b){ return b>=1048576 ? (b/1048576).toFixed(1).replace('.',',')+' MB' : Math.max(1,Math.round((b||0)/1024))+' KB'; }
+function _backupRiepilogo(c){
+  c=c||{};
+  return [[c.soci,'tesserati'],[c.ordini,'ordini'],[c.prodotti,'prodotti'],[c.fornitori,'fornitori']]
+    .filter(x=>typeof x[0]==='number').map(x=>x[0]+' '+x[1]).join(' · ');
+}
+function _disegnaBackupAutomatici(errore){
+  const stato=document.getElementById('backup-auto-stato');
+  const elenco=document.getElementById('backup-auto-elenco');
+  const btnUltimo=document.getElementById('backup-auto-ultimo');
+  if(!stato||!elenco) return;   // l'admin ha cambiato sezione nel frattempo
+  if(errore){
+    stato.innerHTML='<span style="color:#c62828;font-weight:700;">⚠️ '+escHtml(errore)+'</span>';
+    elenco.innerHTML=''; if(btnUltimo) btnUltimo.disabled=true; return;
+  }
+  if(btnUltimo) btnUltimo.disabled=!_backupAuto.length;
+  if(!_backupAuto.length){
+    stato.innerHTML='<span style="color:#b45309;font-weight:700;">⚠️ Non c\'è ancora nessun backup.</span> Il primo parte da solo stanotte; se vuoi averne uno subito premi «Crea backup adesso».';
+    elenco.innerHTML=''; return;
+  }
+  const u=_backupAuto[0];
+  const ore=(Date.now()-Date.parse(u.creato))/3600000;
+  // Oltre 36 ore senza una copia nuova: il salvataggio notturno si è fermato.
+  const vecchio=ore>36;
+  stato.innerHTML=(vecchio
+      ? '<span style="color:#c62828;font-weight:700;">⚠️ L\'ultimo backup è di '+Math.floor(ore/24)+' giorni fa: il salvataggio notturno non sta funzionando.</span><br>'
+      : '<span style="color:var(--green-main);font-weight:700;">✅ Backup attivo.</span> ')
+    +'Ultima copia: <strong>'+_backupQuando(u.creato)+'</strong>'+(_backupRiepilogo(u.conteggi)?' — '+_backupRiepilogo(u.conteggi):'');
+  elenco.innerHTML='<details style="margin-top:10px;"><summary style="cursor:pointer;font-size:.85rem;font-weight:700;color:var(--text-mid);">Tutte le copie conservate ('+_backupAuto.length+')</summary>'
+    +'<div style="margin-top:8px;max-height:280px;overflow-y:auto;">'
+    +_backupAuto.map((b,i)=>'<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--border);font-size:.85rem;">'
+      +'<div><strong>'+_backupQuando(b.creato)+'</strong> <span style="color:var(--text-light);">· '+(b.origine==='manuale'?'creato a mano':'automatico')+' · '+_backupDimensione(b.byte)+'</span>'
+      +(_backupRiepilogo(b.conteggi)?'<br><span style="color:var(--text-light);">'+_backupRiepilogo(b.conteggi)+'</span>':'')+'</div>'
+      +'<button class="btn btn-secondary btn-sm" onclick="scaricaBackupAuto('+i+')">⬇️ Scarica</button></div>').join('')
+    +'</div></details>';
+}
+async function caricaBackupAutomatici(){
+  if(!document.getElementById('backup-auto-stato')) return;
+  const r = await _backupApi({action:'list'});
+  if(r.errore){ _disegnaBackupAutomatici(r.errore); return; }
+  _backupAuto = r.backup||[];
+  _disegnaBackupAutomatici();
+}
+async function creaBackupAdesso(){
+  const btn=document.getElementById('backup-auto-crea');
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Sto creando il backup…'; }
+  const r = await _backupApi({action:'run'});
+  if(btn){ btn.disabled=false; btn.textContent='➕ Crea backup adesso'; }
+  if(r.errore){ toast('❌ Backup non riuscito: '+r.errore); return; }
+  _backupAuto = r.backup||_backupAuto;
+  _disegnaBackupAutomatici();
+  toast(r.appenaFatto ? '✅ Un backup è stato appena fatto: uso quello' : '✅ Backup creato');
+  if(r.avvisi&&r.avvisi.length) alert('Attenzione: rispetto al backup precedente i dati sono diminuiti molto.\n\n'+r.avvisi.join('\n')+'\n\nSe non è voluto, le copie dei giorni scorsi sono ancora nell\'elenco.');
+}
+// Scarica un backup dell'elenco (senza numero: il più recente). Il server lo
+// manda compresso; lo si riapre qui per salvare un normale file .json.
+async function scaricaBackupAuto(indice){
+  const b=_backupAuto[indice||0];
+  if(!b){ toast('Nessun backup da scaricare'); return; }
+  toast('⏳ Scarico il backup…');
+  const r = await _backupApi({action:'download', key:b.key});
+  if(r.errore){ toast('❌ '+r.errore); return; }
+  let blob, nome='sgas-backup-database-'+String(b.creato||'').slice(0,10);
+  try{
+    if(typeof DecompressionStream==='undefined') throw new Error('non supportato');
+    const flusso=new Blob([r.file]).stream().pipeThrough(new DecompressionStream('gzip'));
+    blob=new Blob([await new Response(flusso).arrayBuffer()],{type:'application/json'});
+    nome+='.json';
+  }catch(e){
+    // Browser vecchio: si salva il file compresso così com'è.
+    blob=new Blob([r.file],{type:'application/gzip'}); nome+='.json.gz';
+  }
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=nome;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),10000);
+  toast('📥 Backup scaricato: '+nome);
 }
 
 // I Chat ID Telegram degli admin non vivono più in S.config (sono nella riga
