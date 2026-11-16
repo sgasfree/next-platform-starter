@@ -18,6 +18,14 @@ Netlify che ospita l'app:
 Chi entra nell'account Netlify può vedere i backup: la verifica in due
 passaggi su quell'account protegge anche loro.
 
+**Dove sono fisicamente i server:** negli Stati Uniti (regione Netlify
+`us-east-2`, la stessa in cui girano le funzioni del sito; si legge nel
+campo `blobs_region` di ogni pubblicazione). Il database Supabase è invece
+in Irlanda. I backup contengono dati personali (nomi, numeri di telefono):
+l'informativa sulla privacy deve dire che una copia è conservata presso
+Netlify negli Stati Uniti. Se si vuole tenere tutto nell'Unione Europea,
+l'alternativa è il piano Pro di Supabase, che fa i backup in Irlanda.
+
 ## Quando e cosa
 
 | | |
