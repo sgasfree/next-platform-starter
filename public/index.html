@@ -342,6 +342,11 @@ h1,h2,h3,h4{font-family:var(--font-serif,serif);}
 .cart-item-sub{font-size:.78rem;color:var(--text-light);}
 .cart-item-price{font-weight:800;color:var(--green);margin:0 12px;}
 .cart-total{font-size:1.1rem;font-weight:800;color:var(--green-dark);text-align:right;padding-top:12px;border-top:2px solid var(--border);margin-top:4px;}
+/* Carrello con prodotti di più raccolte: un riquadro per ordine */
+.cart-gruppo{border:1.5px solid var(--green-light);border-radius:12px;padding:4px 12px 10px;margin-bottom:12px;background:#fff;}
+.cart-gruppo-tit{font-size:.85rem;font-weight:800;color:var(--green-dark);background:var(--green-pale);margin:0 -12px;padding:9px 12px;border-radius:10px 10px 0 0;}
+.cart-gruppo-sub{font-size:.8rem;font-weight:700;color:var(--text-mid);text-align:right;padding-top:8px;border-top:1px dashed var(--border);}
+.cart-gruppo-chiuso{border-color:#ef9a9a;background:#fff5f5;}
 
 /* ── PROFILO ── */
 .tessera-validity{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:10px;background:var(--green-pale);border:1.5px solid var(--green-light);}
@@ -5022,6 +5027,87 @@ function iconaCarrelloLogo(size,opts){
     +'</g></svg>';
 }
 
+// ── Dal carrello agli ordini ─────────────────────────────────────────────────
+// Un ordine appartiene a UNA sola raccolta (l'admin lavora per raccolta e per
+// fornitore). Se nel carrello ci sono prodotti di fornitori che stanno in
+// raccolte diverse (es. «Ordini Generale» e «Verdure fresche»), l'invio crea
+// UN ordine per raccolta, tutti con un solo tocco.
+// Prima si cercava una raccolta comune a TUTTI i fornitori del carrello: se non
+// c'era, compariva «nessuna raccolta aperta» e il pulsante Invia spariva, finché
+// il tesserato non toglieva una delle due spese.
+//
+// Restituisce:
+//   gruppi          [{raccolta, righe:[{item,p,f,fid}], totale}] uno per ordine
+//   nonOrdinabili   righe il cui fornitore non è in nessuna raccolta aperta
+//   ambigui         [{fid, fornitore, opzioni, scelta}] fornitori ordinabili in
+//                   più raccolte aperte insieme: qui serve la scelta dell'utente
+function _pianoOrdiniCarrello(){
+  const scelte=(S.cart&&S.cart.scelteRaccolta)||{};
+  const righe=[];
+  ((S.cart&&S.cart.items)||[]).forEach(i=>{
+    const p=S.prodotti.find(x=>x.id===i.prodottoId);
+    if(!p) return;
+    righe.push({item:i, p, fid:p.fornitorId||'', f:S.fornitori.find(x=>x.id===p.fornitorId)||null});
+  });
+  const opzioni={};   // fornitore → raccolte aperte in cui è ordinabile
+  righe.forEach(r=>{ if(!(r.fid in opzioni)) opzioni[r.fid]=getFornOpenRaccolte(r.fid); });
+
+  const assegnata={}; // fornitore → raccolta in cui finisce
+  const usate=new Set();
+  Object.keys(opzioni).forEach(fid=>{
+    if(opzioni[fid].length===1){ assegnata[fid]=opzioni[fid][0]; usate.add(opzioni[fid][0].id); }
+  });
+  // Fornitore aperto in più raccolte: vale la scelta del tesserato; se non ha
+  // scelto, una raccolta già usata dagli altri prodotti (meno ordini possibile),
+  // altrimenti la prima.
+  const ambigui=[];
+  Object.keys(opzioni).forEach(fid=>{
+    const op=opzioni[fid];
+    if(op.length<2) return;
+    const r=op.find(x=>x.id===scelte[fid]) || op.find(x=>usate.has(x.id)) || op[0];
+    assegnata[fid]=r; usate.add(r.id);
+    const f=S.fornitori.find(x=>x.id===fid);
+    ambigui.push({fid, fornitore:f?f.nome:'', opzioni:op, scelta:r.id});
+  });
+
+  const gruppi=[], perId={}, nonOrdinabili=[];
+  righe.forEach(r=>{
+    const racc=assegnata[r.fid];
+    if(!racc){ nonOrdinabili.push(r); return; }
+    if(!perId[racc.id]){ perId[racc.id]={raccolta:racc, righe:[], totale:0}; gruppi.push(perId[racc.id]); }
+    perId[racc.id].righe.push(r);
+    perId[racc.id].totale+=r.p.prezzo*r.item.qty;
+  });
+  return {gruppi, nonOrdinabili, ambigui};
+}
+
+function scegliRaccoltaCarrello(fid, raccoltaId){
+  if(!S.cart.scelteRaccolta) S.cart.scelteRaccolta={};
+  S.cart.scelteRaccolta[fid]=raccoltaId;
+  saveState(); renderCart();
+}
+
+// Toglie dal carrello i prodotti la cui raccolta è chiusa (non si possono più ordinare).
+function rimuoviNonOrdinabili(){
+  const via=new Set(_pianoOrdiniCarrello().nonOrdinabili.map(r=>r.item.prodottoId));
+  S.cart.items=S.cart.items.filter(i=>!via.has(i.prodottoId));
+  saveState(); updateCartBadge(); renderCart();
+}
+
+// Numero d'ordine: «ORD-» + 7 caratteri. Prima erano le prime 6 cifre del
+// timestamp in base 36, che cambiano solo ogni ~1,3 secondi: due ordini inviati
+// nello stesso istante (da due tesserati, o i due ordini di uno stesso
+// carrello) avrebbero avuto lo STESSO numero e il secondo avrebbe sovrascritto
+// o fatto rifiutare il primo.
+function _nuovoIdOrdine(){
+  const usati=new Set((S.ordini||[]).map(o=>o.id));
+  let id;
+  do{
+    id='ORD-'+(Date.now().toString(36).slice(-3)+Math.random().toString(36).slice(2,6).padEnd(4,'0')).toUpperCase();
+  }while(usati.has(id));
+  return id;
+}
+
 function renderCart(){
   const content=document.getElementById('cart-content');
   const _cl=document.getElementById('cart-logo');
@@ -5030,58 +5116,72 @@ function renderCart(){
     content.innerHTML='<div class="empty"><div style="display:flex;justify-content:center;margin-bottom:6px;color:var(--green-dark);">'+iconaCarrelloLogo(96)+'</div><p>Il carrello è vuoto</p><button class="btn btn-primary" style="margin-top:16px;" onclick="backToCatalogo()">Vai al catalogo</button></div>';
     return;
   }
-  // Raccolte compatibili con i fornitori REALMENTE nel carrello (non tutte
-  // le raccolte aperte nel GAS): se un fornitore è aperto solo in una
-  // raccolta, l'ordine va lì — niente scelta manuale che può sbagliare
-  // raccolta quando ce n'è un'altra aperta in parallelo per altri fornitori.
-  const fornIdsCarrello=[...new Set(S.cart.items.map(i=>{
-    const p=S.prodotti.find(x=>x.id===i.prodottoId);
-    return p?p.fornitorId:null;
-  }).filter(Boolean))];
-  const opens=fornIdsCarrello.reduce((acc,fid)=>{
-    const open=getFornOpenRaccolte(fid);
-    return acc===null ? open : acc.filter(r=>open.some(o=>o.id===r.id));
-  }, null) || [];
-  let total=0;
-  const rows=S.cart.items.map(i=>{
-    const p=S.prodotti.find(x=>x.id===i.prodottoId);
-    if(!p) return '';
-    const sub=p.prezzo*i.qty; total+=sub;
-    const f=S.fornitori.find(x=>x.id===p.fornitorId);
+  const piano=_pianoOrdiniCarrello();
+  const multi=piano.gruppi.length>1;
+  const riga=(r,chiusa)=>{
+    const {item:i,p,f}=r;
     const codStr = p.codice ? ' · cod. '+escHtml(p.codice) : '';
-    return `<div class="cart-item">
+    return `<div class="cart-item"${chiusa?' style="opacity:.75;"':''}>
       <div style="flex:1;">
         <div class="cart-item-name">${escHtml(p.nome)}</div>
         <div class="cart-item-sub">${f?escHtml(f.nome):''}${codStr} · ${i.qty} × €${p.prezzo.toFixed(2)}</div>
+        ${chiusa?'<div class="cart-item-sub" style="color:#c62828;font-weight:700;">⛔ Raccolta chiusa: non si può più ordinare</div>':''}
       </div>
-      <div class="cart-item-price">€${sub.toFixed(2)}</div>
+      <div class="cart-item-price">€${(p.prezzo*i.qty).toFixed(2)}</div>
       <button class="btn btn-xs btn-danger" onclick="removeCartItem('${i.prodottoId}')">✕</button>
     </div>`;
-  }).join('');
+  };
 
-  let raccSelect='';
-  if(opens.length===1){
-    // Caso normale: un'unica raccolta compatibile → solo riepilogo, nessuna scelta.
-    S.cart.raccoltaId=opens[0].id;
-    raccSelect=`<div class="field" style="margin-top:16px;"><label>Raccolta ordini di riferimento</label>
-      <div style="padding:10px 14px;background:var(--green-pale);border:1.5px solid var(--green-light);border-radius:10px;font-weight:700;color:var(--green-dark);">📋 ${escHtml(opens[0].nome)}</div>
-    </div>`;
-  } else if(opens.length>1){
-    // Un fornitore del carrello è aperto in più raccolte insieme: qui la
-    // scelta è davvero necessaria, quindi resta un select.
-    raccSelect=`<div class="field" style="margin-top:16px;"><label>Raccolta ordini di riferimento</label>
-      <select id="cart-raccolta">${opens.map(r=>`<option value="${r.id}" ${S.cart.raccoltaId===r.id?'selected':''}>${escHtml(r.nome)}</option>`).join('')}</select>
-      <div style="font-size:.75rem;color:var(--text-light);margin-top:4px;">Questi prodotti sono ordinabili in più raccolte: scegli quella giusta.</div>
-    </div>`;
-  } else {
-    raccSelect=`<div class="alert alert-info" style="margin-top:16px;">⚠️ I prodotti nel carrello non appartengono a nessuna raccolta attualmente aperta. Contatta l'admin di SGAS.</div>`;
+  let total=0, corpo='';
+  piano.gruppi.forEach((g,n)=>{
+    total+=g.totale;
+    if(multi){
+      // Più raccolte: ogni gruppo è un ordine a sé, con titolo e subtotale.
+      corpo+=`<div class="cart-gruppo">
+        <div class="cart-gruppo-tit">📋 ${escHtml(g.raccolta.nome)}</div>
+        ${g.righe.map(r=>riga(r)).join('')}
+        <div class="cart-gruppo-sub">Ordine ${n+1} di ${piano.gruppi.length} · €${g.totale.toFixed(2)}</div>
+      </div>`;
+    } else {
+      corpo+=g.righe.map(r=>riga(r)).join('');
+    }
+  });
+  if(piano.nonOrdinabili.length){
+    corpo+=`<div class="cart-gruppo cart-gruppo-chiuso">${piano.nonOrdinabili.map(r=>riga(r,true)).join('')}</div>`;
   }
 
+  // Scelta della raccolta: serve solo per un fornitore ordinabile in più
+  // raccolte aperte insieme. Negli altri casi la raccolta è una sola e si mostra.
+  let raccInfo='';
+  piano.ambigui.forEach(a=>{
+    raccInfo+=`<div class="field" style="margin-top:14px;"><label>Raccolta per ${escHtml(a.fornitore||'questo fornitore')}</label>
+      <select data-fid="${escHtml(a.fid)}" onchange="scegliRaccoltaCarrello(this.dataset.fid,this.value)">${a.opzioni.map(r=>`<option value="${escHtml(r.id)}" ${a.scelta===r.id?'selected':''}>${escHtml(r.nome)}</option>`).join('')}</select>
+      <div style="font-size:.75rem;color:var(--text-light);margin-top:4px;">Questo fornitore è ordinabile in più raccolte: scegli quella giusta.</div>
+    </div>`;
+  });
+  if(piano.gruppi.length===1){
+    raccInfo+=`<div class="field" style="margin-top:16px;"><label>Raccolta ordini di riferimento</label>
+      <div style="padding:10px 14px;background:var(--green-pale);border:1.5px solid var(--green-light);border-radius:10px;font-weight:700;color:var(--green-dark);">📋 ${escHtml(piano.gruppi[0].raccolta.nome)}</div>
+    </div>`;
+  } else if(multi){
+    raccInfo+=`<div class="alert alert-info" style="margin-top:14px;">ℹ️ I prodotti sono di <strong>${piano.gruppi.length} raccolte diverse</strong>: con un solo tocco partono <strong>${piano.gruppi.length} ordini separati</strong>, uno per raccolta. Riceverai una conferma per ciascuno.</div>`;
+  }
+
+  let avviso='';
+  if(piano.nonOrdinabili.length){
+    avviso=piano.gruppi.length
+      ? `<div class="alert alert-info" style="margin-top:14px;">⛔ Alcuni prodotti non si possono più ordinare perché la loro raccolta è chiusa. Toglili dal carrello per inviare gli altri.
+          <button class="btn btn-secondary btn-sm" style="margin-top:8px;" onclick="rimuoviNonOrdinabili()">🗑 Togli i prodotti non ordinabili</button></div>`
+      : `<div class="alert alert-info" style="margin-top:14px;">⛔ I prodotti nel carrello appartengono a raccolte ormai chiuse e non si possono più ordinare. Svuota il carrello e scegli dal catalogo i prodotti delle raccolte aperte. Se pensi sia un errore, contatta l'admin di SGAS.</div>`;
+  }
+  const puoInviare=piano.gruppi.length>0 && !piano.nonOrdinabili.length;
+
   content.innerHTML=`<div class="card">
-    ${rows}
-    <div class="cart-total">Totale: €${total.toFixed(2)}</div>
-    ${raccSelect}
-    ${opens.length?`<button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="submitOrder()">✅ Invia Ordine</button>`:''}
+    ${corpo}
+    ${piano.gruppi.length?`<div class="cart-total">${piano.nonOrdinabili.length?'Totale prodotti ordinabili':'Totale'}: €${total.toFixed(2)}</div>`:''}
+    ${raccInfo}
+    ${avviso}
+    ${puoInviare?`<button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="submitOrder()">${multi?'✅ Invia '+piano.gruppi.length+' ordini':'✅ Invia Ordine'}</button>`:''}
     <button class="btn btn-secondary btn-block" style="margin-top:8px;" onclick="clearCart()">🗑 Svuota carrello</button>
   </div>`;
 }
@@ -5139,20 +5239,8 @@ function sendOrderEmail(ord){
 let _invioOrdineInCorso=false;
 async function submitOrder(){
   if(_invioOrdineInCorso) return;
-  const raccEl=document.getElementById('cart-raccolta');
-  // Senza select (raccolta unica compatibile) il riferimento è quello già
-  // calcolato e mostrato in renderCart(), non una scelta dell'utente.
-  const raccId=raccEl?raccEl.value:(S.cart.raccoltaId||'');
-  if(!raccId){toast('Seleziona una raccolta');return;}
   // Blocco ordini su raccolta scaduta (ora ufficiale italiana)
   chiudiRaccolteScadute();
-  const raccSel=S.raccolte.find(r=>r.id===raccId);
-  if(!raccSel||!raccSel.aperta){
-    toast('⛔ Questa raccolta è chiusa: ordini non più accettati.');
-    renderCart();
-    return;
-  }
-  S.cart.raccoltaId=raccId;
   // Scarta righe che puntano a prodotti non più esistenti (es. catalogo
   // aggiornato nel frattempo): un ordine non deve MAI poter risultare a
   // totale zero per una riga silenziosamente ignorata nel calcolo.
@@ -5163,17 +5251,16 @@ async function submitOrder(){
     renderCart();
     if(!validItems.length) return;
   }
-  let total=0;
-  // Congeliamo nome/prezzo/codice/unità del prodotto nella riga d'ordine:
-  // se il prodotto viene poi modificato o rimosso dal catalogo, i riepiloghi
-  // di questo ordine devono continuare a mostrare i dati di quando è stato fatto.
-  const snapItems=S.cart.items.map(i=>{
-    const p=S.prodotti.find(x=>x.id===i.prodottoId);
-    const f=p?S.fornitori.find(x=>x.id===p.fornitorId):null;
-    total+=(p?p.prezzo:0)*i.qty;
-    return {prodottoId:i.prodottoId,qty:i.qty,nome:p?p.nome:'',codice:p?(p.codice||''):'',unita:p?(p.unita||''):'',prezzo:p?p.prezzo:0,fornitorId:p?p.fornitorId:'',fornitoreNome:f?f.nome:'—'};
-  });
-  if(total<=0){toast('⛔ Impossibile inviare: totale non valido.');renderCart();return;}
+  // Un ordine per raccolta (vedi _pianoOrdiniCarrello). Tutti i controlli si
+  // fanno PRIMA di creare qualunque ordine: o partono tutti o non parte nessuno.
+  const piano=_pianoOrdiniCarrello();
+  if(piano.nonOrdinabili.length){
+    toast('⛔ Alcuni prodotti non sono più ordinabili (raccolta chiusa): toglili dal carrello per inviare gli altri.');
+    renderCart();
+    return;
+  }
+  if(!piano.gruppi.length){ toast('⛔ Nessuna raccolta aperta per i prodotti nel carrello.'); renderCart(); return; }
+  if(piano.gruppi.some(g=>!(g.totale>0))){ toast('⛔ Impossibile inviare: totale non valido.'); renderCart(); return; }
   // L'ordine si salva sul server solo con la sessione aperta dal codice
   // Telegram (le regole del database non accettano altro). Senza, si
   // fermerebbe nel telefono senza che nessuno lo veda: meglio dirlo subito,
@@ -5190,26 +5277,42 @@ async function submitOrder(){
     logout();
     return;
   }
-  const ord={id:'ORD-'+uid().toUpperCase().slice(0,6),socioId:currentUser.id,socioTessera:currentUser.tessera||'',socioNome:currentUser.nome,socioCognome:currentUser.cognome||'',socioCellulare:currentUser.cellulare||currentUser.telefono||'',socioTelegram:currentUser.telegram||'',raccoltaId:raccId,raccoltaNome:(raccSel&&raccSel.nome)||'',items:snapItems,totale:total,data:new Date().toISOString()};
-  S.ordini.push(ord);
+  const adesso=new Date().toISOString();
+  const ordini=piano.gruppi.map(g=>{
+    // Congeliamo nome/prezzo/codice/unità del prodotto nella riga d'ordine:
+    // se il prodotto viene poi modificato o rimosso dal catalogo, i riepiloghi
+    // di questo ordine devono continuare a mostrare i dati di quando è stato fatto.
+    const snapItems=g.righe.map(({item:i,p,f})=>({prodottoId:i.prodottoId,qty:i.qty,nome:p.nome||'',codice:p.codice||'',unita:p.unita||'',prezzo:p.prezzo,fornitorId:p.fornitorId||'',fornitoreNome:f?f.nome:'—'}));
+    const ord={id:_nuovoIdOrdine(),socioId:currentUser.id,socioTessera:currentUser.tessera||'',socioNome:currentUser.nome,socioCognome:currentUser.cognome||'',socioCellulare:currentUser.cellulare||currentUser.telefono||'',socioTelegram:currentUser.telegram||'',raccoltaId:g.raccolta.id,raccoltaNome:g.raccolta.nome||'',items:snapItems,totale:g.totale,data:adesso};
+    S.ordini.push(ord);   // subito: il numero successivo non può ripetere questo
+    return ord;
+  });
   S.cart.items=[];
   S.cart.raccoltaId='';
+  S.cart.scelteRaccolta={};
   saveState(); updateCartBadge();
-  // Doppio write: invia l'ordine anche su Supabase in background (non-blocking)
-  _syncOrderToSupabase(ord).catch(e => console.warn('Sync ordine a Supabase fallito:', e));
-  try{ exportOrderWord(ord); }catch(e){ console.warn('Word gen error:',e); }
-  sendOrderEmail(ord);
-  sendPush('📦 Ordine confermato!', 'Il tuo ordine '+ord.id+' è stato ricevuto — Totale: €'+ord.totale.toFixed(2), window.location.origin);
-  // Notifiche Telegram. Agli admin la manda il SERVER: il browser non
-  // conosce più i loro Chat ID, sa solo chiedere di avvisarli.
-  const msgOrdine = buildOrderTgMsg(ord);
-  notificaAdminNuovoOrdine(msgOrdine);
   const socioChatId = (currentUser.telegramChatId||'').trim();
-  if(socioChatId) sendTelegramMsg(socioChatId, msgOrdine);
+  ordini.forEach((ord,k)=>{
+    // Doppio write: invia l'ordine anche su Supabase in background (non-blocking)
+    _syncOrderToSupabase(ord).catch(e => console.warn('Sync ordine a Supabase fallito:', e));
+    // Un Word per ordine, a distanza di qualche secondo: più download
+    // automatici insieme verrebbero bloccati dal browser.
+    setTimeout(()=>{ try{ exportOrderWord(ord); }catch(e){ console.warn('Word gen error:',e); } }, k*2500);
+    sendOrderEmail(ord);
+    // Notifiche Telegram. Agli admin la manda il SERVER: il browser non
+    // conosce più i loro Chat ID, sa solo chiedere di avvisarli.
+    const msgOrdine = buildOrderTgMsg(ord);
+    notificaAdminNuovoOrdine(msgOrdine);
+    if(socioChatId) sendTelegramMsg(socioChatId, msgOrdine);
+  });
+  sendPush(ordini.length>1?'📦 Ordini confermati!':'📦 Ordine confermato!',
+    ordini.length>1 ? ordini.map(o=>o.id).join(', ')+' — Totale: €'+ordini.reduce((s,o)=>s+o.totale,0).toFixed(2)
+                    : 'Il tuo ordine '+ordini[0].id+' è stato ricevuto — Totale: €'+ordini[0].totale.toFixed(2),
+    window.location.origin);
   // Il Word ha il proprio toast (successo o errore), mostrato in modo
   // asincrono da exportOrderWord: qui non anticipiamo un esito che ancora
   // non è noto (la libreria potrebbe dover ancora scaricarsi).
-  toast('✅ Ordine inviato!');
+  toast(ordini.length>1 ? '✅ '+ordini.length+' ordini inviati (uno per raccolta)!' : '✅ Ordine inviato!');
   backToCatalogo();
 }
 
